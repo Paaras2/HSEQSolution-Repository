@@ -1,4 +1,4 @@
-﻿using HSEQ.API.Domain;
+﻿using HSEQ.Domain;
 using HSEQ.Common;
 using HSEQ.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using HSEQ.Domain;
 
 namespace HSEQ.Domain
 {
@@ -16,7 +17,7 @@ namespace HSEQ.Domain
     {
         public static IServiceCollection AddDomainLayerServices(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<ApplicationDBContext>(options =>
+            services.AddDbContext<ApplicationDbContext>(options =>
             {
                 options
                 .UseSqlServer(AppSettingFactory.AppSetting.SqlConnection);

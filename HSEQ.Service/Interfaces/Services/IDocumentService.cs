@@ -2,9 +2,6 @@
 using HSEQ.API.Model.RequestModels;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace HSEQ.Service.Interfaces.Services
@@ -16,5 +13,9 @@ namespace HSEQ.Service.Interfaces.Services
         Task DeleteAsync(Guid documenttId);
         Task<List<DocumentDto>> GetAllAsync(bool includeDeactiveItems = true);
         Task<DocumentDto> GetByIdAsync(Guid id);
+        Task<PagedResult> GetAllPaginationAsync(
+            int pageNumber,
+            int pageSize,
+            bool includeDeactiveItems = true);
     }
 }

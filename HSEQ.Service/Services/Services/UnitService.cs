@@ -1,7 +1,9 @@
-﻿using HSEQ.API.Domain.Entities;
+﻿using HSEQ.Domain.Entities;
 using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
-using HSEQ.API.Ripository;
+
+using HSEQ.Common;
+using HSEQ.Service.Interfaces.Repositories;
 
 namespace HSEQ.API.Service
 {

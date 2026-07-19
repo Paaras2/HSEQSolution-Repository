@@ -1,4 +1,5 @@
 ﻿using HSEQ.API.Ripository;
+using HSEQ.API.Service;
 using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using HSEQ.Service.Services.Repositories;
@@ -23,7 +24,10 @@ namespace HSEQ.Service
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IUnitRepository, UnitRepository>();
+            services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IFileService, FileService>();
+            services.AddScoped<IUnitService, UnitService>();
+
             return services;
         }
     }

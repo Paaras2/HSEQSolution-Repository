@@ -1,14 +1,18 @@
 ﻿using HSEQ.Domain.Common;
-using System.ComponentModel.DataAnnotations;
-using System.Reflection.Metadata;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace HSEQ.API.Domain.Entities
+namespace HSEQ.Domain.Entities
 {
-    public class Unit:BaseEntity
+    public class Unit : BaseEntity
     {
-        [Key]
-        public Guid Key { get; set; }
         public string Title { get; set; }
 
+
+        //یعنی نوع این property یک مجموعه از Documentها است
+        public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
     }
 }

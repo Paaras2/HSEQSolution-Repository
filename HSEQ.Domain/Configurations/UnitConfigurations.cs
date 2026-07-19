@@ -1,5 +1,4 @@
-﻿using HSEQ.API.Domain.Entities;
-using HSEQ.Domain.Entities;
+﻿using HSEQ.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;

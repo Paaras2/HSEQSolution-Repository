@@ -3,7 +3,15 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+	  <Nullable>enable</Nullable>
+
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HSEQ.Domain\HSEQ.Domain.csproj" />
+    <ProjectReference Include="..\HSEQ.Shared\HSEQ.Shared.csproj" />
+	  <FrameworkReference Include="Microsoft.AspNetCore.App" />
+	  
+  </ItemGroup>
 
 </Project>

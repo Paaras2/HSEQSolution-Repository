@@ -1,8 +1,9 @@
-﻿using HSEQ.API.Domain;
+﻿
+using HSEQ.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
-namespace HSEQ.API.Ripository
+namespace HSEQ.Service.Services.Repositories
 {
     public class Repository<T> where T : class
 
@@ -105,5 +106,12 @@ namespace HSEQ.API.Ripository
         {
             _dbSet.Remove(entity);
         }
+
+
+
+        
+
+
+
     }
 }

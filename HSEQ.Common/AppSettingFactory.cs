@@ -16,24 +16,24 @@ namespace HSEQ.Common
             _configuration = configuration;
             AppSetting = new AppSetting
             {
-                SqlConnection = _configuration["ConnectionStrings:ConnectionStr"],
-                JwtSettings = new JwtSettings
-                {
-                    Key = _configuration["Jwt:Key"],
-                    Issuer = _configuration["Jwt:Issuer"],
-                    Audience = _configuration["Jwt:Audience"],
-                    ExpiryInMinutes = int.Parse(_configuration["Jwt:ExpiryInMinutes"])
-                },
-                OTPSettings = new OTPSettings
-                {
-                    Domain = _configuration["OTP:Domain"],
-                    From = _configuration["OTP:From"],
-                    Password = _configuration["OTP:Password"],
-                    Username = _configuration["OTP:Username"],
-                    Url = _configuration["OTP:Url"],
-                    ApiPassword = _configuration["OTP:ApiPassword"],
-                    ApiUsername = _configuration["OTP:ApiUsername"]
-                },
+                SqlConnection = _configuration["ConnectionStrings:DefaultConnection"],
+                //JwtSettings = new JwtSettings
+                //{
+                //    Key = _configuration["Jwt:Key"],
+                //    Issuer = _configuration["Jwt:Issuer"],
+                //    Audience = _configuration["Jwt:Audience"],
+                //    ExpiryInMinutes = int.Parse(_configuration["Jwt:ExpiryInMinutes"])
+                //},
+                //OTPSettings = new OTPSettings
+                //{
+                //    Domain = _configuration["OTP:Domain"],
+                //    From = _configuration["OTP:From"],
+                //    Password = _configuration["OTP:Password"],
+                //    Username = _configuration["OTP:Username"],
+                //    Url = _configuration["OTP:Url"],
+                //    ApiPassword = _configuration["OTP:ApiPassword"],
+                //    ApiUsername = _configuration["OTP:ApiUsername"]
+                //},
                 UploadPath = _configuration["UploadPath"]
             };
         }

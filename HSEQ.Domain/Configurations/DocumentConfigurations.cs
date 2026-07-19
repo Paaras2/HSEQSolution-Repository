@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,7 +15,7 @@ namespace HSEQ.Domain.Configurations
         {
             builder.ToTable("Documents").HasKey(r => r.Key);
 
-            builder.HasOne(d => d.Unit).WithMany(u => u.Documents).HasForeignKey(d => d.UnitId).OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne(d => d.Unit).WithMany(static u => u.Documents).HasForeignKey(d => d.UnitId).OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

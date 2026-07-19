@@ -16,6 +16,8 @@ namespace HSEQ.API.Model.RequestModels
         public DateTime? CurrentReviewDate { get; set; }
         public DocumentVersion LastVersion { get; set; }
         public Guid? RelatedDocumentId { get; set; }
+
+        //Namyande yek file upload shode dar asp.net
         public IFormFile File { get; set; }
         public Guid UnitId { get; set; }
     }

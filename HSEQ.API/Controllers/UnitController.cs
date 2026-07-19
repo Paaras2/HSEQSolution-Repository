@@ -1,5 +1,5 @@
-﻿using HSEQ.API.Domain;
-using HSEQ.API.Domain.Entities;
+﻿using HSEQ.Domain;
+using HSEQ.Domain.Entities;
 using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.API.Service;

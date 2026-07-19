@@ -1,4 +1,4 @@
-﻿using HSEQ.API.Domain;
+﻿using HSEQ.Domain;
 
 namespace HSEQ.Domain.Common
 {

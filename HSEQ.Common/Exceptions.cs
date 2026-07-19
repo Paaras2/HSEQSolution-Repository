@@ -14,12 +14,15 @@ namespace HSEQ.Common
         }
     }
 
-    public class Exceptions : CustomException
-    {
-        public Exceptions() : base("مدرک یافت نشد")
-        {
 
+
+    public class UnitNotFoundException : CustomException
+    {
+        public UnitNotFoundException() : base("واحد یافت نشد")
+        {
         }
     }
-
 }
+
+
+

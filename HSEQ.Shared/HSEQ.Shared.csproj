@@ -3,14 +3,17 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+	  <Nullable>enable</Nullable>
+
   </PropertyGroup>
 
   <ItemGroup>
     <Folder Include="Hash\" />
-    <Folder Include="Middlewares\" />
-    <Folder Include="Services\Interfaces\" />
-    <Folder Include="Services\Services\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HSEQ.API.Model\HSEQ.API.Model.csproj" />
+    <ProjectReference Include="..\HSEQ.Common\HSEQ.Common.csproj" />
   </ItemGroup>
 
 </Project>

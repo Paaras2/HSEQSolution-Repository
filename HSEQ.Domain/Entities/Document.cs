@@ -1,11 +1,5 @@
-﻿using HSEQ.API.Domain.Entities;
-using HSEQ.Common;
+﻿using HSEQ.Common;
 using HSEQ.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace HSEQ.Domain.Entities
 {
