@@ -24,10 +24,10 @@ namespace HSEQ.Service
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IUnitRepository, UnitRepository>();
-            services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IFileService, FileService>();
             services.AddScoped<IUnitService, UnitService>();
-
+            services.AddScoped<IAdminRepository, AdminRepository>();
+            services.AddScoped<IIsUserAdminService, IsUserAdminService>();
             return services;
         }
     }

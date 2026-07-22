@@ -6,31 +6,7 @@ using HSEQ.API.Service;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using HSEQ.Domain.Common;
-/*
-namespace HSEQ.API.Controllers
-{
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UnitController : ControllerBase
-    {
-        private readonly IUnitService _unitService;
-        public UnitController(IUnitService unitService)
-        {
-            _unitService = unitService;
-        }
 
-        [HttpPost]
-        [Route("Add")]
-        public IActionResult Add(string title)
-        {
-      
-            _unitService.AddUnit(title);
-            return Ok();
-
-        }
-    }
-}
-*/
 
 namespace HSEQ.API.Controllers
 {

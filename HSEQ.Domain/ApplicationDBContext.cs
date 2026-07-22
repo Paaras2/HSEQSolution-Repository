@@ -14,6 +14,8 @@ namespace HSEQ.Domain
         {
         }
 
+       
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
