@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HSEQ.API.Model\HSEQ.API.Model.csproj" />
     <ProjectReference Include="..\HSEQ.Domain\HSEQ.Domain.csproj" />
     <ProjectReference Include="..\HSEQ.Shared\HSEQ.Shared.csproj" />
 	  <FrameworkReference Include="Microsoft.AspNetCore.App" />

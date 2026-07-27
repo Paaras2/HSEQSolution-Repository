@@ -4,7 +4,7 @@ using System.Text;
 
 namespace HSEQ.Service.Interfaces.Services
 {
-    public interface IIsUserAdminService
+    public interface IAdminService
     {
         Task<bool> IsAdminAsync(int Pcode);
     }

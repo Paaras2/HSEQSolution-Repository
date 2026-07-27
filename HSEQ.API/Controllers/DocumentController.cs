@@ -2,6 +2,8 @@
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Domain.Common;
 using HSEQ.Service.Interfaces.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,25 +11,31 @@ namespace HSEQ.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class DocumentController : ControllerBase
     {
         private readonly IDocumentService _documentService;
         private readonly IUnitOfWork _unitOfWork;
-        public DocumentController(IDocumentService documentService, IUnitOfWork unitOfWork)
+        private readonly IUserService _userService;
+        public DocumentController(IDocumentService documentService, IUnitOfWork unitOfWork, IUserService userService)
         {
             _documentService = documentService;
             _unitOfWork = unitOfWork;
+            _userService = userService;
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [Route("Add")]
-        public async Task<IActionResult> Add([FromForm] CreateDocumentRequestModel request)
+        public async Task<IActionResult> Add([FromForm] CreateDocumentRequestModel req)
         {
-            await _documentService.AddAsync(request);
+            var pcode = _userService.GetPCodeFromToken(Request);
+            await _documentService.AddAsync(req, pcode);
             await _unitOfWork.SaveChangesAsync();
             return Ok();
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [Route("Update")]
         public async Task<IActionResult> Update([FromForm] UpdateDocumentRequestModel request)
@@ -37,6 +45,7 @@ namespace HSEQ.API.Controllers
             return Ok();
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [Route("Delete")]
         public async Task<IActionResult> Delete([FromForm] Guid documentId)
@@ -53,8 +62,6 @@ namespace HSEQ.API.Controllers
             var res = await _documentService.GetByIdAsync(documentId);
             return res;
         }
-
-
 
         // در فایل HSEQ.API/Controllers/DocumentController.cs
         [HttpGet("paged")]

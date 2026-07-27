@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HSEQ.Shared.Services.Interfaces
+namespace HSEQ.Service.Interfaces.Services
 {
     public interface IJwtService
     {
+        Task<string> GenerateJwtToken(string username);
     }
 }

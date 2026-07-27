@@ -6,6 +6,7 @@ using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace HSEQ.Service.Services.Services
 {
@@ -20,13 +21,13 @@ namespace HSEQ.Service.Services.Services
             _fileService = fileService;
         }
         //Add
-        public async Task AddAsync(CreateDocumentRequestModel request)
+        public async Task AddAsync(CreateDocumentRequestModel request, string pcode)
         {
 
             var fileName = await _fileService.SaveFileAsync(request.Number, request.File);
             var document = new Domain.Entities.Document
             {
-                CreatedByPCode = 2292,
+                CreatedByPCode = Convert.ToInt32(pcode),
                 CurrentReviewDate = request.CurrentReviewDate,
                 FileName = fileName,
                 FormerReviewDate = request.FormerReviewDate,

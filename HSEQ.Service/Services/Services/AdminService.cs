@@ -10,7 +10,7 @@ using System.Text;
 
 namespace HSEQ.Service.Services.Services
 {
-    public class IsUserAdminService : IIsUserAdminService
+    public class AdminService : IAdminService
     {
 
 
@@ -18,7 +18,7 @@ namespace HSEQ.Service.Services.Services
         private readonly IAdminRepository _adminRepository;
       
 
-        public IsUserAdminService(IAdminRepository adminRepository)
+        public AdminService(IAdminRepository adminRepository)
         {
             _adminRepository = adminRepository;
         }

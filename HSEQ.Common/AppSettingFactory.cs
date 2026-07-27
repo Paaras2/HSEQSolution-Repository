@@ -17,13 +17,13 @@ namespace HSEQ.Common
             AppSetting = new AppSetting
             {
                 SqlConnection = _configuration["ConnectionStrings:DefaultConnection"],
-                //JwtSettings = new JwtSettings
-                //{
-                //    Key = _configuration["Jwt:Key"],
-                //    Issuer = _configuration["Jwt:Issuer"],
-                //    Audience = _configuration["Jwt:Audience"],
-                //    ExpiryInMinutes = int.Parse(_configuration["Jwt:ExpiryInMinutes"])
-                //},
+                JwtSettings = new JwtSettings
+                {
+                    Key = _configuration["Jwt:Key"],
+                    Issuer = _configuration["Jwt:Issuer"],
+                    Audience = _configuration["Jwt:Audience"],
+                    ExpiryInMinutes = int.Parse(_configuration["Jwt:ExpiryInMinutes"])
+                },
                 //OTPSettings = new OTPSettings
                 //{
                 //    Domain = _configuration["OTP:Domain"],
@@ -34,7 +34,8 @@ namespace HSEQ.Common
                 //    ApiPassword = _configuration["OTP:ApiPassword"],
                 //    ApiUsername = _configuration["OTP:ApiUsername"]
                 //},
-                UploadPath = _configuration["UploadPath"]
+                UploadPath = _configuration["UploadPath"],
+                UMUrl = _configuration["UserManagementAPI:Url"],
             };
         }
     }
@@ -45,6 +46,7 @@ namespace HSEQ.Common
         public JwtSettings JwtSettings { get; set; }
         public OTPSettings OTPSettings { get; set; }
         public string UploadPath { get; set; }
+        public string UMUrl { get; set; }
     }
     public class JwtSettings
     {

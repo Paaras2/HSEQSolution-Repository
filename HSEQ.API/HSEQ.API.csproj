@@ -17,14 +17,15 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
+	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
+	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\HSEQ.Common\HSEQ.Common.csproj" />
     <ProjectReference Include="..\HSEQ.Domain\HSEQ.Domain.csproj" />
     <ProjectReference Include="..\HSEQ.Service\HSEQ.Service.csproj" />
+    <ProjectReference Include="..\HSEQ.Shared\HSEQ.Shared.csproj" />
   </ItemGroup>
 
 </Project>

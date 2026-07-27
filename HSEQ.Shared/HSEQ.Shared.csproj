@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.20.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.20.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\HSEQ.API.Model\HSEQ.API.Model.csproj" />
     <ProjectReference Include="..\HSEQ.Common\HSEQ.Common.csproj" />
   </ItemGroup>

@@ -1,17 +1,21 @@
-﻿using HSEQ.Domain;
-using HSEQ.Domain.Entities;
-using HSEQ.API.Model.Dtos;
+﻿using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.API.Service;
+using HSEQ.Domain;
+using HSEQ.Domain.Common;
+using HSEQ.Domain.Entities;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using HSEQ.Domain.Common;
 
 
 namespace HSEQ.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    
     public class UnitController : ControllerBase
     {
 
@@ -24,6 +28,7 @@ namespace HSEQ.API.Controllers
             _unitOfWork = unitOfWork;
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [Route("Add")]
         public async Task<IActionResult> Add([FromBody] CreateUnitRequestModel request)
@@ -33,6 +38,7 @@ namespace HSEQ.API.Controllers
             return Ok();
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [Route("Update")]
         public async Task<IActionResult> Update([FromBody] UpdateUnitRequestModel request)
@@ -42,6 +48,7 @@ namespace HSEQ.API.Controllers
             return Ok();
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [Route("Delete")]
         public async Task<IActionResult> Delete(Guid unitId)

@@ -8,7 +8,7 @@ namespace HSEQ.Service.Interfaces.Services
 {
     public interface IDocumentService
     {
-        Task AddAsync(CreateDocumentRequestModel request);
+        Task AddAsync(CreateDocumentRequestModel request, string pcode);
         Task UpdateAsync(UpdateDocumentRequestModel request);
         Task DeleteAsync(Guid documenttId);
         Task<List<DocumentDto>> GetAllAsync(bool includeDeactiveItems = true);

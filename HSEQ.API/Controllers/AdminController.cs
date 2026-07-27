@@ -7,9 +7,9 @@ namespace HSEQ.API.Controllers
     [ApiController]
     public class AdminController : ControllerBase
     {
-        private readonly IIsUserAdminService _isUserAdminService;
+        private readonly IAdminService _isUserAdminService;
 
-        public AdminController(IIsUserAdminService isUserAdminService)
+        public AdminController(IAdminService isUserAdminService)
         {
             _isUserAdminService = isUserAdminService;
         }

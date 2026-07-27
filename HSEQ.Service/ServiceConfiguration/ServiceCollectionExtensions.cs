@@ -4,8 +4,6 @@ using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using HSEQ.Service.Services.Repositories;
 using HSEQ.Service.Services.Services;
-using HSEQ.Shared.Services.Interfaces;
-using HSEQ.Shared.Services.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -26,8 +24,9 @@ namespace HSEQ.Service
             services.AddScoped<IUnitRepository, UnitRepository>();
             services.AddScoped<IFileService, FileService>();
             services.AddScoped<IUnitService, UnitService>();
+            services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAdminRepository, AdminRepository>();
-            services.AddScoped<IIsUserAdminService, IsUserAdminService>();
+            services.AddScoped<IAdminService, AdminService>();
             return services;
         }
     }
