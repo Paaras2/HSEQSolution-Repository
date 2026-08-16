@@ -1,4 +1,4 @@
-﻿using HSEQ.Common;
+using HSEQ.Common;
 using HSEQ.Domain.Common;
 
 namespace HSEQ.Domain.Entities
@@ -9,11 +9,32 @@ namespace HSEQ.Domain.Entities
         public string Name { get; set; }
         public DateTime? FormerReviewDate { get; set; }
         public DateTime? CurrentReviewDate { get; set; }
+
+        // Major revision letter (A-Z). Reused as-is from the pre-existing DocumentVersion enum.
         public DocumentVersion LastVersion { get; set; }
+
+        // Content revision (01-99). Only populated for Documents whose Project.IsProjectRelated == true.
+        // Null for non-project documents, which use LastVersion alone (A, B, C, ...).
+        public int? ContentRevision { get; set; }
+
+        // Raw allocated value from the global SQL Server SEQUENCE (SSS component, 1-999).
+        public int SerialNumber { get; set; }
+
         public Guid? RelatedDocumentId { get; set; }
         public string FileName { get; set; }
-        public Guid UnitId { get; set; }
-        public virtual Unit Unit { get; set; }
+
+        public Guid ProjectId { get; set; }
+        public virtual Project Project { get; set; }
+
+        public Guid OrganizationalManagementId { get; set; }
+        public virtual OrganizationalManagement OrganizationalManagement { get; set; }
+
+        public Guid OrganizationalActivityId { get; set; }
+        public virtual OrganizationalActivity OrganizationalActivity { get; set; }
+
+        public Guid DocumentTypeId { get; set; }
+        public virtual DocumentType DocumentType { get; set; }
+
         public int CreatedByPCode { get; set; }
     }
 }

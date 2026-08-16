@@ -22,6 +22,10 @@ namespace HSEQ.API.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("DocumentSerialSequence", "dbo")
+                .HasMin(1L)
+                .HasMax(999L);
+
             modelBuilder.Entity("HSEQ.Domain.Entities.Admin", b =>
                 {
                     b.Property<Guid>("Key")
@@ -51,6 +55,9 @@ namespace HSEQ.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("ContentRevision")
+                        .HasColumnType("int");
+
                     b.Property<int>("CreatedByPCode")
                         .HasColumnType("int");
 
@@ -59,6 +66,9 @@ namespace HSEQ.API.Migrations
 
                     b.Property<DateTime?>("CurrentReviewDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DocumentTypeId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -82,26 +92,50 @@ namespace HSEQ.API.Migrations
 
                     b.Property<string>("Number")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
+                    b.Property<Guid>("OrganizationalActivityId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationalManagementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("RelatedDocumentId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("UnitId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SerialNumber")
+                        .HasColumnType("int");
 
                     b.HasKey("Key");
 
-                    b.HasIndex("UnitId");
+                    b.HasIndex("DocumentTypeId");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationalActivityId");
+
+                    b.HasIndex("OrganizationalManagementId");
+
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("Documents", (string)null);
                 });
 
-            modelBuilder.Entity("HSEQ.Domain.Entities.Unit", b =>
+            modelBuilder.Entity("HSEQ.Domain.Entities.DocumentType", b =>
                 {
                     b.Property<Guid>("Key")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
 
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
@@ -118,21 +152,166 @@ namespace HSEQ.API.Migrations
 
                     b.HasKey("Key");
 
-                    b.ToTable("Units", (string)null);
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("DocumentTypes", (string)null);
+                });
+
+            modelBuilder.Entity("HSEQ.Domain.Entities.OrganizationalActivity", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrganizationalManagementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("OrganizationalManagementId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("OrganizationalActivities", (string)null);
+                });
+
+            modelBuilder.Entity("HSEQ.Domain.Entities.OrganizationalManagement", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("OrganizationalManagements", (string)null);
+                });
+
+            modelBuilder.Entity("HSEQ.Domain.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsProjectRelated")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Projects", (string)null);
                 });
 
             modelBuilder.Entity("HSEQ.Domain.Entities.Document", b =>
                 {
-                    b.HasOne("HSEQ.Domain.Entities.Unit", "Unit")
-                        .WithMany("Documents")
-                        .HasForeignKey("UnitId")
+                    b.HasOne("HSEQ.Domain.Entities.DocumentType", "DocumentType")
+                        .WithMany()
+                        .HasForeignKey("DocumentTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Unit");
+                    b.HasOne("HSEQ.Domain.Entities.OrganizationalActivity", "OrganizationalActivity")
+                        .WithMany()
+                        .HasForeignKey("OrganizationalActivityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HSEQ.Domain.Entities.OrganizationalManagement", "OrganizationalManagement")
+                        .WithMany()
+                        .HasForeignKey("OrganizationalManagementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HSEQ.Domain.Entities.Project", "Project")
+                        .WithMany("Documents")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DocumentType");
+
+                    b.Navigation("OrganizationalActivity");
+
+                    b.Navigation("OrganizationalManagement");
+
+                    b.Navigation("Project");
                 });
 
-            modelBuilder.Entity("HSEQ.Domain.Entities.Unit", b =>
+            modelBuilder.Entity("HSEQ.Domain.Entities.OrganizationalActivity", b =>
+                {
+                    b.HasOne("HSEQ.Domain.Entities.OrganizationalManagement", "OrganizationalManagement")
+                        .WithMany("Activities")
+                        .HasForeignKey("OrganizationalManagementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationalManagement");
+                });
+
+            modelBuilder.Entity("HSEQ.Domain.Entities.OrganizationalManagement", b =>
+                {
+                    b.Navigation("Activities");
+                });
+
+            modelBuilder.Entity("HSEQ.Domain.Entities.Project", b =>
                 {
                     b.Navigation("Documents");
                 });

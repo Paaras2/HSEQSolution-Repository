@@ -1,4 +1,4 @@
-﻿using HSEQ.API.Model.Dtos;
+using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Common;
 using HSEQ.Shared.Interfaces.Services;
@@ -37,14 +37,19 @@ namespace HSEQ.Shared.Services.Services
             {
                 throw;
             }
-            catch (HttpRequestException ex) when (ex.InnerException is SocketException socketEx && socketEx.SocketErrorCode == SocketError.ConnectionRefused)
+            // Any transport-level failure reaching the User Management service - refused,
+            // unreachable host, DNS failure, TLS failure, timeout - must surface as a
+            // graceful "service unavailable" response, not an unhandled 500. Previously
+            // only SocketError.ConnectionRefused was caught here; every other connectivity
+            // failure (e.g. an unreachable internal host) fell through uncaught.
+            catch (HttpRequestException)
+            {
+                throw new ExternalAuthException("Cannot connect to authentication service. Please try again later.", 503);
+            }
+            catch (TaskCanceledException)
             {
                 throw new ExternalAuthException("Cannot connect to authentication service. Please try again later.", 503);
             }
         }
-
-        
-
-        
     }
 }

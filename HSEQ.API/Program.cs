@@ -1,4 +1,3 @@
-using HSEQ.API.Service;
 using HSEQ.API.ServiceConfiguration;
 using HSEQ.Common;
 using HSEQ.Domain;
@@ -71,7 +70,10 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = string.Empty;
 });
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors("Cors");
 app.UseAuthentication();

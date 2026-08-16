@@ -1,5 +1,3 @@
-﻿using HSEQ.API.Ripository;
-using HSEQ.API.Service;
 using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using HSEQ.Service.Services.Repositories;
@@ -21,12 +19,14 @@ namespace HSEQ.Service
             services.AddScoped<ISeedDatabase, SeedDatabase>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IDocumentService, DocumentService>();
-            services.AddScoped<IUnitRepository, UnitRepository>();
             services.AddScoped<IFileService, FileService>();
-            services.AddScoped<IUnitService, UnitService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAdminRepository, AdminRepository>();
             services.AddScoped<IAdminService, AdminService>();
+            services.AddScoped<IDocumentNumberingRepository, DocumentNumberingRepository>();
+            services.AddScoped<IDocumentNumberGeneratorService, DocumentNumberGeneratorService>();
+            services.AddScoped<IMasterDataRepository, MasterDataRepository>();
+            services.AddScoped<IMasterDataService, MasterDataService>();
             return services;
         }
     }

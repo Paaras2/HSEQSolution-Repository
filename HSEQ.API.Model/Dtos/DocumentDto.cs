@@ -1,9 +1,5 @@
-﻿using HSEQ.Common;
+using HSEQ.Common;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace HSEQ.API.Model.Dtos
 {
@@ -16,11 +12,15 @@ namespace HSEQ.API.Model.Dtos
         public DateTime? CurrentReviewDate { get; set; }
         public string? CurrentReviewShamsiDate { get; set; }
         public DocumentVersion LastVersion { get; set; }
+        public int? ContentRevision { get; set; }
+        public int SerialNumber { get; set; }
         public Guid? RelatedDocumentId { get; set; }
         public string? RelatedDocumentNumber { get; set; }
         public string FileName { get; set; }
-        public Guid UnitId { get; set; }
-        public string? UnitTitle { get; set; }
+        public Guid ProjectId { get; set; }
+        public Guid OrganizationalManagementId { get; set; }
+        public Guid OrganizationalActivityId { get; set; }
+        public Guid DocumentTypeId { get; set; }
         public string? File { set; get; }
         public int CreatedByPCode { get; set; }
     }

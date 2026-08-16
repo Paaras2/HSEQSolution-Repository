@@ -1,4 +1,4 @@
-﻿using HSEQ.API.Model.Dtos;
+using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Common;
 using HSEQ.Domain.Entities;
@@ -14,17 +14,27 @@ namespace HSEQ.Service.Services.Services
     {
         private readonly IDocumentRepository _documentRepository;
         private readonly IFileService _fileService;
+        private readonly IDocumentNumberGeneratorService _documentNumberGenerator;
 
-        public DocumentService(IDocumentRepository documentRepository, IFileService fileService)
+        public DocumentService(
+            IDocumentRepository documentRepository,
+            IFileService fileService,
+            IDocumentNumberGeneratorService documentNumberGenerator)
         {
             _documentRepository = documentRepository;
             _fileService = fileService;
+            _documentNumberGenerator = documentNumberGenerator;
         }
         //Add
         public async Task AddAsync(CreateDocumentRequestModel request, string pcode)
         {
+            var generated = await _documentNumberGenerator.GenerateAsync(
+                request.ProjectId,
+                request.OrganizationalManagementId,
+                request.OrganizationalActivityId,
+                request.DocumentTypeId);
 
-            var fileName = await _fileService.SaveFileAsync(request.Number, request.File);
+            var fileName = await _fileService.SaveFileAsync(generated.Number, request.File);
             var document = new Domain.Entities.Document
             {
                 CreatedByPCode = Convert.ToInt32(pcode),
@@ -32,10 +42,15 @@ namespace HSEQ.Service.Services.Services
                 FileName = fileName,
                 FormerReviewDate = request.FormerReviewDate,
                 IsActive = true,
-                LastVersion = request.LastVersion,
-                UnitId = request.UnitId,
+                Number = generated.Number,
+                SerialNumber = generated.SerialNumber,
+                LastVersion = generated.LastVersion,
+                ContentRevision = generated.ContentRevision,
+                ProjectId = request.ProjectId,
+                OrganizationalManagementId = request.OrganizationalManagementId,
+                OrganizationalActivityId = request.OrganizationalActivityId,
+                DocumentTypeId = request.DocumentTypeId,
                 Name = request.Name,
-                Number = request.Number,
                 RelatedDocumentId = request.RelatedDocumentId
             };
 
@@ -44,34 +59,25 @@ namespace HSEQ.Service.Services.Services
         //Update
         public async Task UpdateAsync(UpdateDocumentRequestModel request)
         {
-
-
             var document = await _documentRepository.GetByIdAsync(request.Key);
             if (document == null)
                 throw new DocumentNotFoundException();
 
-            string fileName = string.Empty;
             if (request.File != null)
             {
-                fileName = await _fileService.SaveFileAsync(request.Number, request.File);
+                document.FileName = await _fileService.SaveFileAsync(document.Number, request.File);
             }
 
-            document.UnitId = request.UnitId;
             document.Name = request.Name;
-            document.Number = request.Number;
-            document.LastVersion = request.LastVersion;
             document.CurrentReviewDate = request.CurrentReviewDate;
             document.RelatedDocumentId = request.RelatedDocumentId;
             document.FormerReviewDate = request.FormerReviewDate;
-            document.FileName = fileName;
 
             await _documentRepository.UpdateAsync(document);
-
         }
         //Delete
         public async Task DeleteAsync(Guid documentId)
         {
-
             var document = await _documentRepository.GetByIdAsync(documentId);
             if (document == null)
                 throw new DocumentNotFoundException();
@@ -101,12 +107,16 @@ namespace HSEQ.Service.Services.Services
                 IsActive = document.IsActive,
                 Key = document.Key,
                 LastVersion = document.LastVersion,
+                ContentRevision = document.ContentRevision,
+                SerialNumber = document.SerialNumber,
                 ModifiedDate = document.ModifiedDate,
                 Name = document.Name,
                 Number = document.Number,
                 RelatedDocumentId = document.RelatedDocumentId,
-                UnitId = document.UnitId,
-                // UnitTitle = document.Unit.Title
+                ProjectId = document.ProjectId,
+                OrganizationalManagementId = document.OrganizationalManagementId,
+                OrganizationalActivityId = document.OrganizationalActivityId,
+                DocumentTypeId = document.DocumentTypeId,
             };
         }
         //Pagination
@@ -158,11 +168,15 @@ namespace HSEQ.Service.Services.Services
                 FormerReviewDate = document.FormerReviewDate,
                 CurrentReviewDate = document.CurrentReviewDate,
                 LastVersion = document.LastVersion,
+                ContentRevision = document.ContentRevision,
+                SerialNumber = document.SerialNumber,
                 RelatedDocumentId = document.RelatedDocumentId,
                 RelatedDocumentNumber = null,
                 FileName = document.FileName,
-                UnitId = document.UnitId,
-                UnitTitle = document.Unit?.Title,
+                ProjectId = document.ProjectId,
+                OrganizationalManagementId = document.OrganizationalManagementId,
+                OrganizationalActivityId = document.OrganizationalActivityId,
+                DocumentTypeId = document.DocumentTypeId,
                 File = null,
                 CreatedByPCode = document.CreatedByPCode
             };

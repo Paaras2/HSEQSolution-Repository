@@ -1,4 +1,4 @@
-﻿using HSEQ.Domain.Entities;
+using HSEQ.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
@@ -15,7 +15,36 @@ namespace HSEQ.Domain.Configurations
         {
             builder.ToTable("Documents").HasKey(r => r.Key);
 
-            builder.HasOne(d => d.Unit).WithMany(static u => u.Documents).HasForeignKey(d => d.UnitId).OnDelete(DeleteBehavior.Restrict);
+            // Max length: PPPP(4)+O(1)+AA(2)+DD(2)+SSS(3)+R(up to 3 for "Z99") = 15.
+            builder.Property(d => d.Number)
+                .IsRequired()
+                .HasMaxLength(15);
+
+            builder.HasIndex(d => d.Number).IsUnique();
+
+            builder.HasOne(d => d.Project)
+                .WithMany(p => p.Documents)
+                .HasForeignKey(d => d.ProjectId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(d => d.OrganizationalManagement)
+                .WithMany()
+                .HasForeignKey(d => d.OrganizationalManagementId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(d => d.OrganizationalActivity)
+                .WithMany()
+                .HasForeignKey(d => d.OrganizationalActivityId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(d => d.DocumentType)
+                .WithMany()
+                .HasForeignKey(d => d.DocumentTypeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

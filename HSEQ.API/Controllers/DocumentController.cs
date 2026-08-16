@@ -1,4 +1,4 @@
-﻿using HSEQ.API.Model.Dtos;
+using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Domain.Common;
 using HSEQ.Service.Interfaces.Services;
@@ -65,9 +65,12 @@ namespace HSEQ.API.Controllers
 
         // در فایل HSEQ.API/Controllers/DocumentController.cs
         [HttpGet("paged")]
-        public async Task<IActionResult> GetAllPaged([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllPaged(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool includeInactiveItems = false)
         {
-            var result = await _documentService.GetAllPaginationAsync(pageNumber, pageSize);
+            var result = await _documentService.GetAllPaginationAsync(pageNumber, pageSize, includeInactiveItems);
             return Ok(result);
         }
 

@@ -1,4 +1,4 @@
-﻿using HSEQ.Common;
+using HSEQ.Common;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.AspNetCore.Http;
 
@@ -20,6 +20,12 @@ namespace HSEQ.Service.Services.Services
                 throw new ArgumentNullException(nameof(file));
 
             var folderPath = _uploadPath;
+
+            // Defensive: UploadPath is an environment-specific absolute path (see
+            // appsettings.json) that isn't guaranteed to already exist on a given
+            // machine/deployment - creating it here avoids an unhandled
+            // DirectoryNotFoundException turning into a bare 500 on first upload.
+            Directory.CreateDirectory(folderPath);
 
             // Get file extension from uploaded file, keep it (including the dot)
             var extension = Path.GetExtension(file.FileName);

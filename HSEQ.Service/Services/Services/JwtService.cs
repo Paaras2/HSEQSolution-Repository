@@ -1,4 +1,4 @@
-﻿using HSEQ.Common;
+using HSEQ.Common;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -48,6 +48,31 @@ namespace HSEQ.Service.Services.Services
             );
             var tk = new JwtSecurityTokenHandler().WriteToken(token);
             return tk;
+        }
+
+        // Dev-only shortcut used by AuthController.DevLogin to mint a token with an
+        // explicit role claim, bypassing the UM service and the Admins table lookup
+        // entirely - so it keeps working locally even when those are unreachable.
+        public Task<string> GenerateDevToken(string username, string role)
+        {
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, username),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.Role, role),
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: _issuer,
+                audience: _audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(_expiresMin),
+                signingCredentials: credentials
+            );
+            var tk = new JwtSecurityTokenHandler().WriteToken(token);
+            return Task.FromResult(tk);
         }
     }
 }
