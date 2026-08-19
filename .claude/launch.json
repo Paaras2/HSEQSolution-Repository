@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hseq-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "HSEQ.API/HSEQ.API.csproj"],
+      "port": 6270,
+      "url": "http://localhost:6270"
+    },
+    {
+      "name": "hseq-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "hseq-client", "run", "dev"],
+      "port": 5173,
+      "url": "http://localhost:5173"
+    }
+  ]
+}
