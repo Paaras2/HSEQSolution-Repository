@@ -24,7 +24,7 @@ export function AppShell() {
           >
             منو
           </button>
-          <span className="app-header__brand-mark">HS</span>
+          <img src="/brand/logo-icon.png" alt="ODCC" className="app-header__brand-mark" />
           <span>مدیریت اسناد HSEQ</span>
         </div>
 
@@ -45,8 +45,11 @@ export function AppShell() {
             <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
               داشبورد
             </NavLink>
-            <NavLink to="/documents" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
+            <NavLink to="/documents" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
               اسناد
+            </NavLink>
+            <NavLink to="/documents/search" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
+              جستجوی پیشرفته
             </NavLink>
           </nav>
         </aside>

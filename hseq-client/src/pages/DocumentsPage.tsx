@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { documentApi } from '../api/documentApi'
-import { masterDataApi } from '../api/masterDataApi'
 import { ApiError } from '../lib/httpClient'
 import { documentVersionLabel } from '../types/api'
 import type { DocumentDto } from '../types/api'
 import { DocumentFormDrawer } from '../components/DocumentFormDrawer'
-import type { DocumentLookups } from '../components/DocumentFormDrawer'
+import { RevisionHistoryDrawer } from '../components/RevisionHistoryDrawer'
+import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { LoadingState, EmptyState, ErrorState } from '../components/StateViews'
 
 const PAGE_SIZE = 10
@@ -14,7 +15,12 @@ const PAGE_SIZE = 10
 // set - the paged API has no search parameter yet. See Known Limitations.
 const FETCH_SIZE = 500
 
-type DrawerState = { mode: 'add' } | { mode: 'edit'; document: DocumentDto } | null
+// Creating a document lives on its own route (/documents/new), so only the
+// row-scoped actions open as dialogs here.
+type DrawerState =
+  | { mode: 'edit'; document: DocumentDto }
+  | { mode: 'revise'; document: DocumentDto }
+  | null
 
 export function DocumentsPage() {
   const { hasCapability } = useAuth()
@@ -27,9 +33,10 @@ export function DocumentsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
-  const [lookups, setLookups] = useState<DocumentLookups | null>(null)
   const [drawer, setDrawer] = useState<DrawerState>(null)
+  const [historyDocument, setHistoryDocument] = useState<DocumentDto | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingFileId, setPendingFileId] = useState<string | null>(null)
 
   const loadDocuments = useCallback(() => {
     setIsLoading(true)
@@ -55,27 +62,43 @@ export function DocumentsPage() {
     setPage(1)
   }, [search, includeInactive])
 
-  async function ensureLookupsLoaded() {
-    if (lookups) return lookups
-    const [projects, managements, activities, documentTypes] = await Promise.all([
-      masterDataApi.getProjects(),
-      masterDataApi.getManagements(),
-      masterDataApi.getActivities(),
-      masterDataApi.getDocumentTypes(),
-    ])
-    const loaded = { projects, managements, activities, documentTypes }
-    setLookups(loaded)
-    return loaded
-  }
-
-  async function openAddDrawer() {
-    await ensureLookupsLoaded()
-    setDrawer({ mode: 'add' })
-  }
-
-  async function openEditDrawer(document: DocumentDto) {
-    await ensureLookupsLoaded()
+  // Editing and revising never needed the master-data lookups - only the create
+  // form did, and that now loads them itself on /documents/new.
+  function openEditDrawer(document: DocumentDto) {
     setDrawer({ mode: 'edit', document })
+  }
+
+  function openReviseDrawer(document: DocumentDto) {
+    setDrawer({ mode: 'revise', document })
+  }
+
+  // Viewing is available to every authenticated user, not just canManage - the
+  // Download route is not Admin-restricted either.
+  async function handleView(document: DocumentDto) {
+    if (pendingFileId) return
+    setPendingFileId(document.key)
+    try {
+      const opened = await viewDocumentFile(document.key)
+      if (!opened) {
+        window.alert('مرورگر از باز شدن پنجره جلوگیری کرد. لطفاً به‌جای مشاهده، دانلود کنید.')
+      }
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : 'امکان باز کردن فایل وجود ندارد.')
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
+  async function handleDownload(document: DocumentDto) {
+    if (pendingFileId) return
+    setPendingFileId(document.key)
+    try {
+      await downloadDocumentFile(document.key, document.fileName ?? document.number)
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : 'امکان دانلود فایل وجود ندارد.')
+    } finally {
+      setPendingFileId(null)
+    }
   }
 
   async function handleDelete(document: DocumentDto) {
@@ -131,9 +154,9 @@ export function DocumentsPage() {
               نمایش غیرفعال‌ها
             </label>
             {canManage && (
-              <button type="button" className="btn btn-primary" onClick={openAddDrawer}>
+              <Link to="/documents/new" className="btn btn-primary">
                 افزودن سند
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -168,13 +191,20 @@ export function DocumentsPage() {
                     <th>بازنگری</th>
                     <th>تاریخ بازبینی</th>
                     <th>وضعیت</th>
-                    {canManage && <th>عملیات</th>}
+                    {/* Always rendered: viewing a document's file is available to every
+                        authenticated user, so this column is no longer manage-only. */}
+                    <th>عملیات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageItems.map((doc) => (
                     <tr key={doc.key}>
-                      <td className="mono">{doc.number}</td>
+                      <td className="mono">
+                        {doc.number}
+                        {doc.relatedDocumentNumber && (
+                          <span className="row-subtext">بازنگری از {doc.relatedDocumentNumber}</span>
+                        )}
+                      </td>
                       <td>{doc.name}</td>
                       <td>
                         {documentVersionLabel(doc.lastVersion)}
@@ -182,27 +212,65 @@ export function DocumentsPage() {
                       </td>
                       <td>{doc.currentReviewDate ? doc.currentReviewDate.slice(0, 10) : '—'}</td>
                       <td>
-                        <span className={`badge ${doc.isActive ? 'badge-success' : 'badge-muted'}`}>
-                          {doc.isActive ? 'فعال' : 'غیرفعال'}
-                        </span>
+                        {/* A superseded revision is also inactive, so it has to be
+                            checked first - otherwise history reads as "deleted". */}
+                        {doc.isSuperseded ? (
+                          <span className="badge badge-muted">منسوخ (بازنگری شده)</span>
+                        ) : (
+                          <span className={`badge ${doc.isActive ? 'badge-success' : 'badge-danger'}`}>
+                            {doc.isActive ? 'فعال' : 'غیرفعال'}
+                          </span>
+                        )}
                       </td>
-                      {canManage && (
-                        <td className="actions-cell">
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEditDrawer(doc)}>
-                            ویرایش
+                      <td className="actions-cell">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleView(doc)}
+                          disabled={pendingFileId !== null}
+                        >
+                          {pendingFileId === doc.key ? 'در حال باز کردن...' : 'مشاهده'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleDownload(doc)}
+                          disabled={pendingFileId !== null}
+                        >
+                          دانلود
+                        </button>
+                        {/* Only meaningful once the chain has more than one link: either
+                            this revision superseded an earlier one, or it was superseded. */}
+                        {(doc.relatedDocumentNumber || doc.isSuperseded) && (
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setHistoryDocument(doc)}>
+                            تاریخچه
                           </button>
-                          {doc.isActive && (
-                            <button
-                              type="button"
-                              className="btn btn-danger btn-sm"
-                              onClick={() => handleDelete(doc)}
-                              disabled={pendingDeleteId === doc.key}
-                            >
-                              {pendingDeleteId === doc.key ? 'در حال غیرفعال کردن...' : 'غیرفعال کردن'}
+                        )}
+                        {canManage && (
+                          <>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEditDrawer(doc)}>
+                              ویرایش
                             </button>
-                          )}
-                        </td>
-                      )}
+                            {/* Revising a superseded revision would fork the chain, which
+                                the server rejects - so don't offer it. */}
+                            {doc.isActive && !doc.isSuperseded && (
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => openReviseDrawer(doc)}>
+                                بازنگری
+                              </button>
+                            )}
+                            {doc.isActive && (
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleDelete(doc)}
+                                disabled={pendingDeleteId === doc.key}
+                              >
+                                {pendingDeleteId === doc.key ? 'در حال غیرفعال کردن...' : 'غیرفعال کردن'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -232,17 +300,23 @@ export function DocumentsPage() {
         )}
       </div>
 
-      {drawer && lookups && (
+      {drawer && (
         <DocumentFormDrawer
+          // Remounts when the target changes, so the form's initial state is
+          // re-derived from the new document instead of being kept from the old one.
+          key={`${drawer.mode}-${drawer.document.key}`}
           mode={drawer.mode}
-          document={drawer.mode === 'edit' ? drawer.document : undefined}
-          lookups={lookups}
+          document={drawer.document}
           onClose={() => setDrawer(null)}
           onSaved={() => {
             setDrawer(null)
             loadDocuments()
           }}
         />
+      )}
+
+      {historyDocument && (
+        <RevisionHistoryDrawer document={historyDocument} onClose={() => setHistoryDocument(null)} />
       )}
     </div>
   )

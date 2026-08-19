@@ -81,6 +81,32 @@ export async function apiGet<T>(path: string, params?: Record<string, string | n
   return handleResponse<T>(response)
 }
 
+// Same auth/error handling as apiGet, but keeps the response as binary. Needed
+// because the file routes are Bearer-protected: a plain <a href> or window.open
+// would not carry the Authorization header, so files have to be fetched here and
+// handed to the browser as a blob URL.
+export async function apiGetBlob(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<Blob> {
+  const url = new URL(API_BASE_URL + path)
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) url.searchParams.set(key, String(value))
+    }
+  }
+
+  const response = await fetch(url, { headers: { ...authHeaders() } })
+
+  if (!response.ok) {
+    // Errors still come back as the API's usual JSON envelope, so reuse the shared
+    // status handling instead of surfacing a broken blob.
+    await handleResponse<unknown>(response)
+  }
+
+  return response.blob()
+}
+
 export async function apiPostForm<T>(path: string, body: FormData | URLSearchParams): Promise<T> {
   const response = await fetch(API_BASE_URL + path, {
     method: 'POST',

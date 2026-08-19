@@ -5,6 +5,8 @@ import { AppShell } from './components/AppShell'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentsPage } from './pages/DocumentsPage'
+import { DocumentCreatePage } from './pages/DocumentCreatePage'
+import { AdvancedSearchPage } from './pages/AdvancedSearchPage'
 
 // Route tree is intentionally flat now but grouped so an admin branch can be
 // added later (nested under AppShell, gated by requireCapability set to
@@ -20,6 +22,10 @@ function App() {
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
               <Route path="documents" element={<DocumentsPage />} />
+              <Route path="documents/search" element={<AdvancedSearchPage />} />
+              {/* Creating a document is its own destination, so it is linkable and
+                  survives a refresh. Editing/revising stay as dialogs on the list. */}
+              <Route path="documents/new" element={<DocumentCreatePage />} />
             </Route>
           </Route>
 

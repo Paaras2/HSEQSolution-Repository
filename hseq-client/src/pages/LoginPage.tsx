@@ -78,7 +78,7 @@ export function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-card__brand">
-          <span className="login-card__brand-mark">HS</span>
+          <img src="/brand/logo-icon.png" alt="ODCC" className="login-card__brand-mark" />
           <h1>مدیریت اسناد HSEQ</h1>
           <p>برای ادامه، با کد پرسنلی خود وارد شوید</p>
         </div>

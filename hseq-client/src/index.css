@@ -1,22 +1,45 @@
 :root {
-  --color-bg: #fff8d4;
+  /* پس‌زمینه‌ی صفحه و حاشیه‌ها - خاکستری روشنِ هم‌خانواده‌ی رنگ چهارم پالت */
+  --color-bg: #f4f5f6;
   --color-surface: #ffffff;
-  --color-border: #e4e1cc;
-  --color-text: #313647;
-  --color-text-muted: #435663;
-  --color-primary: #313647;
-  --color-primary-hover: #262a35;
-  --color-primary-soft: #e6ebda;
-  --color-danger: #b15d45;
-  --color-danger-soft: #f6e7e1;
-  --color-success: #5c6b49;
-  --color-success-soft: #eaeedf;
-  --color-warning: #b98b2e;
-  --color-warning-soft: #fbf1da;
+  --color-border: #b8bfc1;
+
+  /* متن اصلی و متن کم‌رنگ - مستقیماً از کد رنگی‌های جدید */
+  --color-text: #2c4c5c;
+  --color-text-muted: #6c8494;
+
+  /* رنگ برند اصلی (دکمه‌ها، هدر/سایدبار، لینک‌های فعال) و حالت‌های آن */
+  --color-primary: #2c4c5c;
+  --color-primary-hover: #6c8494;
+  --color-primary-soft: #cad2d6;
+
+  /* رنگ ثانویه برای جزئیات کمکی (مثلاً هاور دکمه‌ی ثانویه) */
+  --color-secondary: #6c8494;
+
+  /* زرد پرکنتراست پالت - فقط برای لهجه‌های تزئینی روی سطح تیره (نه متن روی سطح روشن،
+     چون کنتراست زرد روی پس‌زمینه‌ی سفید برای متن/فوکوس کافی نیست) */
+  --color-accent: #f3e308;
+
+  /* رنگ تیره‌ی برند برای هدر/سایدبار تیره و پس‌زمینه‌ی صفحه‌ی ورود */
+  --color-ink: #2c4c5c;
+  --color-ink-soft: #6c8494;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #b8bfc1;
+
+  /* رنگ‌های وضعیت (خطا/موفقیت/هشدار) - بدون تغییر، مستقل از پالت برند */
+  --color-danger: #d64545;
+  --color-danger-soft: #fbe7e7;
+  --color-success: #1f9d6b;
+  --color-success-soft: #e3f6ee;
+  --color-warning: #e0a72a;
+  --color-warning-soft: #fdf3dc;
+
   --radius-sm: 6px;
   --radius-md: 10px;
-  --shadow-card: 0 1px 2px rgba(49, 54, 71, 0.08), 0 1px 3px rgba(49, 54, 71, 0.1);
-  --shadow-panel: 0 0 24px rgba(49, 54, 71, 0.16);
+  --radius-lg: 16px;
+  --shadow-card: 0 1px 2px rgba(44, 76, 92, 0.08), 0 1px 3px rgba(44, 76, 92, 0.1);
+  --shadow-panel: 0 0 24px rgba(44, 76, 92, 0.16);
+  --shadow-modal: 0 24px 64px rgba(44, 76, 92, 0.28), 0 4px 12px rgba(44, 76, 92, 0.12);
   --header-height: 60px;
   --sidebar-width: 224px;
   font-synthesis: none;
@@ -47,6 +70,7 @@ select {
   font-family: inherit;
 }
 
+/* لینک‌ها با رنگ اصلی برند - زرد تاکیدی برای متن روی سطح روشن مناسب نیست */
 a {
   color: var(--color-primary);
 }
@@ -57,6 +81,7 @@ a {
   flex-direction: column;
 }
 
+/* هدر با پس‌زمینه‌ی تیره‌ی برند برای ظاهر سازمانی‌تر */
 .app-header {
   height: var(--header-height);
   flex-shrink: 0;
@@ -65,8 +90,9 @@ a {
   justify-content: space-between;
   gap: 16px;
   padding: 0 20px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-ink);
+  /* نوار زرد پررنگ زیر هدر - لهجه‌ی تزئینی پالت جدید */
+  border-bottom: 3px solid var(--color-accent);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -78,24 +104,27 @@ a {
   gap: 12px;
   font-weight: 600;
   font-size: 17px;
-  color: var(--color-text);
+  color: var(--color-on-ink);
 }
 
 .app-header__brand-mark {
-  display: grid;
-  place-items: center;
-  width: 34px;
+  display: block;
   height: 34px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.02em;
+  width: auto;
 }
 
 .app-header__menu-toggle {
   display: none;
+}
+
+/* دکمه‌ی «شفاف» داخل هدر تیره باید روشن دیده بشه، نه هم‌رنگ پس‌زمینه */
+.app-header .btn-ghost {
+  color: var(--color-on-ink);
+}
+
+.app-header .btn-ghost:hover:not(:disabled) {
+  background: var(--color-ink-soft);
+  color: var(--color-on-ink);
 }
 
 .app-header__user {
@@ -112,11 +141,12 @@ a {
 .app-header__user-name {
   font-weight: 600;
   font-size: 14px;
+  color: var(--color-on-ink);
 }
 
 .app-header__user-role {
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--color-on-ink-muted);
 }
 
 .app-body {
@@ -125,11 +155,12 @@ a {
   min-height: 0;
 }
 
+/* سایدبار هم‌رنگ هدر تیره می‌شه تا پوسته‌ی برنامه یک‌دست به نظر برسه */
 .app-sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  background: var(--color-surface);
-  border-inline-start: 1px solid var(--color-border);
+  background: var(--color-ink);
+  border-inline-start: 1px solid var(--color-ink-soft);
   padding: 16px 12px;
 }
 
@@ -139,26 +170,30 @@ a {
   gap: 4px;
 }
 
+/* آیتم‌های منو روی پس‌زمینه‌ی تیره: حالت پیش‌فرض کم‌رنگ‌تر، فعال با رنگ برند */
 .nav-link {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  color: var(--color-on-ink-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 .nav-link:hover {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-ink-soft);
+  color: var(--color-on-ink);
 }
 
+/* آیتم فعال منو با یک نوار زرد کنار خط، برای نشون‌دادن صفحه‌ی جاری */
 .nav-link.active {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-ink);
+  border-inline-start: 3px solid var(--color-accent);
+  padding-inline-start: 9px;
 }
 
 .app-main {
@@ -182,9 +217,12 @@ a {
   flex-wrap: wrap;
 }
 
+/* نوار تاکیدی زرد کنار عنوان اصلی هر صفحه - تنها جایی که رنگ برند به این اندازه پررنگ استفاده می‌شود */
 .page-header h1 {
   margin: 0 0 4px;
   font-size: 22px;
+  padding-inline-start: 12px;
+  border-inline-start: 4px solid var(--color-accent);
 }
 
 .page-header p {
@@ -193,9 +231,11 @@ a {
   font-size: 14px;
 }
 
+/* ستون‌فقرات رنگی کنار هر کارت - همون لهجه‌ی رنگی که قبلاً فقط توی هدر/سایدبار بود، حالا توی محتوای اصلی هم دیده می‌شود */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
+  border-inline-start: 3px solid var(--color-primary);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
 }
@@ -219,6 +259,7 @@ a {
   font-size: 14px;
 }
 
+/* حلقه‌ی فوکوس با رنگ اصلی برند - روی زمینه‌ی روشن کنتراست کافی داره */
 .search-input:focus,
 .text-input:focus,
 .select-input:focus {
@@ -261,8 +302,11 @@ a {
   color: var(--color-text);
 }
 
+/* در حالت هاور، حاشیه و متن به رنگ ثانویه‌ی برند تغییر می‌کنه */
 .btn-secondary:hover:not(:disabled) {
   background: var(--color-bg);
+  border-color: var(--color-secondary);
+  color: var(--color-secondary);
 }
 
 .btn-danger {
@@ -318,14 +362,18 @@ table.data-table {
   vertical-align: middle;
 }
 
+/* هاور محسوس‌تر روی ردیف جدول - قبلاً با رنگ پس‌زمینه‌ی صفحه یکی بود و عملاً دیده نمی‌شد */
 .data-table tbody tr:hover {
-  background: var(--color-bg);
+  background: var(--color-primary-soft);
 }
 
 .data-table td.actions-cell {
   display: flex;
   gap: 6px;
   justify-content: flex-end;
+  /* View/download/history sit alongside the manage actions now, so the row can
+     carry more buttons than fit on one line at narrow widths. */
+  flex-wrap: wrap;
 }
 
 .mono {
@@ -337,6 +385,70 @@ table.data-table {
 
 .text-muted {
   color: var(--color-text-muted);
+}
+
+/* Secondary line inside a table cell, e.g. the revision a row was derived from. */
+.row-subtext {
+  display: block;
+  margin-block-start: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Revision history: one card per revision, oldest first. */
+.revision-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.revision-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--color-surface);
+}
+
+/* The revision the drawer was opened from, so it stays findable in a long chain. */
+.revision-item.is-current-row {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.revision-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-end: 10px;
+}
+
+.revision-item__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0 0 12px;
+}
+
+.revision-item__meta dt {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-block-end: 2px;
+}
+
+.revision-item__meta dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.revision-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .badge {
@@ -351,6 +463,12 @@ table.data-table {
 .badge-success {
   background: var(--color-success-soft);
   color: var(--color-success);
+}
+
+/* برای وضعیت «غیرفعال» - منسوخ‌شدن هنوز خاکستری می‌مونه چون خطا نیست */
+.badge-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 .badge-muted {
@@ -407,13 +525,24 @@ table.data-table {
 
 .text-input,
 .select-input {
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 14px;
+  font-family: inherit;
   background: var(--color-surface);
   color: var(--color-text);
   width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Visible focus ring - the browser default outline is easy to miss against the
+   cream background. */
+.text-input:focus,
+.select-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(44, 76, 92, 0.18);
 }
 
 .text-input:disabled,
@@ -430,53 +559,463 @@ table.data-table {
   font-size: 13px;
 }
 
-.drawer-overlay {
+/* Explains a consequential, non-obvious action (issuing a revision creates a new
+   document) - deliberately warning-toned, not an error. */
+.form-note {
+  background: var(--color-warning-soft);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.8;
+  margin-block-end: 16px;
+}
+
+.form-note strong {
+  color: var(--color-warning);
+}
+
+/* ---------------------------------------------------------------------------
+   Modal dialog. Replaces the edge-anchored side panel the document forms used
+   to open in: a long form reads better centred, at a width the eye can scan,
+   than pinned to one edge of a wide screen.
+   --------------------------------------------------------------------------- */
+
+.modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(49, 54, 71, 0.5);
-  display: flex;
-  justify-content: flex-end;
-  z-index: 50;
-}
-
-.drawer-panel {
-  width: 560px;
-  max-width: 100%;
-  height: 100%;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-panel);
-  display: flex;
-  flex-direction: column;
-}
-
-.drawer-header {
+  /* پرده‌ی پشت دیالوگ با همون رنگ تیره‌ی برند */
+  background: rgba(44, 76, 92, 0.55);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+  /* A dialog taller than the viewport scrolls the overlay rather than being clipped. */
+  overflow-y: auto;
+  animation: modal-overlay-in 0.16s ease-out;
+}
+
+.modal-panel {
+  width: 100%;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+  max-height: min(88vh, 880px);
+  overflow: hidden;
+  animation: modal-panel-in 0.18s ease-out;
+}
+
+.modal-panel:focus {
+  outline: none;
+}
+
+.modal-panel--md {
+  max-width: 680px;
+}
+
+.modal-panel--lg {
+  max-width: 780px;
+}
+
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-panel {
+    animation: none;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 18px 24px;
+  gap: 16px;
+  padding: 20px 24px 16px;
   border-bottom: 1px solid var(--color-border);
 }
 
-.drawer-header h2 {
+/* نوار رنگی کنار عنوان مودال - هم‌خانواده با عنوان کارت‌ها، برای سلسله‌مراتب یکدست */
+.modal-header h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--color-primary);
+  flex-wrap: wrap;
 }
 
-.drawer-body {
+.modal-header__subtitle {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* The document number next to a dialog title - identifies the record without
+   stretching the title itself. */
+.modal-title-badge {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.modal-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.modal-close:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.modal-body {
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 22px;
 }
 
-.drawer-footer {
+.modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 24px;
   border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* ---------------------------------------------------------------------------
+   Create-document page. Its own route rather than a dialog, so it can afford a
+   side panel that shows what the Document Number is being assembled from.
+   --------------------------------------------------------------------------- */
+
+.page-back {
+  display: inline-block;
+  margin-block-end: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.page-back:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.create-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Follows the form down a long page, so the number preview stays in view while
+   the classification selects are being filled in. */
+.create-aside {
+  position: sticky;
+  top: 16px;
+}
+
+.create-card {
+  padding: 18px 20px;
+}
+
+/* همون نوار رنگی عنوان‌ها، برای بخش‌های داخل فرم‌ها */
+.create-card__title {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--color-primary);
+}
+
+.create-card__hint {
+  margin: -8px 0 14px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+}
+
+/* One row per component of PPPP+O+AA+DD+SSS+R, filled in as the matching
+   selection is made. */
+.code-preview {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.code-preview li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.code-preview li.is-set {
+  border-color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+/* Serial and revision are allocated by the server, so they are shown as
+   permanently pending rather than as something still to be chosen. */
+.code-preview li.is-server-assigned {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.code-preview__value {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.code-preview__label {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* Form-level actions for a page, as opposed to a dialog's footer. */
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-block-start: 16px;
+}
+
+@media (max-width: 900px) {
+  .create-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .create-aside {
+    position: static;
+  }
+}
+
+/* Groups related fields so a long form reads as a few short steps instead of
+   one undifferentiated wall of inputs. */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-section__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Hairline that runs from the section label to the edge of the dialog. */
+.form-section__title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.form-section__hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.required-mark {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* File picker styled as a drop target: the native control is invisible but
+   still the thing being clicked, so keyboard and screen-reader behaviour is
+   unchanged. */
+.file-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 104px;
+  padding: 18px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.file-drop:hover {
+  border-color: var(--color-primary);
+}
+
+.file-drop.is-dragging {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.file-drop.has-file {
+  border-style: solid;
+  border-color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.file-drop:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(44, 76, 92, 0.18);
+}
+
+/* Covers the drop area so the whole box is clickable, without leaving the
+   default file control visible. */
+.file-drop__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-drop__input:disabled {
+  cursor: not-allowed;
+}
+
+.file-drop__prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.file-drop__prompt strong {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.file-drop__selected {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.file-drop__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.file-drop__size {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.file-drop__clear {
+  align-self: flex-start;
+}
+
+/* Checkbox presented as a labelled row, so the consequence of the setting is
+   readable rather than implied by a bare tick box. */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.check-row.is-disabled {
+  cursor: not-allowed;
+  background: var(--color-bg);
+}
+
+.check-row input {
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+
+.check-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.check-row__text strong {
+  font-size: 13.5px;
+}
+
+.check-row__text span {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
 }
 
 .pagination {
@@ -496,13 +1035,14 @@ table.data-table {
   gap: 8px;
 }
 
+/* پس‌زمینه‌ی صفحه‌ی ورود: گرادیانت تیره از دو رنگ برند */
 .login-page {
   min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: linear-gradient(165deg, #435663 0%, #262a35 100%);
+  background: linear-gradient(165deg, var(--color-ink-soft) 0%, var(--color-ink) 100%);
 }
 
 .login-card {
@@ -510,7 +1050,7 @@ table.data-table {
   max-width: 100%;
   background: var(--color-surface);
   border-radius: var(--radius-md);
-  box-shadow: 0 20px 60px rgba(49, 54, 71, 0.35);
+  box-shadow: 0 20px 60px rgba(44, 76, 92, 0.35);
   padding: 32px 30px;
 }
 
@@ -523,15 +1063,9 @@ table.data-table {
 }
 
 .login-card__brand-mark {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
-  color: #fff;
-  font-weight: 700;
-  font-size: 18px;
+  display: block;
+  height: 56px;
+  width: auto;
 }
 
 .login-card__brand h1 {
@@ -633,8 +1167,20 @@ table.data-table {
     padding: 16px;
   }
 
-  .drawer-panel {
-    width: 100%;
+  /* On a phone the dialog uses the full width and drops the outer gutter, so it
+     reads as a sheet rather than a cramped floating card. */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-panel {
+    max-height: 94vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -666,4 +1212,67 @@ table.data-table {
   font-size: 13px;
   color: var(--color-text-muted);
   white-space: nowrap;
+}
+
+/* فهرست پیشنهاد خودکار زیر فیلد جستجوی پیشرفته - روی فیلدهای بعدی شناور می‌شود. */
+.suggestion-list {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.suggestion-list li + li {
+  margin-top: 2px;
+}
+
+.suggestion-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.suggestion-list button:hover {
+  background: var(--color-primary-soft);
+}
+
+/* حالت پیش‌نمایش مدرک داخل مودال */
+.preview-body {
+  padding: 20px 24px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-frame {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
 }
