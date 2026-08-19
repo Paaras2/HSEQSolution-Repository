@@ -42,6 +42,31 @@ namespace HSEQ.Service.Services.Services
             return fileName;
         }
 
+        public Stream? OpenDocumentFile(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                return null;
+
+            var root = Path.GetFullPath(_uploadPath);
+            if (!root.EndsWith(Path.DirectorySeparatorChar))
+                root += Path.DirectorySeparatorChar;
+
+            // FileName is a value this service generated, but it still travels through
+            // the database before coming back here, so it is treated as untrusted:
+            // GetFileName() drops any directory part and the root check rejects
+            // anything that would resolve outside the upload folder.
+            var fullPath = Path.GetFullPath(Path.Combine(root, Path.GetFileName(fileName)));
+
+            if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            if (!File.Exists(fullPath))
+                return null;
+
+            // FileShare.Read so a download never blocks a concurrent revision upload.
+            return new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+
 
         public string? GetFileAsBase64(string fileType, string nationalCode)
         {

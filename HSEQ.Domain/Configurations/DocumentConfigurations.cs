@@ -22,10 +22,14 @@ namespace HSEQ.Domain.Configurations
 
             builder.HasIndex(d => d.Number).IsUnique();
 
+            // بدون محدودیت طول، چون متن کامل فایل (تا سقف تعیین‌شده در سرویس استخراج) اینجا نگه داشته می‌شود.
+            builder.Property(d => d.ExtractedText).HasColumnType("nvarchar(max)");
+
+            // فقط اسناد دسته‌ی «پروژه» پروژه دارند؛ اسناد «ستاد» این FK را خالی می‌گذارند.
             builder.HasOne(d => d.Project)
                 .WithMany(p => p.Documents)
                 .HasForeignKey(d => d.ProjectId)
-                .IsRequired()
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(d => d.OrganizationalManagement)

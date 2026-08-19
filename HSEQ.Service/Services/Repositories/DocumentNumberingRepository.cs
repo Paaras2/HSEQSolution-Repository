@@ -2,6 +2,7 @@ using HSEQ.Domain;
 using HSEQ.Domain.DocumentNumbering;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Runtime.CompilerServices;
@@ -11,6 +12,8 @@ namespace HSEQ.Service.Services.Repositories
 {
     public class DocumentNumberingRepository : IDocumentNumberingRepository
     {
+        private const string HeadquartersCodeCounterTable = "dbo.HeadquartersCodeCounters";
+
         private readonly ApplicationDbContext _context;
 
         public DocumentNumberingRepository(ApplicationDbContext context)
@@ -63,6 +66,46 @@ namespace HSEQ.Service.Services.Repositories
         public async Task<bool> NumberExistsAsync(string number)
         {
             return await _context.Set<Document>().AnyAsync(d => d.Number == number);
+        }
+
+        public async Task<int> AllocateNextHeadquartersSerialAsync(string code5)
+        {
+            // Table name is concatenated into the *format* string (plain string
+            // concatenation, evaluated before any interpolation happens), and only
+            // code5 is left as the "{0}" hole - so FormattableStringFactory.Create
+            // parameterizes code5 alone and never touches the table identifier. Doing it
+            // this way (rather than a single "$..." with both in it) removes any
+            // ambiguity about which of the two would end up as a SQL parameter.
+            var updateFormat = "UPDATE " + HeadquartersCodeCounterTable +
+                " SET LastSerialNumber = LastSerialNumber + 1, ModifiedDate = GETUTCDATE()" +
+                " OUTPUT INSERTED.LastSerialNumber WHERE Code5 = {0}";
+            var updateSql = FormattableStringFactory.Create(updateFormat, code5);
+
+            // Single atomic UPDATE...OUTPUT avoids a read-then-write race between two
+            // requests allocating a serial for the same 5-letter code at once - same
+            // reasoning as AllocateNextSerialNumberAsync above, just per-code instead of
+            // global. ToListAsync() (not FirstAsync/SingleAsync) so EF Core executes this
+            // as-is instead of wrapping it in a derived table.
+            var updated = await _context.Database.SqlQuery<int>(updateSql).ToListAsync();
+            if (updated.Count > 0)
+                return updated[0];
+
+            // First time this exact code has ever been used for a Headquarters document -
+            // no legacy row and no prior allocation seeded a counter for it yet.
+            try
+            {
+                var insertFormat = "INSERT INTO " + HeadquartersCodeCounterTable +
+                    " (Key, Code5, LastSerialNumber, IsActive, CreatedTime) VALUES (NEWID(), {0}, 1, 1, GETUTCDATE())";
+                await _context.Database.ExecuteSqlInterpolatedAsync(FormattableStringFactory.Create(insertFormat, code5));
+                return 1;
+            }
+            catch (SqlException)
+            {
+                // Lost the race to insert - another request created the row first, so its
+                // UPDATE succeeds now.
+                var retried = await _context.Database.SqlQuery<int>(updateSql).ToListAsync();
+                return retried[0];
+            }
         }
     }
 }

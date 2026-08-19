@@ -23,6 +23,12 @@ namespace HSEQ.Service.Interfaces.Repositories
         // Never derives the value from existing Documents rows.
         Task<int> AllocateNextSerialNumberAsync();
 
+        // Allocates the next per-code serial (SSS component) for a Headquarters document,
+        // i.e. the given 5-letter code's own independent counter (HeadquartersCodeCounter) -
+        // not the global Project sequence above. Atomic: safe against two requests
+        // allocating for the same code5 at once.
+        Task<int> AllocateNextHeadquartersSerialAsync(string code5);
+
         // Defensive check only - the SEQUENCE-backed serial guarantees uniqueness by
         // construction. Present because application-level validation is explicitly required
         // in addition to the database unique constraint.

@@ -10,9 +10,23 @@ namespace HSEQ.Service.Interfaces.Services
     {
         Task AddAsync(CreateDocumentRequestModel request, string pcode);
         Task UpdateAsync(UpdateDocumentRequestModel request);
+
+        // Issues the next revision of an existing Document as a NEW Document row and
+        // retires the one it supersedes. Never mutates the superseded revision's
+        // Number, revision components or file - that history has to stay readable.
+        Task ReviseAsync(ReviseDocumentRequestModel request, string pcode);
+
         Task DeleteAsync(Guid documenttId);
         Task<List<DocumentDto>> GetAllAsync(bool includeDeactiveItems = true);
         Task<DocumentDto> GetByIdAsync(Guid id);
+
+        // Opens the stored file of one specific document. Works for superseded
+        // revisions too - each revision keeps its own file, so history stays readable.
+        Task<DocumentFileResult> GetFileAsync(Guid documentId);
+
+        // Every revision of the document `documentId` belongs to, oldest first,
+        // regardless of which revision in the chain was asked for.
+        Task<List<DocumentDto>> GetRevisionHistoryAsync(Guid documentId);
         Task<PagedResult> GetAllPaginationAsync(
             int pageNumber,
             int pageSize,

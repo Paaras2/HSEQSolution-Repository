@@ -34,6 +34,15 @@ namespace HSEQ.Common
         }
     }
 
+    // دسته‌بندی «پروژه» بدون انتخاب پروژه معنا ندارد؛ فقط برای دسته‌بندی «ستاد» پروژه اختیاری است.
+    public class ProjectRequiredForProjectCategoryException : CustomException
+    {
+        public ProjectRequiredForProjectCategoryException()
+            : base("برای دسته‌بندی «پروژه»، انتخاب پروژه الزامی است")
+        {
+        }
+    }
+
     public class OrganizationalManagementNotFoundException : CustomException
     {
         public OrganizationalManagementNotFoundException() : base("مدیریت سازمانی یافت نشد")
@@ -71,6 +80,49 @@ namespace HSEQ.Common
     public class DuplicateDocumentNumberException : CustomException
     {
         public DuplicateDocumentNumberException() : base("شماره مدرک تولید شده تکراری است")
+        {
+        }
+    }
+
+    // A revision chain is linear: each revision supersedes exactly one predecessor.
+    // Thrown when a Document that has already been superseded is revised again,
+    // which would fork the chain and produce two documents claiming the same
+    // revision number.
+    public class DocumentAlreadyRevisedException : CustomException
+    {
+        public DocumentAlreadyRevisedException()
+            : base("این مدرک قبلاً بازنگری شده است. بازنگری بعدی باید روی آخرین نسخه انجام شود")
+        {
+        }
+    }
+
+    // A revision is a new content version of the document, so it always carries a
+    // new file - there is no such thing as a revision that reuses the previous
+    // revision's attachment.
+    public class RevisionFileRequiredException : CustomException
+    {
+        public RevisionFileRequiredException() : base("برای ثبت بازنگری، بارگذاری فایل جدید الزامی است")
+        {
+        }
+    }
+
+    // Exactly one revision of a chain is current at a time. Thrown when an update
+    // tries to re-activate a revision that a newer one has already superseded.
+    public class SupersededDocumentCannotBeReactivatedException : CustomException
+    {
+        public SupersededDocumentCannotBeReactivatedException()
+            : base("این نسخه بازنگری شده است و نمی‌توان دوباره فعالش کرد. برای نسخه جدید، آخرین بازنگری را بازنگری کنید")
+        {
+        }
+    }
+
+    // The Document row exists but its FileName does not resolve to a file on disk -
+    // e.g. the upload folder was moved between environments. Distinct from
+    // DocumentNotFoundException so the caller can tell "no such document" from
+    // "document is there, its file is not".
+    public class DocumentFileNotFoundException : CustomException
+    {
+        public DocumentFileNotFoundException() : base("فایل این مدرک روی سرور یافت نشد", 404)
         {
         }
     }

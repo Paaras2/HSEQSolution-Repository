@@ -220,6 +220,7 @@ namespace HSEQ.Service.Services.Services
         {
             await SeedOrganizationalManagementsAndActivities();
             await SeedDocumentTypes();
+            await SeedLegacyDocumentNumbersAndCountersAsync();
         }
 
         // Upsert by Code (title-only correction is safe to re-run; nothing here ever
@@ -302,6 +303,66 @@ namespace HSEQ.Service.Services.Services
             }
 
             await _context.SaveChangesAsync();
+        }
+
+        // آرشیو اکسل فقط یک‌بار وارد می‌شود (LegacyDocumentNumbers هیچ‌وقت به‌روزرسانی/حذف
+        // نمی‌شود). شمارنده‌ی هر کد۵حرفی هم فقط وقتی که هنوز وجود ندارد از حداکثر سریال آن
+        // کد در آرشیو مقداردهی اولیه می‌شود - یک شمارنده‌ای که با سند واقعی «ستاد» جلو رفته
+        // هرگز با اجرای دوباره‌ی Seed به عقب برنمی‌گردد.
+        private async Task SeedLegacyDocumentNumbersAndCountersAsync()
+        {
+            var hasLegacyData = await _context.Set<LegacyDocumentNumber>().AnyAsync();
+            if (!hasLegacyData)
+            {
+                var legacyEntities = LegacyDocumentNumberSeedData.Data.Select(row => new LegacyDocumentNumber
+                {
+                    Key = Guid.NewGuid(),
+                    IsActive = true,
+                    CreatedTime = DateTime.UtcNow,
+                    RawNumber = row.RawNumber,
+                    Code5 = row.Code5,
+                    SerialNumber = row.SerialNumber,
+                    RevisionSuffix = row.RevisionSuffix,
+                    ManagementCode = row.ManagementCode,
+                    ActivityCode = row.ActivityCode,
+                    DocumentTypeCode = row.DocumentTypeCode,
+                    Name = row.Name,
+                    UnitLabel = row.UnitLabel,
+                    LastEditShamsiDate = row.LastEditShamsiDate,
+                    CurrentEditShamsiDate = row.CurrentEditShamsiDate,
+                    CurrentVersion = row.CurrentVersion,
+                });
+
+                await _context.Set<LegacyDocumentNumber>().AddRangeAsync(legacyEntities);
+                await _context.SaveChangesAsync();
+            }
+
+            var existingCounterCodes = await _context.Set<HeadquartersCodeCounter>()
+                .Select(c => c.Code5)
+                .ToListAsync();
+
+            var maxSerialByCode = LegacyDocumentNumberSeedData.Data
+                .Where(row => row.Code5 != null && row.SerialNumber != null)
+                .GroupBy(row => row.Code5!)
+                .ToDictionary(g => g.Key, g => g.Max(row => row.SerialNumber!.Value));
+
+            var newCounters = maxSerialByCode
+                .Where(kv => !existingCounterCodes.Contains(kv.Key))
+                .Select(kv => new HeadquartersCodeCounter
+                {
+                    Key = Guid.NewGuid(),
+                    IsActive = true,
+                    CreatedTime = DateTime.UtcNow,
+                    Code5 = kv.Key,
+                    LastSerialNumber = kv.Value,
+                })
+                .ToList();
+
+            if (newCounters.Count > 0)
+            {
+                await _context.Set<HeadquartersCodeCounter>().AddRangeAsync(newCounters);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

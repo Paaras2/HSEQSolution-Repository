@@ -1,3 +1,4 @@
+using HSEQ.Common;
 using Microsoft.AspNetCore.Http;
 using System;
 
@@ -13,9 +14,13 @@ namespace HSEQ.API.Model.RequestModels
         //Namyande yek file upload shode dar asp.net
         public IFormFile File { get; set; }
 
+        // دسته‌بندی سند - پیش‌فرض «ستاد» (enum default = Headquarters).
+        public DocumentCategory Category { get; set; } = DocumentCategory.Headquarters;
+
         // Master-data references the server uses to generate Document.Number.
         // Number itself is never accepted from the client - see IDocumentNumberGeneratorService.
-        public Guid ProjectId { get; set; }
+        // فقط برای Category == Project الزامی است؛ برای اسناد «ستاد» خالی می‌ماند.
+        public Guid? ProjectId { get; set; }
         public Guid OrganizationalManagementId { get; set; }
         public Guid OrganizationalActivityId { get; set; }
         public Guid DocumentTypeId { get; set; }

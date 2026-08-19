@@ -6,6 +6,14 @@ using System.Threading.Tasks;
 
 namespace HSEQ.Common
 {
+    // دسته‌بندی سند: ستاد (بدون پروژه، پیش‌فرض) یا پروژه. مقدار پیش‌فرض عمداً Headquarters
+    // است (enum default = 0) تا فرم بدون انتخاب کاربر روی «ستاد» بیفتد.
+    public enum DocumentCategory
+    {
+        Headquarters = 0,
+        Project = 1
+    }
+
     public enum DocumentVersion
     {
         A = 1,

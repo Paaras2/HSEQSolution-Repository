@@ -27,6 +27,8 @@ namespace HSEQ.Service
             services.AddScoped<IDocumentNumberGeneratorService, DocumentNumberGeneratorService>();
             services.AddScoped<IMasterDataRepository, MasterDataRepository>();
             services.AddScoped<IMasterDataService, MasterDataService>();
+            services.AddScoped<IFileTextExtractionService, FileTextExtractionService>();
+            services.AddScoped<ISearchService, SearchService>();
             return services;
         }
     }

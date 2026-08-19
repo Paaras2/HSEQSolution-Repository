@@ -23,7 +23,11 @@ namespace HSEQ.Domain.Entities
         public Guid? RelatedDocumentId { get; set; }
         public string FileName { get; set; }
 
-        public Guid ProjectId { get; set; }
+        // دسته‌بندی سند: ستاد (بدون پروژه) یا پروژه. ساختار شماره‌گذاری بر اساس همین تعیین می‌شود.
+        public DocumentCategory Category { get; set; }
+
+        // فقط برای اسناد دسته‌ی «پروژه» الزامی است؛ اسناد «ستاد» پروژه ندارند.
+        public Guid? ProjectId { get; set; }
         public virtual Project Project { get; set; }
 
         public Guid OrganizationalManagementId { get; set; }
@@ -36,5 +40,9 @@ namespace HSEQ.Domain.Entities
         public virtual DocumentType DocumentType { get; set; }
 
         public int CreatedByPCode { get; set; }
+
+        // متن استخراج‌شده از فایل مدرک (در زمان بارگذاری/بازنگری) برای جستجوی پیشرفته در
+        // محتوای فایل. برای نوع‌های پشتیبانی‌نشده (تصویر و...) یا در صورت شکست استخراج، نال است.
+        public string? ExtractedText { get; set; }
     }
 }
