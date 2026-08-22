@@ -1,9 +1,10 @@
-using HSEQ.API.Model.Dtos;
+﻿using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace HSEQ.Service.Services.Services
 {
@@ -17,11 +18,35 @@ namespace HSEQ.Service.Services.Services
         private const int SuggestionLimit = 8;
         private const int MinSuggestionQueryLength = 2;
 
-        private readonly IDocumentRepository _documentRepository;
+        // تقویم شمسیِ خودِ دات‌نت - بدون هیچ پکیج جانبی. ایستا چون بی‌حالت است و
+        // ساختنش به ازای هر ردیف خروجی اتلاف است.
+        private static readonly PersianCalendar ShamsiCalendar = new();
 
-        public SearchService(IDocumentRepository documentRepository)
+        // تاریخ خروجی اکسل به شمسی. آنچه در دیتابیس است دست‌نخورده و میلادی می‌ماند؛
+        // این فقط قالبِ نمایش در فایل خروجی است.
+        private static string ToShamsi(DateTime? date)
+        {
+            if (!date.HasValue) return "";
+
+            var value = date.Value;
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "{0:0000}/{1:00}/{2:00}",
+                ShamsiCalendar.GetYear(value),
+                ShamsiCalendar.GetMonth(value),
+                ShamsiCalendar.GetDayOfMonth(value));
+        }
+
+        private readonly IDocumentRepository _documentRepository;
+        // برای ستون «شماره مدارک مرتبط» در نتایج جستجو - همان بارگذار دسته‌ای فهرست اسناد.
+        private readonly IDocumentRelationRepository _documentRelationRepository;
+
+        public SearchService(
+            IDocumentRepository documentRepository,
+            IDocumentRelationRepository documentRelationRepository)
         {
             _documentRepository = documentRepository;
+            _documentRelationRepository = documentRelationRepository;
         }
 
         public async Task<PagedResult> SearchAsync(SearchDocumentsRequestModel request)
@@ -40,10 +65,12 @@ namespace HSEQ.Service.Services.Services
 
             var relatedNumbers = await DocumentDtoMapper.LoadRelatedNumbersAsync(_documentRepository, documents);
             var supersededKeys = await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, documents.Select(d => d.Key).ToList());
+            // شماره‌ی مدارک مرتبط هر ردیف نتیجه - یک کوئری برای کل صفحه، نه یکی به ازای هر ردیف.
+            var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
 
             return new PagedResult
             {
-                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys)).ToList(),
+                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers)).ToList(),
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount
@@ -75,7 +102,10 @@ namespace HSEQ.Service.Services.Services
                 .Take(MaxExportRows)
                 .ToListAsync();
 
-            var headers = new[] { "شماره", "نام", "دسته‌بندی", "وضعیت", "پروژه", "مدیریت سازمانی", "فعالیت سازمانی", "نوع سند", "بازنگری", "تاریخ بازبینی جاری" };
+            // شماره‌ی مدارک مرتبط، همان بارگذار دسته‌ای فهرست و جستجو - یک کوئری برای کل خروجی.
+            var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
+
+            var headers = new[] { "شماره", "نام", "دسته‌بندی", "وضعیت", "پروژه", "مدیریت سازمانی", "فعالیت سازمانی", "نوع سند", "بازنگری", "تاریخ بازبینی جاری", "مدارک مرتبط" };
 
             var rows = documents.Select(d => new[]
             {
@@ -88,7 +118,9 @@ namespace HSEQ.Service.Services.Services
                 d.OrganizationalActivity?.Title ?? "",
                 d.DocumentType?.Title ?? "",
                 d.LastVersion.ToString() + (d.ContentRevision.HasValue ? d.ContentRevision.Value.ToString("00") : ""),
-                d.CurrentReviewDate?.ToString("yyyy-MM-dd") ?? "",
+                ToShamsi(d.CurrentReviewDate),
+                // چند مدرک مرتبط در یک سلول، جداشده با ویرگول فارسی.
+                relationNumbers.TryGetValue(d.Key, out var related) ? string.Join("، ", related) : "",
             });
 
             return SimpleXlsxWriter.Write("اسناد", headers, rows);
@@ -126,14 +158,7 @@ namespace HSEQ.Service.Services.Services
             }
 
             if (request.OnlyLatestRevision)
-            {
-                // «آخرین نسخه‌ی معتبر» یعنی هیچ سند دیگری این را به‌عنوان RelatedDocumentId
-                // اشاره نکرده - دقیقاً همان تعریف IsSuperseded که در DocumentDtoMapper هست.
-                var supersededIds = _documentRepository.GetAllAsQueryable()
-                    .Where(d => d.RelatedDocumentId.HasValue)
-                    .Select(d => d.RelatedDocumentId!.Value);
-                query = query.Where(d => !supersededIds.Contains(d.Key));
-            }
+                query = query.WhereLatestRevision(_documentRepository);
 
             return query;
         }

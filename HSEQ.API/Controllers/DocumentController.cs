@@ -1,4 +1,4 @@
-using HSEQ.API.Model.Dtos;
+﻿using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Domain.Common;
 using HSEQ.Service.Interfaces.Services;
@@ -16,6 +16,7 @@ namespace HSEQ.API.Controllers
     public class DocumentController : ControllerBase
     {
         private readonly IDocumentService _documentService;
+        private readonly IDocumentRelationService _documentRelationService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserService _userService;
 
@@ -35,9 +36,14 @@ namespace HSEQ.API.Controllers
         // Read endpoints below stay open to every authenticated user.
         private const string ManageDocumentRoles = "Admin,DocumentManager";
 
-        public DocumentController(IDocumentService documentService, IUnitOfWork unitOfWork, IUserService userService)
+        public DocumentController(
+            IDocumentService documentService,
+            IDocumentRelationService documentRelationService,
+            IUnitOfWork unitOfWork,
+            IUserService userService)
         {
             _documentService = documentService;
+            _documentRelationService = documentRelationService;
             _unitOfWork = unitOfWork;
             _userService = userService;
         }
@@ -48,9 +54,13 @@ namespace HSEQ.API.Controllers
         public async Task<IActionResult> Add([FromForm] CreateDocumentRequestModel req)
         {
             var pcode = _userService.GetPCodeFromToken(Request);
-            await _documentService.AddAsync(req, pcode);
+            var key = await _documentService.AddAsync(req, pcode);
             await _unitOfWork.SaveChangesAsync();
-            return Ok();
+
+            // کلید سند تازه برگردانده می‌شود تا فرم افزودن بتواند بلافاصله مدارک مرتبطِ
+            // انتخاب‌شده را ثبت کند. افزودن بدنه به پاسخ سازگار با عقب است: فراخوان‌های
+            // قبلی فقط وضعیت 200 را می‌خواندند.
+            return Ok(new { Key = key });
         }
 
         [Authorize(Roles = ManageDocumentRoles)]
@@ -123,6 +133,42 @@ namespace HSEQ.API.Controllers
         {
             var result = await _documentService.GetRevisionHistoryAsync(documentId);
             return Ok(result);
+        }
+
+        // مدارک مرتبط - شبکه‌ی ارجاع میان مدارک مستقل. جدا از revisions بالا، که
+        // نسخه‌های مختلفِ خودِ همین مدرک را برمی‌گرداند.
+        //
+        // خواندن مثل بقیه‌ی مسیرهای خواندنی برای هر کاربر احرازهویت‌شده باز است؛ فهرست،
+        // ارتباط‌های هر دو سمت را شامل می‌شود و همیشه مشخصات مدرکِ سمت مقابل را می‌دهد.
+        [HttpGet]
+        [Route("relations")]
+        public async Task<IActionResult> GetRelations([FromQuery] Guid documentId)
+        {
+            var result = await _documentRelationService.GetForDocumentAsync(documentId);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = ManageDocumentRoles)]
+        [HttpPost]
+        [Route("relations/add")]
+        public async Task<IActionResult> AddRelation([FromForm] CreateDocumentRelationRequestModel request)
+        {
+            var pcode = _userService.GetPCodeFromToken(Request);
+            await _documentRelationService.AddAsync(request, pcode);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
+        }
+
+        // relationId کلید ردیفِ ارتباط است، نه کلید هیچ‌کدام از دو مدرک - همان چیزی که
+        // GetRelations در فیلد Key هر ردیف برمی‌گرداند.
+        [Authorize(Roles = ManageDocumentRoles)]
+        [HttpPost]
+        [Route("relations/delete")]
+        public async Task<IActionResult> DeleteRelation([FromForm] Guid relationId)
+        {
+            await _documentRelationService.RemoveAsync(relationId);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
         }
 
         // در فایل HSEQ.API/Controllers/DocumentController.cs

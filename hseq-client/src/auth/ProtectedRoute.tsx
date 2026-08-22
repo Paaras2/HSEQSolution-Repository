@@ -7,8 +7,8 @@ interface ProtectedRouteProps {
 }
 
 // Unauthenticated users are sent to /login. Authenticated-but-unauthorized
-// users (missing the required capability) are sent back to the dashboard
-// instead of seeing a page they cannot use.
+// users (missing the required capability) are sent to the app root instead of
+// seeing a page they cannot use - the root now redirects to the documents list.
 export function ProtectedRoute({ requireCapability }: ProtectedRouteProps) {
   const { isAuthenticated, isInitializing, hasCapability } = useAuth()
   const location = useLocation()

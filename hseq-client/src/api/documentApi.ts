@@ -37,7 +37,9 @@ export const documentApi = {
   // Document Number, revision and serial number are never sent here - they
   // are generated server-side (HSEQ.Domain.DocumentNumbering) and rejected as
   // input by CreateDocumentRequestModel, which doesn't even expose them.
-  async add(input: CreateDocumentInput): Promise<void> {
+  // کلید سند تازه‌ساخته‌شده را برمی‌گرداند، چون فرم افزودن بلافاصله بعد از ذخیره باید
+  // مدارک مرتبطِ انتخاب‌شده را ثبت کند و ارتباط به کلید هر دو سر نیاز دارد.
+  async add(input: CreateDocumentInput): Promise<string> {
     const form = new FormData()
     form.append('Name', input.name)
     form.append('Category', input.category)
@@ -51,7 +53,8 @@ export const documentApi = {
     form.append('OrganizationalManagementId', input.organizationalManagementId)
     form.append('OrganizationalActivityId', input.organizationalActivityId)
     form.append('DocumentTypeId', input.documentTypeId)
-    await apiPostForm<void>('/Document/Add', form)
+    const created = await apiPostForm<{ key: string }>('/Document/Add', form)
+    return created.key
   },
 
   // Metadata only. Number/Project/organizational classification are immutable and

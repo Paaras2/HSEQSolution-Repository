@@ -1,4 +1,4 @@
-using HSEQ.API.Model.Dtos;
+﻿using HSEQ.API.Model.Dtos;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -46,10 +46,56 @@ namespace HSEQ.Service.Services.Services
             return superseded.ToHashSet();
         }
 
+        // شماره‌ی مدارک مرتبط (DocumentRelations) هر سندِ فهرست، از هر دو سمت ردیف، در یک
+        // رفت‌وبرگشت برای کل صفحه - نه یک درخواست به ازای هر ردیف.
+        internal static async Task<Dictionary<Guid, List<string>>> LoadRelationNumbersAsync(
+            IDocumentRelationRepository relationRepository,
+            List<Document> documents)
+        {
+            var keys = documents.Select(d => d.Key).ToList();
+            if (keys.Count == 0)
+                return new Dictionary<Guid, List<string>>();
+
+            var rows = await relationRepository.GetAllAsQueryable()
+                .Where(r => keys.Contains(r.SourceDocumentId) || keys.Contains(r.TargetDocumentId))
+                .Select(r => new
+                {
+                    r.SourceDocumentId,
+                    r.TargetDocumentId,
+                    SourceNumber = r.SourceDocument.Number,
+                    TargetNumber = r.TargetDocument.Number,
+                })
+                .ToListAsync();
+
+            var map = new Dictionary<Guid, List<string>>();
+            void Add(Guid key, string number)
+            {
+                if (!map.TryGetValue(key, out var list))
+                    map[key] = list = new List<string>();
+                list.Add(number);
+            }
+
+            // هر ردیف از دید هر سمتی که در فهرست است، شماره‌ی «سمت مقابل» را می‌گیرد.
+            foreach (var row in rows)
+            {
+                if (keys.Contains(row.SourceDocumentId))
+                    Add(row.SourceDocumentId, row.TargetNumber);
+                if (keys.Contains(row.TargetDocumentId))
+                    Add(row.TargetDocumentId, row.SourceNumber);
+            }
+
+            foreach (var list in map.Values)
+                list.Sort(StringComparer.Ordinal);
+
+            return map;
+        }
+
         internal static DocumentDto MapToDto(
             Document document,
             Dictionary<Guid, string> relatedNumbers,
-            HashSet<Guid> supersededKeys)
+            HashSet<Guid> supersededKeys,
+            // اختیاری تا فراخوان‌های موجود دست نخورند؛ فقط فهرست صفحه‌بندی‌شده آن را می‌دهد.
+            Dictionary<Guid, List<string>>? relationNumbers = null)
         {
             return new DocumentDto
             {
@@ -70,6 +116,10 @@ namespace HSEQ.Service.Services.Services
                         ? relatedNumber
                         : null,
                 IsSuperseded = supersededKeys.Contains(document.Key),
+                RelatedDocumentNumbers = relationNumbers != null
+                    && relationNumbers.TryGetValue(document.Key, out var numbers)
+                        ? numbers
+                        : new List<string>(),
                 FileName = document.FileName,
                 Category = document.Category,
                 ProjectId = document.ProjectId,

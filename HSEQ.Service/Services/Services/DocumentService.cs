@@ -1,4 +1,4 @@
-using HSEQ.API.Model.Dtos;
+﻿using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
 using HSEQ.Common;
 using HSEQ.Domain.Entities;
@@ -17,20 +17,27 @@ namespace HSEQ.Service.Services.Services
         private readonly IFileService _fileService;
         private readonly IDocumentNumberGeneratorService _documentNumberGenerator;
         private readonly IFileTextExtractionService _fileTextExtractionService;
+        private readonly IDocumentRelationService _documentRelationService;
+        // برای ستون «شماره مدارک مرتبط» فهرست - خواندن دسته‌ای، جدا از سرویس ارتباط که تک‌سندی است.
+        private readonly IDocumentRelationRepository _documentRelationRepository;
 
         public DocumentService(
             IDocumentRepository documentRepository,
             IFileService fileService,
             IDocumentNumberGeneratorService documentNumberGenerator,
-            IFileTextExtractionService fileTextExtractionService)
+            IFileTextExtractionService fileTextExtractionService,
+            IDocumentRelationService documentRelationService,
+            IDocumentRelationRepository documentRelationRepository)
         {
             _documentRepository = documentRepository;
             _fileService = fileService;
             _documentNumberGenerator = documentNumberGenerator;
             _fileTextExtractionService = fileTextExtractionService;
+            _documentRelationService = documentRelationService;
+            _documentRelationRepository = documentRelationRepository;
         }
         //Add
-        public async Task AddAsync(CreateDocumentRequestModel request, string pcode)
+        public async Task<Guid> AddAsync(CreateDocumentRequestModel request, string pcode)
         {
             GeneratedDocumentNumber generated;
 
@@ -76,6 +83,7 @@ namespace HSEQ.Service.Services.Services
             };
 
             await _documentRepository.AddAsync(document);
+            return document.Key;
         }
 
         // برای جستجوی پیشرفته در محتوای فایل. جدا از SaveFileAsync چون شکست استخراج
@@ -178,6 +186,15 @@ namespace HSEQ.Service.Services.Services
             };
 
             await _documentRepository.AddAsync(revision);
+
+            // مدارک مرتبط با زنجیره کار دارند، نه با یک بازنگریِ مشخص - و این بازنگری ردیف
+            // Document تازه‌ای با کلید جدید است. پس ارتباط‌ها به نسخه‌ی جدید *منتقل* می‌شوند:
+            // نه کپی (که فهرست مدرک آن‌سر را با ردیف‌های منسوخ پر می‌کرد) و نه رها (که نسخه‌ی
+            // جدید را بدون هیچ مدرک مرتبطی متولد می‌کرد).
+            //
+            // Key نسخه‌ی جدید همین‌جا در دسترس است: کلیدهای Guid را EF سمت کلاینت هنگام
+            // Add تولید می‌کند، نه پایگاه‌داده هنگام SaveChanges.
+            await _documentRelationService.TransferRelationsAsync(current.Key, revision.Key);
 
             // The superseded revision is kept as history but drops out of the default
             // (active-only) listing. DocumentDto.IsSuperseded tells it apart from a
@@ -282,10 +299,12 @@ namespace HSEQ.Service.Services.Services
             // per row - the revision chain is a self-join the paged query can't do.
             var relatedNumbers = await DocumentDtoMapper.LoadRelatedNumbersAsync(_documentRepository, documents);
             var supersededKeys = await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, documents.Select(d => d.Key).ToList());
+            // شماره‌ی مدارک مرتبط هر ردیف، برای ستون جدید فهرست - یک کوئری برای کل صفحه.
+            var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
 
             return new PagedResult
             {
-                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys)).ToList(),
+                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers)).ToList(),
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount

@@ -1,4 +1,4 @@
-using HSEQ.Domain;
+﻿using HSEQ.Domain;
 using HSEQ.Domain.DocumentNumbering;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
@@ -94,8 +94,12 @@ namespace HSEQ.Service.Services.Repositories
             // no legacy row and no prior allocation seeded a counter for it yet.
             try
             {
+                // [Key] باید براکت داشته باشد: KEY در T-SQL کلمه‌ی رزرو است و بدون براکت
+                // این INSERT خطای نحوی می‌دهد. آن خطا را catch پایین می‌گرفت، UPDATE را دوباره
+                // اجرا می‌کرد، صفر ردیف می‌گرفت و روی retried[0] می‌ترکید - یعنی هر سند ستادیِ
+                // با ترکیب مدیریت+فعالیت+نوعِ تازه، با 500 شکست می‌خورد.
                 var insertFormat = "INSERT INTO " + HeadquartersCodeCounterTable +
-                    " (Key, Code5, LastSerialNumber, IsActive, CreatedTime) VALUES (NEWID(), {0}, 1, 1, GETUTCDATE())";
+                    " ([Key], Code5, LastSerialNumber, IsActive, CreatedTime) VALUES (NEWID(), {0}, 1, 1, GETUTCDATE())";
                 await _context.Database.ExecuteSqlInterpolatedAsync(FormattableStringFactory.Create(insertFormat, code5));
                 return 1;
             }

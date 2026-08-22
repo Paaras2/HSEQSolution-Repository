@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { documentApi } from '../api/documentApi'
+import { documentRelationApi } from '../api/documentRelationApi'
 import { ApiError } from '../lib/httpClient'
-import { documentVersionLabel } from '../types/api'
-import type { DocumentDto } from '../types/api'
+import { documentRelationTypeLabel, documentVersionLabel } from '../types/api'
+import type { DocumentDto, DocumentRelation } from '../types/api'
+import { DocumentRelationPicker } from './DocumentRelationPicker'
+import { PersianDatePicker } from './PersianDatePicker'
+import type { PickedRelation } from './DocumentRelationPicker'
 import { Modal } from './Modal'
 
 // Creating a document is not handled here - it has its own route
@@ -63,7 +67,67 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // مدارک مرتبط - فقط در حالت ویرایش. برخلاف فرم افزودن، سند اینجا از قبل کلید دارد،
+  // پس ارتباط بلافاصله روی سرور ثبت/حذف می‌شود و به دکمه‌ی «ذخیره تغییرات» گره نمی‌خورد.
+  const [relations, setRelations] = useState<DocumentRelation[] | null>(null)
+  const [isRelationBusy, setIsRelationBusy] = useState(false)
+  const [relationError, setRelationError] = useState<string | null>(null)
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
+
   const copy = MODE_COPY[mode]
+
+  // فهرست ارتباط‌ها فقط برای حالت ویرایش بارگذاری می‌شود؛ حالت بازنگری سند جدید می‌سازد
+  // و ارتباط‌ها خودشان سمت سرور به نسخه‌ی جدید منتقل می‌شوند.
+  const loadRelations = useCallback(() => {
+    if (mode !== 'edit') return
+    setRelationError(null)
+    documentRelationApi
+      .getForDocument(document.key)
+      .then(setRelations)
+      .catch((err) =>
+        setRelationError(err instanceof ApiError ? err.message : 'امکان بارگذاری مدارک مرتبط وجود ندارد.'),
+      )
+  }, [mode, document.key])
+
+  useEffect(() => {
+    loadRelations()
+  }, [loadRelations])
+
+  // ثبت فوری - مقدار بازگشتی true یعنی انتخابگر ورودی‌هایش را پاک کند.
+  async function handleAddRelation(picked: PickedRelation): Promise<boolean> {
+    if (isRelationBusy) return false
+
+    setIsRelationBusy(true)
+    setRelationError(null)
+    try {
+      await documentRelationApi.add({
+        sourceDocumentId: document.key,
+        targetDocumentId: picked.target.key,
+        relationType: picked.relationType,
+        note: picked.note,
+      })
+      loadRelations()
+      return true
+    } catch (err) {
+      setRelationError(err instanceof ApiError ? err.message : 'امکان ثبت ارتباط وجود ندارد.')
+      return false
+    } finally {
+      setIsRelationBusy(false)
+    }
+  }
+
+  async function handleRemoveRelation(relation: DocumentRelation) {
+    setPendingRemoveId(relation.key)
+    setRelationError(null)
+    try {
+      await documentRelationApi.remove(relation.key)
+      loadRelations()
+    } catch (err) {
+      setRelationError(err instanceof ApiError ? err.message : 'امکان حذف ارتباط وجود ندارد.')
+    } finally {
+      setPendingRemoveId(null)
+    }
+  }
 
   function handleFileDrop(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault()
@@ -171,24 +235,21 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
             <div className="form-grid">
               <div className="field">
                 <label htmlFor="doc-former-date">تاریخ بازبینی قبلی</label>
-                <input
+                {/* نمایش شمسی، مقدار میلادی - همان «yyyy-MM-dd» که به سرور می‌رود. */}
+                <PersianDatePicker
                   id="doc-former-date"
-                  type="date"
-                  className="text-input"
                   value={formerReviewDate}
-                  onChange={(e) => setFormerReviewDate(e.target.value)}
+                  onChange={setFormerReviewDate}
                   disabled={isSubmitting}
                 />
               </div>
 
               <div className="field">
                 <label htmlFor="doc-current-date">تاریخ بازبینی فعلی</label>
-                <input
+                <PersianDatePicker
                   id="doc-current-date"
-                  type="date"
-                  className="text-input"
                   value={currentReviewDate}
-                  onChange={(e) => setCurrentReviewDate(e.target.value)}
+                  onChange={setCurrentReviewDate}
                   disabled={isSubmitting}
                 />
               </div>
@@ -262,6 +323,63 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
               <p className="field-hint">
                 فایل نسخه‌ی قبلی (<span className="mono">{document.fileName ?? 'ندارد'}</span>) دست‌نخورده باقی می‌ماند.
               </p>
+            </section>
+          )}
+
+          {/* مدارک مرتبط در ویرایش. روی نسخه‌ی منسوخ نمایش داده نمی‌شود: بازنگری بعدی
+              ارتباط‌ها را با خودش جلو می‌برد، پس ردیف تازه همان‌جا جا می‌ماند. */}
+          {mode === 'edit' && !document.isSuperseded && (
+            <section className="form-section">
+              <h3 className="form-section__title">مدارک مرتبط</h3>
+              <p className="field-hint">
+                ارتباط‌ها بلافاصله ثبت می‌شوند و به دکمه‌ی «ذخیره تغییرات» وابسته نیستند.
+              </p>
+
+              {relationError && (
+                <div className="form-error" role="alert">
+                  {relationError}
+                </div>
+              )}
+
+              {relations && relations.length > 0 && (
+                <ul className="relation-list">
+                  {relations.map((relation) => (
+                    <li key={relation.key} className="relation-item">
+                      <div className="relation-item__head">
+                        <span className="mono">{relation.number}</span>
+                        <span className="badge badge-muted">
+                          {documentRelationTypeLabel(relation.relationType, relation.isOutgoing)}
+                        </span>
+                      </div>
+
+                      <div className="relation-item__title">{relation.name}</div>
+
+                      {relation.note && <p className="relation-item__note">{relation.note}</p>}
+
+                      <div className="relation-item__actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleRemoveRelation(relation)}
+                          disabled={pendingRemoveId === relation.key || isSubmitting}
+                        >
+                          {pendingRemoveId === relation.key ? 'در حال حذف...' : 'حذف ارتباط'}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <DocumentRelationPicker
+                excludedDocumentIds={[document.key, ...(relations ?? []).map((r) => r.documentId)]}
+                disabled={isSubmitting}
+                isSubmitting={isRelationBusy}
+                error={null}
+                submitLabel="افزودن ارتباط"
+                submittingLabel="در حال ثبت..."
+                onPick={handleAddRelation}
+              />
             </section>
           )}
 

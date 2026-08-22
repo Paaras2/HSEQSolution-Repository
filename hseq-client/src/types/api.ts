@@ -46,6 +46,10 @@ export interface DocumentDto {
   // Previous link in the revision chain: the revision this document superseded.
   relatedDocumentId: string | null
   relatedDocumentNumber: string | null
+  // شماره‌ی مدارک مرتبط (جدول DocumentRelations) - با relatedDocumentNumber بالا فرق دارد
+  // که نسخه‌ی قبلی در زنجیره‌ی بازنگری است. فقط فهرست صفحه‌بندی‌شده آن را پر می‌کند؛
+  // بقیه‌ی مسیرها آرایه‌ی خالی می‌دهند.
+  relatedDocumentNumbers: string[]
   // A newer revision of this document exists. Both a superseded and a deactivated
   // document have isActive === false; this is what tells them apart.
   isSuperseded: boolean
@@ -157,3 +161,126 @@ export interface DocumentSuggestion {
   number: string
   name: string
 }
+
+// آینه‌ی HSEQ.API.Model.Dtos.DashboardSummaryDto - همه‌ی محاسبات سمت سرور انجام شده،
+// این فقط شکل داده‌ی آماده‌ی رندر است.
+export interface NamedCount {
+  code: string
+  label: string
+  count: number
+}
+
+export interface MonthCount {
+  monthLabel: string
+  count: number
+}
+
+export interface DocumentAlert {
+  key: string
+  number: string
+  name: string
+  // هر دو فقط برای فهرست «بدون تاریخ بازبینی» نال‌اند.
+  reviewDate: string | null
+  daysUntilDue: number | null
+}
+
+export interface ReviewStatusBreakdown {
+  onTrack: number
+  dueSoon: number
+  overdue: number
+  noDateSet: number
+}
+
+export interface DashboardSummary {
+  totalDocuments: number
+  activeDocuments: number
+  dueForReview: number
+  overdueReviews: number
+
+  expiredReviews: DocumentAlert[]
+  dueWithin7Days: DocumentAlert[]
+  dueWithin30Days: DocumentAlert[]
+  missingReviewDate: DocumentAlert[]
+
+  documentsByManagement: NamedCount[]
+  documentsByActivity: NamedCount[]
+  reviewStatus: ReviewStatusBreakdown
+  reviewTrend: MonthCount[]
+  documentsByType: NamedCount[]
+}
+
+// ---------------------------------------------------------------------------
+// مدارک مرتبط - شبکه‌ی ارجاع میان مدارک مستقل.
+//
+// این را با relatedDocumentId بالا اشتباه نگیرید: آن فیلد زنجیره‌ی بازنگریِ خودِ
+// همان مدرک است (نسخه‌ی قبلی)، در حالی که اینجا صحبت از دو مدرک با شماره‌های
+// متفاوت است - مثلاً یک دستورالعمل و فرمی که با آن پر می‌شود.
+// ---------------------------------------------------------------------------
+
+// مقدار خام HSEQ.Common.DocumentRelationType.
+export const DOCUMENT_RELATION_TYPES = [0, 1, 2, 3] as const
+export type DocumentRelationTypeValue = (typeof DOCUMENT_RELATION_TYPES)[number]
+
+// آینه‌ی HSEQ.API.Model.Dtos.DocumentRelationDto. همیشه مشخصات مدرکِ «سمت مقابل»
+// را دارد، نه مدرکی که فهرست برایش باز شده.
+export interface DocumentRelation {
+  // کلید ردیفِ ارتباط (برای حذف) - نه کلید هیچ‌کدام از دو مدرک.
+  key: string
+  // مدرک سمت مقابل.
+  documentId: string
+  number: string
+  name: string
+  isActive: boolean
+  isSuperseded: boolean
+  relationType: number
+  // مدرک جاری مبدأ این ارتباط است. برچسب نوع، برای نوع‌های جهت‌دار، بر همین اساس
+  // معکوس می‌شود - documentRelationTypeLabel() را ببینید.
+  isOutgoing: boolean
+  note: string | null
+  createdTime: string
+  createdByPCode: number
+}
+
+export interface CreateDocumentRelationInput {
+  sourceDocumentId: string
+  targetDocumentId: string
+  relationType: DocumentRelationTypeValue
+  note: string | null
+}
+
+// یک ردیف ارتباط از دو سمت دو معنی دارد، چون ردیف جهت‌دار ذخیره می‌شود. مثلاً وقتی
+// روی مدرک A ثبت می‌شود که «B مرجعِ A است»، همان ردیف در فهرست مدرک B باید بگوید
+// «A وابسته است»، نه «A مرجع است». این جدول همان وارونگی است.
+const RELATION_TYPE_LABELS: Record<number, { outgoing: string; incoming: string }> = {
+  0: { outgoing: 'مرتبط', incoming: 'مرتبط' },
+  1: { outgoing: 'مرجع', incoming: 'وابسته' },
+  2: { outgoing: 'پیوست', incoming: 'مدرک اصلی' },
+  3: { outgoing: 'جایگزین‌شده', incoming: 'جایگزین' },
+}
+
+// توضیح کامل هر ردیف، برای عنوان کمکی (title) کنار برچسب کوتاه.
+const RELATION_TYPE_DESCRIPTIONS: Record<number, { outgoing: string; incoming: string }> = {
+  0: { outgoing: 'این دو مدرک به هم مرتبط‌اند.', incoming: 'این دو مدرک به هم مرتبط‌اند.' },
+  1: { outgoing: 'این مدرک به مدرک مقابل استناد می‌کند.', incoming: 'مدرک مقابل به این مدرک استناد می‌کند.' },
+  2: { outgoing: 'مدرک مقابل، پیوست یا فرمِ این مدرک است.', incoming: 'این مدرک، پیوست یا فرمِ مدرک مقابل است.' },
+  3: { outgoing: 'این مدرک جایگزین مدرک مقابل شده است.', incoming: 'مدرک مقابل جایگزین این مدرک شده است.' },
+}
+
+export function documentRelationTypeLabel(relationType: number, isOutgoing: boolean): string {
+  const entry = RELATION_TYPE_LABELS[relationType] ?? RELATION_TYPE_LABELS[0]
+  return isOutgoing ? entry.outgoing : entry.incoming
+}
+
+export function documentRelationTypeDescription(relationType: number, isOutgoing: boolean): string {
+  const entry = RELATION_TYPE_DESCRIPTIONS[relationType] ?? RELATION_TYPE_DESCRIPTIONS[0]
+  return isOutgoing ? entry.outgoing : entry.incoming
+}
+
+// گزینه‌های فرم افزودن. همیشه از دید مدرکی نوشته شده‌اند که فهرست برایش باز است -
+// آن مدرک همیشه مبدأ ارتباط جدید است، پس فقط حالت outgoing لازم می‌شود.
+export const DOCUMENT_RELATION_TYPE_OPTIONS: { value: DocumentRelationTypeValue; label: string }[] = [
+  { value: 0, label: 'مرتبط با این مدرک' },
+  { value: 1, label: 'مرجعِ این مدرک است' },
+  { value: 2, label: 'پیوست/فرمِ این مدرک است' },
+  { value: 3, label: 'این مدرک جایگزین آن شده است' },
+]

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { documentApi } from '../api/documentApi'
+import { documentRelationApi } from '../api/documentRelationApi'
 import { masterDataApi } from '../api/masterDataApi'
 import { ApiError } from '../lib/httpClient'
+import { documentRelationTypeLabel } from '../types/api'
 import type {
   DocumentCategory,
   DocumentTypeLookup,
@@ -11,6 +13,9 @@ import type {
   OrganizationalManagementLookup,
   ProjectLookup,
 } from '../types/api'
+import { DocumentRelationPicker } from '../components/DocumentRelationPicker'
+import { PersianDatePicker } from '../components/PersianDatePicker'
+import type { PickedRelation } from '../components/DocumentRelationPicker'
 import { LoadingState, ErrorState } from '../components/StateViews'
 
 export interface DocumentLookups {
@@ -51,6 +56,13 @@ export function DocumentCreatePage() {
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // ارتباط‌ها اینجا فقط در صف می‌مانند و بعد از ذخیره ثبت می‌شوند: ثبت ارتباط به کلید هر
+  // دو سر نیاز دارد و سند تا لحظه‌ی ذخیره کلیدی ندارد.
+  const [pendingRelations, setPendingRelations] = useState<PickedRelation[]>([])
+  // وقتی سند ذخیره شد ولی بخشی از ارتباط‌ها ثبت نشدند. در این حالت ماندن روی فرم امن‌تر از
+  // بازگشت خاموش به فهرست است، اما ارسال دوباره‌ی فرم هم نباید ممکن باشد - سند ساخته شده.
+  const [savedWithRelationErrors, setSavedWithRelationErrors] = useState<string[] | null>(null)
 
   function loadLookups() {
     setIsLoadingLookups(true)
@@ -112,8 +124,10 @@ export function DocumentCreatePage() {
 
     setIsSubmitting(true)
     setError(null)
+
+    let createdKey: string
     try {
-      await documentApi.add({
+      createdKey = await documentApi.add({
         name: name.trim(),
         category,
         formerReviewDate: formerReviewDate || null,
@@ -125,11 +139,44 @@ export function DocumentCreatePage() {
         organizationalActivityId: activityId,
         documentTypeId,
       })
-      navigate('/documents')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'امکان ذخیره سند وجود ندارد. لطفاً دوباره تلاش کنید.')
       setIsSubmitting(false)
+      return
     }
+
+    // از اینجا به بعد سند ساخته شده است. شکست یک ارتباط نباید به شکست کل عملیات ترجمه شود
+    // (سند برمی‌نگردد) و نباید هم بی‌صدا رد شود - پس هر کدام جدا تلاش و خطایش جمع می‌شود.
+    const failures: string[] = []
+    for (const relation of pendingRelations) {
+      try {
+        await documentRelationApi.add({
+          sourceDocumentId: createdKey,
+          targetDocumentId: relation.target.key,
+          relationType: relation.relationType,
+          note: relation.note,
+        })
+      } catch (err) {
+        const reason = err instanceof ApiError ? err.message : 'خطای نامشخص'
+        failures.push(`${relation.target.number}: ${reason}`)
+      }
+    }
+
+    if (failures.length > 0) {
+      setSavedWithRelationErrors(failures)
+      return
+    }
+
+    navigate('/documents')
+  }
+
+  function handleQueueRelation(picked: PickedRelation): Promise<boolean> {
+    setPendingRelations((current) => [...current, picked])
+    return Promise.resolve(true)
+  }
+
+  function handleRemoveQueuedRelation(targetKey: string) {
+    setPendingRelations((current) => current.filter((r) => r.target.key !== targetKey))
   }
 
   return (
@@ -328,24 +375,21 @@ export function DocumentCreatePage() {
                 <div className="form-grid">
                   <div className="field">
                     <label htmlFor="doc-former-date">تاریخ بازبینی قبلی</label>
-                    <input
+                    {/* نمایش شمسی، مقدار میلادی - همان «yyyy-MM-dd» که به سرور می‌رود. */}
+                    <PersianDatePicker
                       id="doc-former-date"
-                      type="date"
-                      className="text-input"
                       value={formerReviewDate}
-                      onChange={(e) => setFormerReviewDate(e.target.value)}
+                      onChange={setFormerReviewDate}
                       disabled={isSubmitting}
                     />
                   </div>
 
                   <div className="field">
                     <label htmlFor="doc-current-date">تاریخ بازبینی فعلی</label>
-                    <input
+                    <PersianDatePicker
                       id="doc-current-date"
-                      type="date"
-                      className="text-input"
                       value={currentReviewDate}
-                      onChange={(e) => setCurrentReviewDate(e.target.value)}
+                      onChange={setCurrentReviewDate}
                       disabled={isSubmitting}
                     />
                   </div>
@@ -399,13 +443,65 @@ export function DocumentCreatePage() {
                   </button>
                 )}
               </section>
+
+              {/* اختیاری، و برخلاف بقیه‌ی فرم بلافاصله ثبت نمی‌شود: ارتباط به کلید هر دو سر
+                  نیاز دارد و سند تا لحظه‌ی «ذخیره سند» کلیدی ندارد. پس انتخاب‌ها اینجا صف
+                  می‌شوند و درست بعد از ساخته‌شدن سند ثبت می‌گردند. */}
+              <section className="card create-card">
+                <h2 className="create-card__title">مدارک مرتبط</h2>
+                <p className="create-card__hint">
+                  اختیاری. مدارکی که این سند به آن‌ها ارجاع دارد - مثلاً فرمی که با این دستورالعمل پر
+                  می‌شود. پس از ذخیره‌ی سند ثبت می‌شوند و بعداً هم از فهرست اسناد قابل تغییرند.
+                </p>
+
+                {pendingRelations.length > 0 && (
+                  <ul className="relation-list">
+                    {pendingRelations.map((relation) => (
+                      <li key={relation.target.key} className="relation-item">
+                        <div className="relation-item__head">
+                          <span className="mono">{relation.target.number}</span>
+                          <span className="badge badge-muted">
+                            {documentRelationTypeLabel(relation.relationType, true)}
+                          </span>
+                        </div>
+
+                        <div className="relation-item__title">{relation.target.name}</div>
+
+                        {relation.note && <p className="relation-item__note">{relation.note}</p>}
+
+                        <div className="relation-item__actions">
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleRemoveQueuedRelation(relation.target.key)}
+                            disabled={isSubmitting}
+                          >
+                            حذف از فهرست
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <DocumentRelationPicker
+                  excludedDocumentIds={pendingRelations.map((r) => r.target.key)}
+                  disabled={isSubmitting}
+                  // صف‌کردن هیچ درخواستی به سرور نمی‌زند، پس حالت «در حال ثبت» ندارد.
+                  isSubmitting={false}
+                  error={null}
+                  submitLabel="افزودن به فهرست"
+                  submittingLabel="افزودن به فهرست"
+                  onPick={handleQueueRelation}
+                />
+              </section>
             </div>
 
             <aside className="create-aside">
               <div className="card create-card">
                 <h2 className="create-card__title">شماره سند</h2>
                 <p className="create-card__hint">
-                  با انتخاب هر مورد، بخش مربوط به آن پر می‌شود. سریال و بازنگری را سرور تعیین می‌کند.
+                  با انتخاب هر مورد، بخش مربوط به آن پر می‌شود.
                 </p>
 
                 <ol className="code-preview">
@@ -427,31 +523,47 @@ export function DocumentCreatePage() {
                     <span className="code-preview__value mono">{selectedType?.code ?? 'DD'}</span>
                     <span className="code-preview__label">نوع سند</span>
                   </li>
-                  <li className="is-server-assigned">
-                    <span className="code-preview__value mono">{category === 'Project' ? 'SSS' : '-SSS'}</span>
-                    <span className="code-preview__label">سریال</span>
-                  </li>
-                  <li className="is-server-assigned">
-                    <span className="code-preview__value mono">{category === 'Project' ? 'R' : '-R'}</span>
-                    <span className="code-preview__label">بازنگری</span>
-                  </li>
+                  {/* سریال و بازنگری اینجا نمی‌آیند: سرور آن‌ها را هنگام ذخیره تولید می‌کند،
+                      پس نمایش جای خالی‌شان در پیش‌نمایش چیزی به کاربر اضافه نمی‌کرد. */}
                 </ol>
               </div>
             </aside>
           </div>
 
+          {savedWithRelationErrors && (
+            <div className="card form-note" role="alert">
+              <strong>سند ذخیره شد</strong>، اما این ارتباط‌ها ثبت نشدند:
+              <ul>
+                {savedWithRelationErrors.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+              می‌توانید آن‌ها را از فهرست اسناد، با دکمه‌ی «مدارک مرتبط» همین سند، دوباره ثبت کنید.
+            </div>
+          )}
+
           <div className="page-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => navigate('/documents')}
-              disabled={isSubmitting}
-            >
-              انصراف
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'در حال ذخیره…' : 'ذخیره سند'}
-            </button>
+            {savedWithRelationErrors ? (
+              // سند دیگر ساخته شده؛ ارسال دوباره‌ی فرم یک سند تکراری می‌سازد، پس تنها راه
+              // پیشِ رو رفتن به فهرست است.
+              <button type="button" className="btn btn-primary" onClick={() => navigate('/documents')}>
+                رفتن به فهرست اسناد
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigate('/documents')}
+                  disabled={isSubmitting}
+                >
+                  انصراف
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'در حال ذخیره…' : 'ذخیره سند'}
+                </button>
+              </>
+            )}
           </div>
         </form>
       )}

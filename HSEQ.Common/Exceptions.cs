@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -123,6 +123,35 @@ namespace HSEQ.Common
     public class DocumentFileNotFoundException : CustomException
     {
         public DocumentFileNotFoundException() : base("فایل این مدرک روی سرور یافت نشد", 404)
+        {
+        }
+    }
+
+    // یک مدرک نمی‌تواند به خودش مرتبط شود - چنین ردیفی نه معنایی دارد و نه در فهرست
+    // «مدارک مرتبط» قابل نمایش است.
+    public class SelfDocumentRelationException : CustomException
+    {
+        public SelfDocumentRelationException()
+            : base("یک مدرک را نمی‌توان به خودش مرتبط کرد")
+        {
+        }
+    }
+
+    // ارتباط میان دو مدرک، یک جفتِ بدون‌ترتیب است: اگر A به B مرتبط باشد، B هم به A
+    // مرتبط است. پس ثبت دوباره‌ی همان جفت - در هر جهتی و با هر نوعی - رد می‌شود.
+    // برای تغییر نوع ارتباط، ابتدا ارتباط موجود حذف و سپس دوباره ثبت می‌شود.
+    public class DuplicateDocumentRelationException : CustomException
+    {
+        public DuplicateDocumentRelationException()
+            : base("این دو مدرک از قبل به هم مرتبط شده‌اند")
+        {
+        }
+    }
+
+    public class DocumentRelationNotFoundException : CustomException
+    {
+        public DocumentRelationNotFoundException()
+            : base("ارتباط مورد نظر یافت نشد", 404)
         {
         }
     }

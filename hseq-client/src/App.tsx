@@ -20,7 +20,10 @@ function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route index element={<DashboardPage />} />
+              {/* ریشه صفحه‌ی خودش را ندارد و به اسناد هدایت می‌شود - کار روزمره‌ی کاربر
+                  آنجاست. داشبورد مسیر صریح خودش را دارد تا لینک‌پذیر بماند. */}
+              <Route index element={<Navigate to="/documents" replace />} />
+              <Route path="dashboard" element={<DashboardPage />} />
               <Route path="documents" element={<DocumentsPage />} />
               <Route path="documents/search" element={<AdvancedSearchPage />} />
               {/* Creating a document is its own destination, so it is linkable and

@@ -15,6 +15,7 @@ import type {
   SearchDocumentsInput,
 } from '../types/api'
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal'
+import { RelatedDocumentsDrawer } from '../components/RelatedDocumentsDrawer'
 import { LoadingState, EmptyState, ErrorState } from '../components/StateViews'
 
 interface SearchLookups {
@@ -67,6 +68,7 @@ export function AdvancedSearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
 
   const [previewDocument, setPreviewDocument] = useState<DocumentDto | null>(null)
+  const [relationsDocument, setRelationsDocument] = useState<DocumentDto | null>(null)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
 
@@ -412,6 +414,8 @@ export function AdvancedSearchPage() {
                     <th>نام</th>
                     <th>دسته‌بندی</th>
                     <th>بازنگری</th>
+                    {/* ستون «شماره مدارک مرتبط» - مثل فهرست اسناد، شماره‌ی سمت مقابلِ هر ارتباط. */}
+                    <th>شماره مدارک مرتبط</th>
                     <th>وضعیت</th>
                     <th>عملیات</th>
                   </tr>
@@ -428,6 +432,25 @@ export function AdvancedSearchPage() {
                       <td>
                         {documentVersionLabel(doc.lastVersion)}
                         {doc.contentRevision ? String(doc.contentRevision).padStart(2, '0') : ''}
+                      </td>
+                      {/* با کلیک روی سلول، همان دیالوگ مدارک مرتبط باز می‌شود. */}
+                      <td>
+                        {doc.relatedDocumentNumbers.length === 0 ? (
+                          '—'
+                        ) : (
+                          <button
+                            type="button"
+                            className="related-numbers"
+                            onClick={() => setRelationsDocument(doc)}
+                            title="مشاهده و مدیریت مدارک مرتبط"
+                          >
+                            {doc.relatedDocumentNumbers.map((number) => (
+                              <span key={number} className="badge badge-muted mono">
+                                {number}
+                              </span>
+                            ))}
+                          </button>
+                        )}
                       </td>
                       <td>
                         {doc.isSuperseded ? (
@@ -457,6 +480,16 @@ export function AdvancedSearchPage() {
                           disabled={pendingFileId !== null}
                         >
                           دانلود
+                        </button>
+                        {/* خواندن مدارک مرتبط برای هر کاربر احرازهویت‌شده باز است؛ فرم
+                            افزودن را خودِ دیالوگ بر اساس دسترسی پنهان می‌کند، پس اینجا
+                            شرط جداگانه‌ای لازم نیست. */}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setRelationsDocument(doc)}
+                        >
+                          مدارک مرتبط
                         </button>
                       </td>
                     </tr>
@@ -494,6 +527,16 @@ export function AdvancedSearchPage() {
       </div>
 
       {previewDocument && <DocumentPreviewModal document={previewDocument} onClose={() => setPreviewDocument(null)} />}
+
+      {relationsDocument && (
+        <RelatedDocumentsDrawer
+          // تعویض مدرکِ هدف باید حالت داخلی فرم افزودن را از نو بسازد، نه اینکه انتخاب
+          // مدرک قبلی را با خودش ببرد - مثل همین الگو در صفحه‌ی اسناد.
+          key={relationsDocument.key}
+          document={relationsDocument}
+          onClose={() => setRelationsDocument(null)}
+        />
+      )}
     </div>
   )
 }

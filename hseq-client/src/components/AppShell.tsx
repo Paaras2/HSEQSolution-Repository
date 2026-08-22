@@ -41,15 +41,17 @@ export function AppShell() {
 
       <div className="app-body">
         <aside className={`app-sidebar${isSidebarOpen ? ' is-open' : ''}`}>
+          {/* ترتیب منو: کارهای روزمره اول، داشبورد آخر. داشبورد مسیر صریح «/dashboard»
+              دارد و ریشه‌ی سایت به فهرست اسناد هدایت می‌شود. */}
           <nav className="app-sidebar__nav">
-            <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
-              داشبورد
-            </NavLink>
             <NavLink to="/documents" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
               اسناد
             </NavLink>
             <NavLink to="/documents/search" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
               جستجوی پیشرفته
+            </NavLink>
+            <NavLink to="/dashboard" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
+              داشبورد
             </NavLink>
           </nav>
         </aside>

@@ -1,4 +1,4 @@
-using HSEQ.Service.Interfaces.Services;
+﻿using HSEQ.Service.Interfaces.Services;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -68,14 +68,18 @@ namespace HSEQ.Service.Services.Services
             return string.Join(" ", doc.Descendants(w + "t").Select(t => t.Value));
         }
 
+        // NonBacktracking حیاتی است: در ShowTextArrayPattern کلاس [^\[\]] بک‌اسلش را
+        // استثنا نمی‌کند و با شاخه‌ی \\. هم‌پوشان است؛ روی بایت‌های باینری PDF این ابهام به
+        // backtracking نمایی می‌رسید و ذخیره‌ی یک PDF یک‌مگابایتی عملاً هرگز تمام نمی‌شد.
+        // موتور NonBacktracking زمان خطی را تضمین می‌کند.
         private static readonly Regex StreamBlockPattern =
-            new(@"stream\r?\n(?<data>.*?)\r?\nendstream", RegexOptions.Singleline | RegexOptions.Compiled);
+            new(@"stream\r?\n(?<data>.*?)\r?\nendstream", RegexOptions.Singleline | RegexOptions.NonBacktracking);
         private static readonly Regex ShowTextPattern =
-            new(@"\((?<text>(?:[^()\\]|\\.)*)\)\s*Tj", RegexOptions.Compiled);
+            new(@"\((?<text>(?:[^()\\]|\\.)*)\)\s*Tj", RegexOptions.NonBacktracking);
         private static readonly Regex ShowTextArrayPattern =
-            new(@"\[(?<arr>(?:[^\[\]]|\\.)*)\]\s*TJ", RegexOptions.Compiled);
+            new(@"\[(?<arr>(?:[^\[\]]|\\.)*)\]\s*TJ", RegexOptions.NonBacktracking);
         private static readonly Regex ArrayStringPattern =
-            new(@"\((?<text>(?:[^()\\]|\\.)*)\)", RegexOptions.Compiled);
+            new(@"\((?<text>(?:[^()\\]|\\.)*)\)", RegexOptions.NonBacktracking);
 
         private static string? ExtractPdfBestEffort(Stream stream)
         {
@@ -88,6 +92,10 @@ namespace HSEQ.Service.Services.Services
             var result = new StringBuilder();
             foreach (Match streamMatch in StreamBlockPattern.Matches(raw))
             {
+                // بعد از رسیدن به سقف MaxExtractedLength ادامه‌ی اسکن فقط دورریز می‌شود.
+                if (result.Length >= MaxExtractedLength)
+                    break;
+
                 var content = DecompressIfNeeded(streamMatch.Groups["data"].Value);
                 AppendShownText(content, result);
             }
@@ -97,6 +105,11 @@ namespace HSEQ.Service.Services.Services
 
         private static string DecompressIfNeeded(string rawStreamData)
         {
+            // هدر zlib همیشه با 0x78 شروع می‌شود؛ بدون آن، تلاش برای بازکردن فقط یک استثنای
+            // پرهزینه به ازای هر بلوک بود - جریان غیرفشرده مستقیم برگردانده می‌شود.
+            if (rawStreamData.Length == 0 || rawStreamData[0] != '\x78')
+                return rawStreamData;
+
             try
             {
                 var dataBytes = Encoding.Latin1.GetBytes(rawStreamData);

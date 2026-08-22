@@ -1,4 +1,4 @@
-using HSEQ.Service.Interfaces.Repositories;
+﻿using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using HSEQ.Service.Services.Repositories;
 using HSEQ.Service.Services.Services;
@@ -29,6 +29,9 @@ namespace HSEQ.Service
             services.AddScoped<IMasterDataService, MasterDataService>();
             services.AddScoped<IFileTextExtractionService, FileTextExtractionService>();
             services.AddScoped<ISearchService, SearchService>();
+            services.AddScoped<IDashboardService, DashboardService>();
+            services.AddScoped<IDocumentRelationRepository, DocumentRelationRepository>();
+            services.AddScoped<IDocumentRelationService, DocumentRelationService>();
             return services;
         }
     }

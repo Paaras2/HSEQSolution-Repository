@@ -451,6 +451,234 @@ table.data-table {
   gap: 6px;
 }
 
+/* مدارک مرتبط: یک کارت به ازای هر ارتباط. شکل کلی عمداً همان revision-item است تا دو
+   مودالِ کنارِ هم (تاریخچه و مدارک مرتبط) یک زبان بصری داشته باشند، اما ردیف اینجا
+   عنوان بلند و توضیح آزاد دارد، پس چیدمان داخلی‌اش ستونی است نه شبکه‌ای. */
+.relation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.relation-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--color-surface);
+}
+
+.relation-item__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 6px;
+}
+
+.relation-item__title {
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.relation-item__note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.relation-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-start: 10px;
+}
+
+/* دیت‌پیکر شمسی: فیلد متنی + تقویم شناور. کنترل بومی مرورگر همیشه میلادی است، پس
+   تقویم دستی ساخته شده. */
+.date-picker {
+  position: relative;
+}
+
+.date-picker__control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-picker__control .text-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-picker__toggle {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.date-picker__toggle:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+.date-picker__toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* روی فیلدهای بعدی شناور می‌شود، مثل فهرست پیشنهاد خودکار. */
+.date-picker__popup {
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  width: 268px;
+  padding: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+.date-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-end: 8px;
+}
+
+.date-picker__month {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.date-picker__nav {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.date-picker__nav:hover {
+  background: var(--color-primary-soft);
+}
+
+.date-picker__weekdays,
+.date-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-picker__weekdays {
+  margin-block-end: 4px;
+}
+
+.date-picker__weekdays span {
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  padding-block: 4px;
+}
+
+.date-picker__cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.date-picker__cell.is-empty {
+  cursor: default;
+}
+
+.date-picker__cell:not(.is-empty):hover {
+  background: var(--color-primary-soft);
+}
+
+/* امروز فقط قاب می‌گیرد تا با روزِ انتخاب‌شده اشتباه نشود. */
+.date-picker__cell.is-today {
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.date-picker__cell.is-selected {
+  background: var(--color-primary);
+  color: var(--color-on-ink);
+  font-weight: 700;
+}
+
+.date-picker__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-start: 8px;
+  padding-block-start: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* سلول «شماره مدارک مرتبط» در جدول: چند شماره کنار هم، کل سلول کلیک‌پذیر برای باز کردن
+   دیالوگ. دکمه است نه div تا با صفحه‌کلید هم قابل استفاده باشد. */
+.related-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: start;
+}
+
+.related-numbers:hover .badge {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+/* فرم افزودن، بالای فهرست. کادر کم‌رنگ می‌گیرد تا از کارت‌های ارتباط زیرش جدا بماند. */
+.relation-add {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+/* فهرست پیشنهاد خودکار مطلق است و باید نسبت به همین فیلد جای بگیرد، نه نسبت به مودال. */
+.relation-add__picker {
+  position: relative;
+}
+
+.relation-add__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -811,13 +1039,6 @@ table.data-table {
 .code-preview li.is-set {
   border-color: var(--color-success);
   background: var(--color-success-soft);
-}
-
-/* Serial and revision are allocated by the server, so they are shown as
-   permanently pending rather than as something still to be chosen. */
-.code-preview li.is-server-assigned {
-  border-style: dashed;
-  opacity: 0.75;
 }
 
 .code-preview__value {
@@ -1275,4 +1496,345 @@ table.data-table {
   margin: 0 auto;
   border-radius: var(--radius-sm);
   object-fit: contain;
+}
+
+/* ---------------------------------------------------------------------------
+   داشبورد پیشرفته: کارت‌های KPI، هشدارها، و نمودارها.
+   --------------------------------------------------------------------------- */
+
+/* چیدمان کارت‌های KPI - ریسپانسیو، حداقل ۲۰۰px هر کارت */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  padding: 18px 20px;
+}
+
+.kpi-card__label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.kpi-card__value {
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: proportional-nums;
+  line-height: 1.2;
+}
+
+.kpi-card--warning .kpi-card__value {
+  color: var(--color-warning);
+}
+
+.kpi-card--danger .kpi-card__value {
+  color: var(--color-danger);
+}
+
+/* بخش نمودارها - دو ستون در صفحه‌ی عریض، یک ستون در موبایل */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dashboard-grid--full {
+  grid-template-columns: 1fr;
+}
+
+/* چهار کارت هشدار کنار هم، هم‌تراز با ردیف KPI بالا - هرکدام فهرست کوتاهی است و یک
+   ردیف کامل برایشان اسراف بود */
+/* minmax(0,1fr) نه 1fr - با 1fr کارتِ خالی («موردی وجود ندارد») باریک‌تر از بقیه
+   می‌شد و چهار ستون ناهم‌عرض می‌شدند */
+.dashboard-grid--quarters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .dashboard-grid--quarters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid,
+  .dashboard-grid--quarters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card {
+  padding: 18px 20px;
+}
+
+.chart-card__hint {
+  margin: -8px 0 14px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* --- نمودار میله‌ای عمودی (SVG) --- */
+/* عرض را خود کامپوننت از روی تعداد دسته‌ها ست می‌کند؛ اینجا فقط سقف می‌گذاریم تا در
+   کارت باریک سرریز نکند. با width:100% دو دسته روی کل عرض کشیده می‌شدند. */
+.bar-chart {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.bar-chart .bar-chart__bar {
+  fill: var(--color-primary);
+  transition: fill 0.15s ease;
+}
+
+.bar-chart .bar-chart__bar:hover {
+  fill: var(--color-primary-hover);
+}
+
+.bar-chart .bar-chart__gridline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.bar-chart .bar-chart__axis-label {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.bar-chart .bar-chart__value-label {
+  fill: var(--color-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* --- نمودار میله‌ای افقی (HTML/CSS - برای برچسب‌های طولانی مناسب‌تر از SVG است) --- */
+.hbar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hbar-row {
+  display: grid;
+  grid-template-columns: 42% 1fr 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.hbar-row__label {
+  font-size: 12.5px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar-row__track {
+  background: var(--color-bg);
+  border-radius: 999px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.hbar-row__fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 999px;
+  min-width: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.hbar-row:hover .hbar-row__fill {
+  background: var(--color-primary-hover);
+}
+
+.hbar-row__value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: end;
+}
+
+/* --- نمودار دونات (SVG) + راهنما --- */
+.donut-chart-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.donut-chart {
+  flex-shrink: 0;
+}
+
+.donut-chart__total-value {
+  fill: var(--color-text);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.donut-chart__total-label {
+  fill: var(--color-text-muted);
+  font-size: 10.5px;
+}
+
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.donut-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.donut-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.donut-legend__label {
+  color: var(--color-text);
+  flex: 1;
+}
+
+.donut-legend__count {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* --- نمودار خطی (SVG) --- */
+.line-chart-wrap {
+  position: relative;
+}
+
+.line-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.line-chart .line-chart__gridline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.line-chart .line-chart__axis-label {
+  fill: var(--color-text-muted);
+  font-size: 10.5px;
+}
+
+.line-chart .line-chart__area {
+  fill: var(--color-primary);
+  opacity: 0.1;
+}
+
+.line-chart .line-chart__line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.line-chart .line-chart__dot {
+  fill: var(--color-primary);
+  stroke: var(--color-surface);
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.line-chart .line-chart__dot--hover {
+  fill: var(--color-accent);
+}
+
+.line-chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, -110%);
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-panel);
+}
+
+/* --- هشدارها --- */
+.alert-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+/* min-width:0 لازم است تا ellipsis داخل flex واقعاً کار کند */
+.alert-row__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.alert-row__number {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* بدون max-width ثابت - کارت هشدار حالا یک‌سوم عرض است و عدد ثابت باعث سرریز می‌شد */
+.alert-row__name {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.alert-row__days {
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.alert-row__days--danger {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.alert-row__days--warning {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+/* «بدون تاریخ» یک شکاف اطلاعاتی است نه موعد از دست رفته - رنگ خنثی می‌گیرد تا با
+   هشدارهای واقعاً فوری اشتباه نشود */
+.alert-row__days--muted {
+  color: var(--color-text-muted);
+  background: var(--color-primary-soft);
 }

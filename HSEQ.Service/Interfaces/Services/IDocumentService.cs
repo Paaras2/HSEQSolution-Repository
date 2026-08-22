@@ -8,7 +8,11 @@ namespace HSEQ.Service.Interfaces.Services
 {
     public interface IDocumentService
     {
-        Task AddAsync(CreateDocumentRequestModel request, string pcode);
+        // کلید سند تازه‌ساخته‌شده را برمی‌گرداند تا فراخوان بتواند بلافاصله - و در همان
+        // رفت‌وبرگشت کاربر - کارهای وابسته به آن سند را انجام دهد، مثل ثبت مدارک مرتبطی
+        // که در فرم افزودن انتخاب شده‌اند. کلیدهای Guid را EF سمت کلاینت هنگام Add تولید
+        // می‌کند، پس مقدار پیش از SaveChanges هم معتبر است.
+        Task<Guid> AddAsync(CreateDocumentRequestModel request, string pcode);
         Task UpdateAsync(UpdateDocumentRequestModel request);
 
         // Issues the next revision of an existing Document as a NEW Document row and

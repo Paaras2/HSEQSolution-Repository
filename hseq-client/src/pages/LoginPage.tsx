@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Role } from '../auth/roles'
 import { ApiError } from '../lib/httpClient'
 
-interface LocationState {
-  from?: { pathname: string }
-}
+// مقصد بعد از ورود - همیشه فهرست اسناد، چون کار روزمره‌ی کاربر همان‌جاست.
+//
+// عمداً به «صفحه‌ی قبلی» برنمی‌گردیم: ProtectedRoute هنگام هدایت به صفحه‌ی ورود،
+// صفحه‌ی جاری را در state.from می‌گذارد و این شامل حالت «خروج عمدی» هم می‌شد؛
+// نتیجه‌اش این بود که اگر کاربر روی داشبورد خروج می‌زد، ورود بعدی دوباره به داشبورد
+// می‌رفت نه به اسناد.
+const AFTER_LOGIN_PATH = '/documents'
 
 const DEV_ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'ReadOnly', label: 'فقط مشاهده' },
@@ -18,7 +22,6 @@ const DEV_ROLE_OPTIONS: { value: Role; label: string }[] = [
 export function LoginPage() {
   const { isAuthenticated, login, devLogin } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [pcode, setPcode] = useState('')
   const [password, setPassword] = useState('')
@@ -31,8 +34,7 @@ export function LoginPage() {
   const [devError, setDevError] = useState<string | null>(null)
 
   if (isAuthenticated) {
-    const state = location.state as LocationState | null
-    return <Navigate to={state?.from?.pathname ?? '/'} replace />
+    return <Navigate to={AFTER_LOGIN_PATH} replace />
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -51,7 +53,7 @@ export function LoginPage() {
     setError(null)
     try {
       await login(trimmedPcode, password)
-      navigate('/', { replace: true })
+      navigate(AFTER_LOGIN_PATH, { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'امکان ورود وجود ندارد. لطفاً دوباره تلاش کنید.')
     } finally {
@@ -66,7 +68,7 @@ export function LoginPage() {
     setDevError(null)
     try {
       await devLogin(devRole)
-      navigate('/', { replace: true })
+      navigate(AFTER_LOGIN_PATH, { replace: true })
     } catch (err) {
       setDevError(err instanceof ApiError ? err.message : 'امکان ورود وجود ندارد. لطفاً دوباره تلاش کنید.')
     } finally {

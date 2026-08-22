@@ -3,6 +3,7 @@ import { documentApi } from '../api/documentApi'
 import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { ApiError } from '../lib/httpClient'
 import { documentVersionLabel } from '../types/api'
+import { isoToJalaliText } from '../lib/jalali'
 import type { DocumentDto } from '../types/api'
 import { Modal } from './Modal'
 import { LoadingState, ErrorState } from './StateViews'
@@ -128,7 +129,8 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
                   </div>
                   <div>
                     <dt>تاریخ بازبینی</dt>
-                    <dd>{rev.currentReviewDate ? rev.currentReviewDate.slice(0, 10) : '—'}</dd>
+                    {/* نمایش شمسی؛ مقدار ذخیره‌شده در دیتابیس همچنان میلادی است. */}
+                    <dd>{isoToJalaliText(rev.currentReviewDate ?? '') || '—'}</dd>
                   </div>
                   <div>
                     <dt>نام</dt>

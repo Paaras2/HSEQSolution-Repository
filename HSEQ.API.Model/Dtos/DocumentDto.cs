@@ -1,5 +1,6 @@
-using HSEQ.Common;
+﻿using HSEQ.Common;
 using System;
+using System.Collections.Generic;
 
 namespace HSEQ.API.Model.Dtos
 {
@@ -18,6 +19,11 @@ namespace HSEQ.API.Model.Dtos
         // revision chain. Null for a document's first revision.
         public Guid? RelatedDocumentId { get; set; }
         public string? RelatedDocumentNumber { get; set; }
+
+        // شماره‌ی «مدارک مرتبط» این سند (جدول DocumentRelations) - با RelatedDocumentNumber
+        // بالا اشتباه نشود که نسخه‌ی قبلی در زنجیره‌ی بازنگری است. فقط در فهرست صفحه‌بندی‌شده
+        // (GetAllPaginationAsync) پر می‌شود؛ در بقیه‌ی مسیرها فهرست خالی است.
+        public List<string> RelatedDocumentNumbers { get; set; } = new();
 
         // True when a newer revision of this document exists. Distinguishes a document
         // that went inactive because it was revised from one that was deactivated

@@ -4,9 +4,11 @@ import { useAuth } from '../auth/AuthContext'
 import { documentApi } from '../api/documentApi'
 import { ApiError } from '../lib/httpClient'
 import { documentVersionLabel } from '../types/api'
+import { isoToJalaliText } from '../lib/jalali'
 import type { DocumentDto } from '../types/api'
 import { DocumentFormDrawer } from '../components/DocumentFormDrawer'
 import { RevisionHistoryDrawer } from '../components/RevisionHistoryDrawer'
+import { RelatedDocumentsDrawer } from '../components/RelatedDocumentsDrawer'
 import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { LoadingState, EmptyState, ErrorState } from '../components/StateViews'
 
@@ -35,6 +37,7 @@ export function DocumentsPage() {
 
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [historyDocument, setHistoryDocument] = useState<DocumentDto | null>(null)
+  const [relationsDocument, setRelationsDocument] = useState<DocumentDto | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
 
@@ -189,6 +192,8 @@ export function DocumentsPage() {
                     <th>شماره</th>
                     <th>نام</th>
                     <th>بازنگری</th>
+                    {/* ستون «شماره مدارک مرتبط» - شماره‌ی سمت مقابلِ هر ارتباط، از هر دو جهت. */}
+                    <th>شماره مدارک مرتبط</th>
                     <th>تاریخ بازبینی</th>
                     <th>وضعیت</th>
                     {/* Always rendered: viewing a document's file is available to every
@@ -210,7 +215,27 @@ export function DocumentsPage() {
                         {documentVersionLabel(doc.lastVersion)}
                         {doc.contentRevision ? String(doc.contentRevision).padStart(2, '0') : ''}
                       </td>
-                      <td>{doc.currentReviewDate ? doc.currentReviewDate.slice(0, 10) : '—'}</td>
+                      {/* با کلیک روی سلول، همان دیالوگ مدارک مرتبط باز می‌شود. */}
+                      <td>
+                        {doc.relatedDocumentNumbers.length === 0 ? (
+                          '—'
+                        ) : (
+                          <button
+                            type="button"
+                            className="related-numbers"
+                            onClick={() => setRelationsDocument(doc)}
+                            title="مشاهده و مدیریت مدارک مرتبط"
+                          >
+                            {doc.relatedDocumentNumbers.map((number) => (
+                              <span key={number} className="badge badge-muted mono">
+                                {number}
+                              </span>
+                            ))}
+                          </button>
+                        )}
+                      </td>
+                      {/* نمایش شمسی؛ مقدار ذخیره‌شده در دیتابیس همچنان میلادی است. */}
+                      <td>{isoToJalaliText(doc.currentReviewDate ?? '') || '—'}</td>
                       <td>
                         {/* A superseded revision is also inactive, so it has to be
                             checked first - otherwise history reads as "deleted". */}
@@ -246,6 +271,12 @@ export function DocumentsPage() {
                             تاریخچه
                           </button>
                         )}
+                        {/* برخلاف «تاریخچه»، این همیشه نمایش داده می‌شود: نداشتن مدرک
+                            مرتبط از روی ردیف معلوم نیست، و همین دکمه هم راه دیدن
+                            مرتبط‌ها و هم راه افزودنشان است. */}
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRelationsDocument(doc)}>
+                          مدارک مرتبط
+                        </button>
                         {canManage && (
                           <>
                             <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEditDrawer(doc)}>
@@ -317,6 +348,16 @@ export function DocumentsPage() {
 
       {historyDocument && (
         <RevisionHistoryDrawer document={historyDocument} onClose={() => setHistoryDocument(null)} />
+      )}
+
+      {relationsDocument && (
+        <RelatedDocumentsDrawer
+          // مثل درایور فرم بالا: تعویض مدرکِ هدف باید حالت داخلی فرم افزودن را از نو
+          // بسازد، نه اینکه انتخاب مدرک قبلی را با خودش ببرد.
+          key={relationsDocument.key}
+          document={relationsDocument}
+          onClose={() => setRelationsDocument(null)}
+        />
       )}
     </div>
   )
