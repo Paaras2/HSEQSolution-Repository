@@ -21,9 +21,15 @@ namespace HSEQ.Service.Services.Repositories
         {
             return await _context.Set<Admin>()
                 .FirstOrDefaultAsync(x => x.Pcode == Pcode);
+        }
 
-
-
+        // مدیران سیستم اول، بعد مدیران اسناد؛ داخل هر گروه به ترتیب کد پرسنلی.
+        public async Task<List<Admin>> GetAllAsync()
+        {
+            return await _context.Set<Admin>()
+                .OrderByDescending(a => a.Role)
+                .ThenBy(a => a.Pcode)
+                .ToListAsync();
         }
     }
 }

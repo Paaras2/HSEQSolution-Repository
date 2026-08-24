@@ -9,6 +9,7 @@ import { DocumentRelationPicker } from './DocumentRelationPicker'
 import { PersianDatePicker } from './PersianDatePicker'
 import type { PickedRelation } from './DocumentRelationPicker'
 import { Modal } from './Modal'
+import { toPersianDigits } from '../lib/digits'
 
 // Creating a document is not handled here - it has its own route
 // (/documents/new), because it also collects the master-data classification that
@@ -38,9 +39,9 @@ const MODE_COPY: Record<DocumentFormMode, { title: string; subtitle: string; sub
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} بایت`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} کیلوبایت`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} مگابایت`
+  if (bytes < 1024) return `${toPersianDigits(bytes)} بایت`
+  if (bytes < 1024 * 1024) return `${toPersianDigits((bytes / 1024).toFixed(1))} کیلوبایت`
+  return `${toPersianDigits((bytes / (1024 * 1024)).toFixed(1))} مگابایت`
 }
 
 // Edit only exposes what UpdateDocumentRequestModel actually accepts:
@@ -186,7 +187,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
       title={
         <>
           {copy.title}
-          <span className="modal-title-badge mono">{document.number}</span>
+          <span className="modal-title-badge mono">{toPersianDigits(document.number)}</span>
         </>
       }
       subtitle={copy.subtitle}
@@ -204,9 +205,9 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
             <div className="form-note">
               بازنگری فعلی <strong>
                 {documentVersionLabel(document.lastVersion)}
-                {document.contentRevision ? String(document.contentRevision).padStart(2, '0') : ''}
+                {document.contentRevision ? toPersianDigits(String(document.contentRevision).padStart(2, '0')) : ''}
               </strong> است. با ثبت این فرم یک سند جدید با شماره بازنگری بعدی ساخته می‌شود و
-              سند <strong>{document.number}</strong> به‌عنوان نسخه‌ی منسوخ در تاریخچه باقی می‌ماند.
+              سند <strong>{toPersianDigits(document.number)}</strong> به‌عنوان نسخه‌ی منسوخ در تاریخچه باقی می‌ماند.
               شماره‌ی جدید سمت سرور تولید می‌شود.
             </div>
           )}
@@ -346,7 +347,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
                   {relations.map((relation) => (
                     <li key={relation.key} className="relation-item">
                       <div className="relation-item__head">
-                        <span className="mono">{relation.number}</span>
+                        <span className="mono">{toPersianDigits(relation.number)}</span>
                         <span className="badge badge-muted">
                           {documentRelationTypeLabel(relation.relationType, relation.isOutgoing)}
                         </span>

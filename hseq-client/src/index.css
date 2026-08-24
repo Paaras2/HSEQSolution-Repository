@@ -1,17 +1,30 @@
+/* ===========================================================================
+   پالت رنگ - حالت روشن (پیش‌فرض)
+
+   همه‌ی رنگ‌های برنامه از همین متغیرها می‌آیند؛ حالت تیره فقط همین بلوک را بازنویسی
+   می‌کند و هیچ قاعده‌ی دیگری تکرار نمی‌شود. تمِ فعال روی ‎<html data-theme>‎ می‌نشیند.
+   =========================================================================== */
 :root {
   /* پس‌زمینه‌ی صفحه و حاشیه‌ها - خاکستری روشنِ هم‌خانواده‌ی رنگ چهارم پالت */
-  --color-bg: #f4f5f6;
+  --color-bg: #eef1f3;
   --color-surface: #ffffff;
-  --color-border: #b8bfc1;
+  /* سطح دوم: کارت‌های تودرتو مثل کارت لوگو و کارت کاربر در منو */
+  --color-surface-2: #f5f7f8;
+  --color-border: #dbe1e4;
+  --color-border-strong: #b8bfc1;
 
-  /* متن اصلی و متن کم‌رنگ - مستقیماً از کد رنگی‌های جدید */
+  /* متن اصلی و متن کم‌رنگ. متن کم‌رنگ یک پله تیره‌تر از ‎#6c8494‎ی پالت است: آن مقدار
+     روی سفید نسبت کنتراست ۳٫۹ می‌داد که برای متن ۱۲-۱۴ پیکسلی کافی نیست. خودِ رنگِ
+     پالت به‌عنوان ‎--color-secondary‎ سر جایش مانده. */
   --color-text: #2c4c5c;
-  --color-text-muted: #6c8494;
+  --color-text-muted: #5a7080;
 
-  /* رنگ برند اصلی (دکمه‌ها، هدر/سایدبار، لینک‌های فعال) و حالت‌های آن */
+  /* رنگ برند اصلی (دکمه‌ها، لینک‌های فعال) و حالت‌های آن */
   --color-primary: #2c4c5c;
   --color-primary-hover: #6c8494;
   --color-primary-soft: #cad2d6;
+  /* متنِ روی سطحِ پررنگِ برند - در حالت تیره سطح روشن‌تر می‌شود و این هم برمی‌گردد */
+  --color-on-primary: #ffffff;
 
   /* رنگ ثانویه برای جزئیات کمکی (مثلاً هاور دکمه‌ی ثانویه) */
   --color-secondary: #6c8494;
@@ -20,13 +33,18 @@
      چون کنتراست زرد روی پس‌زمینه‌ی سفید برای متن/فوکوس کافی نیست) */
   --color-accent: #f3e308;
 
-  /* رنگ تیره‌ی برند برای هدر/سایدبار تیره و پس‌زمینه‌ی صفحه‌ی ورود */
+  /* فیروزه‌ای برند، برداشته‌شده از گرادیانِ درختِ لوگو. لهجه‌ی رنگیِ منو و نوار بالاست:
+     عنوان بخش، آیتم فعال و حلقه‌ی آواتار. */
+  --color-teal: #0b767c;
+  --color-teal-rgb: 11 118 124;
+
+  /* رنگ تیره‌ی برند برای صفحه‌ی ورود و سطوح تیره‌ی ثابت (مثل داک عملیات گروهی) */
   --color-ink: #2c4c5c;
   --color-ink-soft: #6c8494;
   --color-on-ink: #ffffff;
   --color-on-ink-muted: #b8bfc1;
 
-  /* رنگ‌های وضعیت (خطا/موفقیت/هشدار) - بدون تغییر، مستقل از پالت برند */
+  /* رنگ‌های وضعیت (خطا/موفقیت/هشدار) */
   --color-danger: #d64545;
   --color-danger-soft: #fbe7e7;
   --color-success: #1f9d6b;
@@ -34,17 +52,122 @@
   --color-warning: #e0a72a;
   --color-warning-soft: #fdf3dc;
 
+  /* رنگ اختصاصی هر عملیات ردیف. به‌صورت سه‌تایی RGB نگهداری می‌شوند تا همان رنگ با
+     شفافیت‌های مختلف برای متن، پس‌زمینه‌ی هاور و سایه استفاده شود. تیرگی‌شان طوری
+     انتخاب شده که روی سطح سفید کنتراست کافی برای آیکون داشته باشند. */
+  --tone-view: 33 118 186; /* آبی - مشاهده */
+  --tone-download: 21 138 96; /* سبز - دانلود */
+  --tone-history: 176 114 12; /* کهربایی - تاریخچه */
+  --tone-edit: 90 78 190; /* بنفش - ویرایش */
+  --tone-revise: 13 129 143; /* فیروزه‌ای - بازنگری */
+  --tone-danger: 199 58 58; /* قرمز - غیرفعال کردن */
+  --tone-success: 21 138 96; /* سبز - تأیید و فعال‌سازی */
+  --tone-warning: 176 114 12; /* کهربایی - هشدارِ غیرمخرب مثل تنزل نقش */
+  --tone-muted: 90 112 128; /* خاکستری - عملیات خنثی مثل انصراف */
+
+  /* شیشه‌ی دکمه‌های آیکونی: در حالت روشن سفیدِ نیمه‌شفاف، در حالت تیره سفیدِ بسیار کم‌رنگ */
+  --glass-fill: 255 255 255 / 0.8;
+  --glass-highlight: 255 255 255 / 0.75;
+
+  /* رنگ پایه‌ی سایه‌ها؛ در حالت تیره به مشکی نزدیک می‌شود */
+  --shadow-rgb: 44 76 92;
+
+  /* حلقه‌ی فوکوس فیلدها و پرده‌ی پشت دیالوگ */
+  --color-focus-ring: rgb(44 76 92 / 0.18);
+  --color-overlay: rgb(44 76 92 / 0.55);
+
+  /* ته‌رنگ ردیف انتخاب‌شده‌ی جدول */
+  --color-row-selected: rgb(44 76 92 / 0.08);
+  --color-row-selected-hover: rgb(44 76 92 / 0.13);
+
+  /* داکِ شناور عملیات گروهی - در هر دو تم سطحی تیره است، فقط تیرگی‌اش فرق می‌کند */
+  --dock-surface: rgb(38 66 80 / 0.94);
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
-  --shadow-card: 0 1px 2px rgba(44, 76, 92, 0.08), 0 1px 3px rgba(44, 76, 92, 0.1);
-  --shadow-panel: 0 0 24px rgba(44, 76, 92, 0.16);
-  --shadow-modal: 0 24px 64px rgba(44, 76, 92, 0.28), 0 4px 12px rgba(44, 76, 92, 0.12);
+  --shadow-card: 0 1px 2px rgb(var(--shadow-rgb) / 0.08), 0 1px 3px rgb(var(--shadow-rgb) / 0.1);
+  --shadow-panel: 0 0 24px rgb(var(--shadow-rgb) / 0.16);
+  --shadow-modal: 0 24px 64px rgb(var(--shadow-rgb) / 0.28), 0 4px 12px rgb(var(--shadow-rgb) / 0.12);
   --header-height: 60px;
-  --sidebar-width: 224px;
+  --sidebar-width: 264px;
+  --sidebar-width-collapsed: 76px;
+  /* فاصله‌ی پنل‌های شناور (منو، نوار بالا، محتوا) از لبه‌ی صفحه */
+  --shell-gap: 12px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+/* ===========================================================================
+   پالت رنگ - حالت تیره
+   لاجورد-خاکستریِ هم‌خانواده‌ی ‎#2c4c5c‎ برند، نه خاکستری خنثی، تا هویت رنگی حفظ شود.
+   =========================================================================== */
+:root[data-theme="dark"] {
+  --color-bg: #0f171d;
+  --color-surface: #18232b;
+  --color-surface-2: #1f2c35;
+  --color-border: #2b3d49;
+  --color-border-strong: #3a505f;
+
+  --color-text: #e4edf1;
+  --color-text-muted: #92a8b5;
+
+  /* روی زمینه‌ی تیره، آبیِ برند باید روشن‌تر شود وگرنه نه به‌عنوان متن خوانده می‌شود
+     نه به‌عنوان سطحِ دکمه دیده. متنِ روی آن هم به تیره برمی‌گردد. */
+  --color-primary: #4d9cb8;
+  --color-primary-hover: #6fb4cd;
+  --color-primary-soft: #24343e;
+  --color-on-primary: #0b141a;
+
+  --color-secondary: #8fabba;
+
+  --color-teal: #3ec6cd;
+  --color-teal-rgb: 62 198 205;
+
+  --color-ink: #16212a;
+  --color-ink-soft: #27404f;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #a9bcc7;
+
+  --color-danger: #f07070;
+  --color-danger-soft: #3a1f21;
+  --color-success: #4fc79a;
+  --color-success-soft: #12302a;
+  --color-warning: #e8bd5a;
+  --color-warning-soft: #362b16;
+
+  /* نسخه‌ی روشن‌ترِ همان شش رنگ عملیات، برای کنتراست روی سطحِ تیره */
+  --tone-view: 108 178 235;
+  --tone-download: 92 208 158;
+  --tone-history: 226 176 82;
+  --tone-edit: 160 150 240;
+  --tone-revise: 94 202 214;
+  --tone-danger: 240 122 122;
+  /* سه لحن افزوده‌ی پنل ادمین هم نسخه‌ی روشن خودشان را دارند، وگرنه سبز و کهربایی و
+     خاکستریِ تیره روی سطحِ تیره کنتراست کافی نداشتند. */
+  --tone-success: 92 208 158;
+  --tone-warning: 226 176 82;
+  --tone-muted: 150 170 184;
+
+  --glass-fill: 255 255 255 / 0.07;
+  --glass-highlight: 255 255 255 / 0.08;
+
+  --shadow-rgb: 0 0 0;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.24);
+  --shadow-panel: 0 0 24px rgb(0 0 0 / 0.45);
+  --shadow-modal: 0 24px 64px rgb(0 0 0 / 0.6), 0 4px 12px rgb(0 0 0 / 0.4);
+
+  --color-focus-ring: rgb(77 156 184 / 0.3);
+  --color-overlay: rgb(4 9 12 / 0.68);
+
+  --color-row-selected: rgb(77 156 184 / 0.14);
+  --color-row-selected-hover: rgb(77 156 184 / 0.2);
+
+  --dock-surface: rgb(31 44 53 / 0.96);
+
+  color-scheme: dark;
 }
 
 * {
@@ -75,131 +198,843 @@ a {
   color: var(--color-primary);
 }
 
+/* ===========================================================================
+   پوسته‌ی برنامه: سه پنلِ شناور روی پس‌زمینه‌ی صفحه
+   منوی تمام‌قد در سمت شروع، و ستون محتوا شاملِ نوار بالا و صفحه.
+   =========================================================================== */
 .app-shell {
+  /* عرضِ مؤثرِ منو؛ در حالت جمع‌شده عوض می‌شود و هر چیزی که به آن وابسته است
+     (مثل داکِ عملیات گروهی) خودبه‌خود جابه‌جا می‌شود. */
+  --shell-sidebar: var(--sidebar-width);
   min-height: 100%;
   display: flex;
-  flex-direction: column;
+  gap: var(--shell-gap);
+  padding-inline: var(--shell-gap);
+  padding-block-end: var(--shell-gap);
 }
 
-/* هدر با پس‌زمینه‌ی تیره‌ی برند برای ظاهر سازمانی‌تر */
-.app-header {
-  height: var(--header-height);
+.app-shell.is-collapsed {
+  --shell-sidebar: var(--sidebar-width-collapsed);
+}
+
+/* پوششِ پشتِ کشوی موبایل */
+.app-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: rgb(8 14 18 / 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* ---------------------------------------------------------------------------
+   منوی کناری
+   --------------------------------------------------------------------------- */
+.app-sidebar {
+  width: var(--shell-sidebar);
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 20px;
-  background: var(--color-ink);
-  /* نوار زرد پررنگ زیر هدر - لهجه‌ی تزئینی پالت جدید */
-  border-bottom: 3px solid var(--color-accent);
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  margin-block-start: var(--shell-gap);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  /* همراه اسکرول می‌ماند؛ ناوبری نباید با طولانی شدن صفحه از دسترس خارج شود. */
   position: sticky;
-  top: 0;
-  z-index: 20;
+  top: var(--shell-gap);
+  height: calc(100vh - var(--shell-gap) * 2);
+  transition: width 0.2s ease;
 }
 
-.app-header__brand {
+/* کارت لوگو */
+.sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-weight: 600;
-  font-size: 17px;
-  color: var(--color-on-ink);
+  justify-content: center;
+  padding: 14px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
 }
 
-.app-header__brand-mark {
+.sidebar-brand__logo {
   display: block;
-  height: 34px;
+  height: 76px;
   width: auto;
+  max-width: 100%;
 }
 
-.app-header__menu-toggle {
+/* نشانِ کوچک فقط در ریلِ جمع‌شده‌ی دسکتاپ ظاهر می‌شود */
+.sidebar-brand__logo--mark {
   display: none;
 }
 
-/* دکمه‌ی «شفاف» داخل هدر تیره باید روشن دیده بشه، نه هم‌رنگ پس‌زمینه */
-.app-header .btn-ghost {
-  color: var(--color-on-ink);
+.sidebar-title {
+  text-align: center;
 }
 
-.app-header .btn-ghost:hover:not(:disabled) {
-  background: var(--color-ink-soft);
-  color: var(--color-on-ink);
+.sidebar-title h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  /* عنوان دوخطی است و وسط‌چین؛ بدون این، خط اول پر و خط دوم یک کلمه‌ی تنها می‌ماند.
+     مرورگرهای قدیمی‌تر نادیده‌اش می‌گیرند و همان شکست خط پیش‌فرض را دارند. */
+  text-wrap: balance;
 }
 
-.app-header__user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-header__user-info {
-  text-align: end;
-  line-height: 1.25;
-}
-
-.app-header__user-name {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--color-on-ink);
-}
-
-.app-header__user-role {
+.sidebar-title p {
+  margin: 4px 0 0;
   font-size: 12px;
-  color: var(--color-on-ink-muted);
+  color: var(--color-text-muted);
 }
 
-.app-body {
-  flex: 1;
-  display: flex;
-  min-height: 0;
-}
-
-/* سایدبار هم‌رنگ هدر تیره می‌شه تا پوسته‌ی برنامه یک‌دست به نظر برسه */
-.app-sidebar {
-  width: var(--sidebar-width);
-  flex-shrink: 0;
-  background: var(--color-ink);
-  border-inline-start: 1px solid var(--color-ink-soft);
-  padding: 16px 12px;
-}
-
-.app-sidebar__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* آیتم‌های منو روی پس‌زمینه‌ی تیره: حالت پیش‌فرض کم‌رنگ‌تر، فعال با رنگ برند */
-.nav-link {
+/* عنوان بخش + خطی که تا انتهای منو کشیده می‌شود */
+.sidebar-section {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--color-on-ink-muted);
+}
+
+.sidebar-section__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-teal);
+  white-space: nowrap;
+}
+
+.sidebar-section__line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to left, rgb(var(--color-teal-rgb) / 0.45), transparent);
+  position: relative;
+}
+
+/* نقطه‌ی انتهای خط، همان لهجه‌ی طرح مرجع */
+.sidebar-section__line::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--color-teal);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* منوی بلند داخل خودش اسکرول می‌شود، نه کل پنل. */
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-link__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.nav-link__text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link:hover {
-  background: var(--color-ink-soft);
-  color: var(--color-on-ink);
+  background: var(--color-surface-2);
+  color: var(--color-text);
 }
 
-/* آیتم فعال منو با یک نوار زرد کنار خط، برای نشون‌دادن صفحه‌ی جاری */
+/* آیتم فعال: پس‌زمینه‌ی کم‌رنگِ فیروزه‌ای + نوارِ پررنگ روی لبه‌ی شروع */
 .nav-link.active {
-  background: var(--color-primary);
+  background: rgb(var(--color-teal-rgb) / 0.12);
+  color: var(--color-teal);
+  font-weight: 600;
+}
+
+.nav-link.active::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--color-teal);
+}
+
+/* راهنمای شناورِ آیتم‌های منو - فقط در حالت جمع‌شده معنا دارد */
+.nav-link__tip {
+  position: absolute;
+  inset-inline-end: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
   color: var(--color-on-ink);
-  border-inline-start: 3px solid var(--color-accent);
-  padding-inline-start: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--color-border);
+}
+
+/* کارت هویتِ کاربر */
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.user-card__avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  /* همان گرادیانِ درختِ لوگو: از فیروزه‌ای به سبز */
+  background: linear-gradient(150deg, var(--color-teal), #12a04b);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* نقطه‌ی «آنلاین» روی آواتار */
+.user-card__status {
+  position: absolute;
+  inset-inline-end: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-success);
+  border: 2px solid var(--color-surface-2);
+}
+
+.user-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.user-card__body strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-card__body span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.sidebar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-collapse:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+/* در حالت جمع‌شده، فلش‌ها به جهت مخالف اشاره می‌کنند */
+.app-shell.is-collapsed .sidebar-collapse svg {
+  transform: scaleX(-1);
+}
+
+/* ---------------------------------------------------------------------------
+   حالت جمع‌شده‌ی منو: فقط آیکون‌ها
+   عمداً فقط در دسکتاپ اعمال می‌شود؛ در موبایل منو کشوی تمام‌قد است و «جمع‌شده» بی‌معنا،
+   پس این قواعد اصلاً وارد بازی نمی‌شوند و نیازی به بازگردانی‌شان نیست.
+   --------------------------------------------------------------------------- */
+@media (min-width: 769px) {
+  .app-shell.is-collapsed .sidebar-title,
+  .app-shell.is-collapsed .sidebar-section,
+  .app-shell.is-collapsed .nav-link__text,
+  .app-shell.is-collapsed .user-card__body,
+  .app-shell.is-collapsed .sidebar-collapse__text {
+    display: none;
+  }
+
+  .app-shell.is-collapsed .app-sidebar {
+    padding: 12px 10px;
+    align-items: stretch;
+  }
+
+  .app-shell.is-collapsed .sidebar-brand {
+    padding: 10px 6px;
+  }
+
+  .app-shell.is-collapsed .sidebar-brand__logo--full {
+    display: none;
+  }
+
+  .app-shell.is-collapsed .sidebar-brand__logo--mark {
+    display: block;
+    height: 34px;
+  }
+
+  .app-shell.is-collapsed .nav-link {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .app-shell.is-collapsed .nav-link:hover .nav-link__tip,
+  .app-shell.is-collapsed .nav-link:focus-visible .nav-link__tip {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .app-shell.is-collapsed .user-card {
+    justify-content: center;
+    padding: 8px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   ستون محتوا و نوار بالا
+   --------------------------------------------------------------------------- */
+.app-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* نگه‌دارنده‌ی چسبانِ نوار بالا. پس‌زمینه‌اش همان پس‌زمینه‌ی صفحه است تا محتوای در حال
+   اسکرول از شکافِ بالای نوار پیدا نباشد. */
+.app-topbar-dock {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-block: var(--shell-gap);
+  background: var(--color-bg);
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--header-height);
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.topbar__lead,
+.topbar__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* دکمه‌ی منو فقط در موبایل دیده می‌شود */
+.topbar__menu {
+  display: none;
+}
+
+/* تاریخ امروز به‌صورت یک قرص، با آیکون تقویم - نمایشی است نه دکمه */
+.topbar__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.topbar__date svg {
+  color: var(--color-teal);
+}
+
+.topbar__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.topbar__icon-btn:hover {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.topbar__icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* کادر جستجوی سریع، وسطِ نوار */
+/* ---------------------------------------------------------------------------
+   نوار جستجوی جمع‌وجورِ بالای برنامه (جایگزین صفحه‌ی «جستجوی پیشرفته»)
+   کادر عبارت + دکمه‌ی فیلتر، و یک پنل شناور که فقط هنگام نیاز باز می‌شود. پنهان بودن
+   فیلترها همراه با نشانِ همیشه‌پیدای تعدادشان، همان چیزی است که نوار را جمع‌وجور نگه
+   می‌دارد بی‌آنکه کاربر فراموش کند فیلتری فعال است.
+   --------------------------------------------------------------------------- */
+.searchbar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+.searchbar__form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 14px 6px;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.searchbar__form:focus-within {
+  border-color: var(--color-teal);
+  background: var(--color-surface);
+}
+
+.searchbar__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+  outline: none;
+}
+
+.searchbar__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* پاک کردن کل جستجو - فقط وقتی جستجویی اعمال شده باشد رندر می‌شود. */
+.searchbar__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.searchbar__clear:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+/* دکمه‌ی فیلتر داخل خودِ کادر می‌نشیند تا یک واحد دیده شوند، نه دو کنترل جدا. */
+.searchbar__filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.searchbar__filter-btn:hover,
+.searchbar__filter-btn.is-open {
+  background: rgb(var(--color-teal-rgb) / 0.12);
+  border-color: rgb(var(--color-teal-rgb) / 0.28);
+  color: var(--color-teal);
+}
+
+.searchbar__filter-btn.has-filters {
+  color: var(--color-teal);
+}
+
+.searchbar__filter-btn:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+}
+
+.searchbar__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-teal);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* پنل شناور فیلترها، دقیقاً زیر کادر جستجو. */
+.search-panel {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(100% + 8px);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-modal);
+  animation: search-panel-in 0.16s ease-out;
+}
+
+@keyframes search-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.search-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.search-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.search-panel__error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.search-panel__switches {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-block-start: 2px;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.search-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-block-start: 4px;
+  border-block-start: 1px solid var(--color-border);
+}
+
+/* ---- کلید روشن/خاموش ------------------------------------------------------ */
+/* چک‌باکس بومی پنهان است ولی حذف نشده: کیبورد، صفحه‌خوان و ارسال فرم مثل قبل کار
+   می‌کنند و فقط ظاهرش عوض شده. */
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.switch-row:hover {
+  background: var(--color-surface-2);
+}
+
+.switch-row input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-row__track {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin-block-start: 2px;
+  border-radius: 999px;
+  background: var(--color-border);
+  transition: background-color 0.18s ease;
+}
+
+.switch-row__thumb {
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  transition: transform 0.18s ease;
+}
+
+.switch-row input:checked + .switch-row__track {
+  background: var(--color-teal);
+}
+
+/* در راست‌به‌چپ، «روشن» یعنی حرکت دستگیره به سمت چپ. */
+.switch-row input:checked + .switch-row__track .switch-row__thumb {
+  transform: translateX(-16px);
+}
+
+html[dir="ltr"] .switch-row input:checked + .switch-row__track .switch-row__thumb {
+  transform: translateX(16px);
+}
+
+.switch-row input:focus-visible + .switch-row__track {
+  box-shadow: 0 0 0 2px var(--color-teal);
+}
+
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch-row__text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.switch-row__text span {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ---- تراشه‌های فیلترِ فعال، بالای جدول ------------------------------------- */
+/* بدون این نوار معلوم نبود نتیجه بر چه اساسی محدود شده - چون فیلترها داخل پنل شناور
+   تنظیم می‌شوند و بعد از بسته شدنش دیده نمی‌شوند. */
+.filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgb(var(--color-teal-rgb) / 0.3);
+  border-radius: 999px;
+  background: rgb(var(--color-teal-rgb) / 0.1);
+  color: var(--color-teal);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-chip:hover {
+  background: rgb(var(--color-teal-rgb) / 0.2);
+  border-color: rgb(var(--color-teal-rgb) / 0.5);
+}
+
+.filter-chip__value {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.filter-chips__clear {
+  margin-inline-start: auto;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-chips__clear:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+/* شمارنده‌ی نوار ابزار - جای کادر جستجویی که از این صفحه برداشته شد. */
+.toolbar__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.toolbar__count strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  /* در موبایل کادر جستجو باریک می‌شود و پنلِ هم‌عرضِ آن غیرقابل‌استفاده بود. اینجا از
+     کادر جدا می‌شود و زیر نوار بالا، تقریباً تمام‌عرض باز می‌شود. */
+  .search-panel {
+    position: fixed;
+    inset-inline: 12px;
+    inset-block-start: calc(var(--header-height) + 8px);
+  }
+}
+
+@media (max-width: 600px) {
+  /* در عرض کم، دو انتخابگر پنل زیر هم می‌روند و متن دکمه‌ی فیلتر جای خود را به
+     آیکون تنها می‌دهد. */
+  .search-panel__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchbar__filter-text {
+    display: none;
+  }
+}
+
+
+.topbar__user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: end;
+  line-height: 1.3;
+}
+
+.topbar__user-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.topbar__user-info span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.topbar__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--color-teal), #12a04b);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .app-main {
   flex: 1;
   min-width: 0;
-  padding: 24px 28px;
+  padding-block-end: 24px;
 }
 
 .page-loading {
@@ -289,7 +1124,7 @@ a {
 
 .btn-primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -369,16 +1204,24 @@ table.data-table {
 
 .data-table td.actions-cell {
   display: flex;
-  gap: 6px;
+  /* دکمه‌ها آیکونی شدند و جای کمتری می‌گیرند، پس یک ردیفِ فشرده کافی است و دیگر
+     نیازی به شکستن خط نیست. */
+  gap: 4px;
   justify-content: flex-end;
-  /* View/download/history sit alongside the manage actions now, so the row can
-     carry more buttons than fit on one line at narrow widths. */
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  padding-inline: 10px 12px;
 }
 
+/* کدها و شماره‌های سند. حالا که ارقامشان فارسی است، Vazirmatn باید اول بیاید:
+   Cascadia Code و Consolas گلیفِ ۰-۹ فارسی ندارند و مرورگر مجبور می‌شد وسط یک کد به
+   فونت دیگری سوییچ کند - نتیجه‌اش ارقامی با ارتفاع و وزنِ ناهماهنگ بود. تراز ستونی هم
+   با ‎tabular-nums‎ حفظ می‌شود. */
 .mono {
-  font-family: "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-family: "Vazirmatn", "Cascadia Code", Consolas, ui-monospace, monospace;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
   direction: ltr;
   unicode-bidi: isolate;
 }
@@ -704,6 +1547,13 @@ table.data-table {
   color: var(--color-text-muted);
 }
 
+/* نقش «مدیر سیستم» در فهرست کاربران - بالاترین سطح دسترسی باید بین نقش‌های خاکستری
+   فوراً دیده شود. */
+.badge-warning {
+  background: rgb(var(--tone-warning) / 0.14);
+  color: rgb(var(--tone-warning));
+}
+
 .state-panel {
   display: flex;
   flex-direction: column;
@@ -770,13 +1620,16 @@ table.data-table {
 .select-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(44, 76, 92, 0.18);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .text-input:disabled,
 .select-input:disabled {
   background: var(--color-bg);
   color: var(--color-text-muted);
+  /* قفل بودن باید از روی نشانگر ماوس هم پیدا باشد، نه فقط از رنگِ کم‌جان. */
+  cursor: not-allowed;
+  opacity: 0.75;
 }
 
 .form-error {
@@ -813,7 +1666,7 @@ table.data-table {
   position: fixed;
   inset: 0;
   /* پرده‌ی پشت دیالوگ با همون رنگ تیره‌ی برند */
-  background: rgba(44, 76, 92, 0.55);
+  background: var(--color-overlay);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
@@ -976,22 +1829,23 @@ table.data-table {
 .create-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
+  gap: 14px;
   align-items: start;
 }
 
 .create-main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
 }
 
 /* Follows the form down a long page, so the number preview stays in view while
    the classification selects are being filled in. */
+/* فاصله از بالا به اندازه‌ی نوار بالای چسبان است، وگرنه کارت هنگام اسکرول زیر آن می‌رفت. */
 .create-aside {
   position: sticky;
-  top: 16px;
+  top: calc(var(--header-height) + var(--shell-gap) * 2 + 4px);
 }
 
 .create-card {
@@ -1030,7 +1884,7 @@ table.data-table {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 6px 9px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg);
@@ -1066,6 +1920,512 @@ table.data-table {
 
   .create-aside {
     position: static;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   فرم افزودن سند - نسخه‌ی فشرده
+
+   فرم قبلی شش کارتِ روی‌هم بود و برای دیدن دکمه‌ی ذخیره باید تا ته صفحه اسکرول می‌شد.
+   اینجا بخش‌ها در سه گام ادغام شده‌اند، کنترل‌های پرارتفاع (رادیوهای دسته‌بندی و کادر
+   فایل) به فرمِ کم‌ارتفاع تبدیل شده‌اند، بخش اختیاری جمع می‌شود و نوار عملیات به پایین
+   پنجره می‌چسبد. قاعده‌هایی که کلاسِ مشترک با صفحات دیگر را دست می‌زنند عمداً زیر
+   ‎.create-page‎ محدود شده‌اند تا داشبورد و پنل مدیریت تغییری نکنند.
+   --------------------------------------------------------------------------- */
+
+/* سرِ هر کارت: شماره‌ی گام + عنوان + برچسب کوتاه، همه در یک خط */
+.create-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block-end: 14px;
+}
+
+/* فاصله‌ی پایینیِ عنوان را در این حالت خودِ «سر» می‌سازد */
+.create-card__head .create-card__title {
+  margin: 0;
+}
+
+/* شماره‌ی گام - قرص گردِ کوچک کنار عنوان */
+.create-card__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 24px;
+  block-size: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* همان قرص، وقتی به‌جای شماره آیکون دارد (بخش مدارک مرتبط) */
+.create-card__step--icon {
+  background: rgb(var(--color-teal-rgb) / 0.14);
+  color: var(--color-teal);
+}
+
+/* برچسب توضیحیِ انتهای سرِ کارت، مثل «اختیاری» */
+.create-card__badge {
+  margin-inline-start: auto;
+  padding: 3px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* جداکننده‌ی زیربخش داخل یک کارت - خط نازکی که تا لبه‌ی کارت ادامه می‌یابد */
+.create-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.create-subtitle::after {
+  content: "";
+  flex: 1;
+  block-size: 1px;
+  background: var(--color-border);
+}
+
+.create-subtitle__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* شبکه‌ی سه‌ستونه برای فیلدهای کوتاه: سه انتخابِ سازنده‌ی شماره در یک ردیف جا می‌شوند */
+.form-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* خطای فرم به‌صورت نوار باریک با لبه‌ی رنگی، نه یک کارت کامل */
+.create-alert {
+  padding: 11px 14px;
+  border: 1px solid var(--color-danger);
+  border-inline-start-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.8;
+}
+
+/* ---- کنترل قرصیِ دسته‌بندی، جای دو ردیف بلندِ رادیویی قبلی ------------------ */
+
+/* ردیف دسته‌بندی: کنترل قرصی + تراشه‌ی «EN» کنار هم. هر دو با هم شکل شماره را
+   می‌سازند، پس یک ردیف واحدند نه دو کنترلِ روی هم. */
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* تراشه‌ی نسخه‌ی انگلیسی. عمداً هم‌قد و هم‌شکلِ کنترل دسته‌بندی است تا خواننده آن را
+   عضوی از همان خانواده ببیند، نه یک چک‌باکس بی‌ربط که زیرش افتاده. */
+.en-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 45px;
+  padding: 0 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.en-chip:hover {
+  border-color: rgb(var(--tone-view) / 0.4);
+  color: var(--color-text);
+}
+
+.en-chip input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: rgb(var(--tone-view));
+  cursor: pointer;
+}
+
+.en-chip:has(input:focus-visible) {
+  outline: 2px solid rgb(var(--tone-view));
+  outline-offset: 2px;
+}
+
+.en-chip:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* حالت فعال، همان ته‌رنگی را می‌گیرد که «(EN)» در پیش‌نمایش شماره دارد. */
+.en-chip.is-active {
+  border-color: rgb(var(--tone-view) / 0.5);
+  background: rgb(var(--tone-view) / 0.12);
+  color: rgb(var(--tone-view));
+}
+
+/* «EN» لاتین است و در متن راست‌به‌چپ باید جدا بماند. */
+.en-chip__label {
+  direction: ltr;
+  unicode-bidi: isolate;
+  letter-spacing: 0.04em;
+}
+
+/* پسوند داخل خط راهنما، هم‌رنگ تراشه‌ی فعال تا ارتباطشان معلوم باشد. */
+.field-hint__en {
+  color: rgb(var(--tone-view));
+  font-weight: 700;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* کنترل قرصیِ دسته‌بندی. تک‌خطی است و فقط به‌اندازه‌ی برچسب‌هایش عرض می‌گیرد، نه کل
+   ستون - دو کلمه‌ی کوتاه دلیلی ندارد کادری به بلندی و پهنای یک فیلد کامل بگیرند.
+   ارتفاعش عمداً با ‎.text-input‎ کنار دستش یکی است تا ردیف هم‌تراز بماند. */
+.segmented {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-self: start;
+  gap: 4px;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+}
+
+.segmented__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 82px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-align: center;
+  color: var(--color-text-muted);
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* ورودی رادیو حذف نشده، فقط نامرئی است - کیبورد و صفحه‌خوان مثل قبل کار می‌کنند */
+.segmented__option input {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented__option:hover {
+  color: var(--color-text);
+}
+
+.segmented__option.is-active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-card);
+}
+
+/* حلقه‌ی فوکوس روی خودِ قرص می‌نشیند، چون ورودی نامرئی است. گزینه‌ی انتخاب‌شده خودش
+   سایه دارد و آن سایه بر حلقه غلبه می‌کرد - یعنی کاربر کیبورد روی همان گزینه‌ای که
+   Tab اول رویش می‌ایستد هیچ نشانه‌ای نمی‌دید. حالا هر دو با هم نوشته می‌شوند و انتخاب‌گر
+   هم صریح‌تر شده تا قطعاً برنده باشد. */
+.segmented .segmented__option:has(input:focus-visible) {
+  box-shadow: 0 0 0 2px var(--color-primary), var(--shadow-card);
+}
+
+.segmented__option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.segmented__label {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* ---- کادر فایل به‌صورت نوار افقیِ کوتاه ------------------------------------ */
+
+/* فقط در این صفحه؛ کادر مربعیِ ۱۰۴ پیکسلی در کشوی ویرایش سند دست‌نخورده می‌ماند. */
+.create-page .file-drop {
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 0;
+  padding: 12px 14px;
+  text-align: start;
+}
+
+.create-page .file-drop__prompt,
+.create-page .file-drop__selected {
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+  text-align: start;
+}
+
+/* آیکون گردِ ابتدای نوار - رنگش با وضعیت کادر (خالی/در حال رها کردن/پرشده) عوض می‌شود */
+.file-drop__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 38px;
+  block-size: 38px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.file-drop.is-dragging .file-drop__icon {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.file-drop.has-file .file-drop__icon {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+/* دکمه‌ی حذف داخل خودِ نوار است، پس باید بالای لایه‌ی نامرئیِ ورودی فایل بنشیند */
+.create-page .file-drop__clear {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+
+/* ---- بخش جمع‌شونده‌ی «مدارک مرتبط» ---------------------------------------- */
+
+.create-collapse {
+  padding: 0;
+}
+
+.create-collapse__heading {
+  margin: 0;
+  font: inherit;
+}
+
+.create-collapse__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  inline-size: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.create-collapse__toggle:hover {
+  background: var(--color-bg);
+}
+
+/* عنوان بقیه‌ی سر را به انتهای ردیف هل می‌دهد */
+.create-collapse__title {
+  margin-inline-end: auto;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.create-collapse__toggle .create-card__badge {
+  margin-inline-start: 0;
+}
+
+.create-collapse__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+}
+
+.create-collapse.is-open .create-collapse__chevron {
+  transform: rotate(180deg);
+}
+
+.create-collapse__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px 16px;
+  border-block-start: 1px solid var(--color-border);
+}
+
+/* فاصله‌ها را اینجا فاصله‌ی خودِ ستون می‌سازد */
+.create-collapse__body .create-card__hint {
+  margin: 0;
+}
+
+/* فهرست ارتباط‌های در صف: فشرده‌تر از نسخه‌ی کشوی «مدارک مرتبط»، با دکمه‌ی حذف در همان
+   خطِ شماره‌ی سند به‌جای یک ردیف جدا زیر آن. */
+.relation-list--compact {
+  gap: 8px;
+}
+
+.relation-list--compact .relation-item {
+  padding: 10px 12px;
+  background: var(--color-bg);
+}
+
+.relation-item__remove {
+  margin-inline-start: auto;
+}
+
+/* ---- کارت کناری: پیش‌نمایش شماره و پیشرفت تکمیل --------------------------- */
+
+/* پیش‌نمایش زنده‌ی شماره‌ی سند - هر بخش با انتخاب‌شدن از جای‌خالی به مقدار واقعی می‌رود */
+.code-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin: 0 0 12px;
+  padding: 12px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.code-strip__part {
+  padding: 2px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* حاشیه و ته‌رنگ سبز نقشِ «پر شد» را می‌رسانند؛ خودِ کد با رنگ متن نوشته می‌شود، چون سبزِ
+   برند روی ته‌رنگ سبزِ روشن کنتراست کافی برای خواندن ندارد. */
+.code-strip__part.is-set {
+  border-color: var(--color-success);
+  background: var(--color-success-soft);
+  color: var(--color-text);
+}
+
+/* سریال و بازنگری را سرور می‌سازد، پس همیشه جای‌خالیِ کم‌رنگ می‌مانند */
+.code-strip__part.is-auto {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.75;
+}
+
+.code-strip__sep {
+  color: var(--color-text-muted);
+}
+
+/* «چقدر مانده؟» - همان سؤالی که کاربر وسط فرم می‌پرسد */
+.create-progress {
+  margin-block-start: 14px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.create-progress__track {
+  block-size: 6px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.create-progress__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: inline-size 0.25s ease, background-color 0.2s ease;
+}
+
+.create-progress__fill.is-complete {
+  background: var(--color-success);
+}
+
+.create-progress__text {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* ---- نوار عملیاتِ چسبان --------------------------------------------------- */
+
+/* «ذخیره سند» مهم‌ترین دکمه‌ی صفحه است و نباید ته فرم پنهان شود، پس نوار به پایین
+   پنجره می‌چسبد و همیشه در دسترس می‌ماند. */
+.create-actions {
+  position: sticky;
+  inset-block-end: var(--shell-gap);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block-start: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: 0 6px 24px rgb(var(--shadow-rgb) / 0.14);
+}
+
+.create-actions__hint {
+  margin: 0;
+  margin-inline-end: auto;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 1100px) {
+  /* زیر این عرض، ستون اصلی آن‌قدر باریک می‌شود که سه انتخاب کنار هم تنگ بیفتند */
+  .form-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .form-grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* در موبایل، متنِ راهنما جای دکمه‌ها را تنگ می‌کند */
+  .create-actions__hint {
+    display: none;
+  }
+
+  .create-actions {
+    justify-content: flex-end;
   }
 }
 
@@ -1149,7 +2509,7 @@ table.data-table {
 
 .file-drop:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(44, 76, 92, 0.18);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 /* Covers the drop area so the whole box is clickable, without leaving the
@@ -1293,6 +2653,7 @@ table.data-table {
   margin: 0;
   font-size: 18px;
   text-align: center;
+  text-wrap: balance;
 }
 
 .login-card__brand p {
@@ -1357,19 +2718,46 @@ table.data-table {
 }
 
 @media (max-width: 768px) {
-  .app-header__menu-toggle {
+  .topbar__menu {
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    cursor: pointer;
   }
 
-  .app-header__user-info {
+  /* در عرض کم، هویت کاربر به آواتار خلاصه می‌شود و تاریخ کنار می‌رود. */
+  .topbar__user-info,
+  .topbar__date {
     display: none;
   }
 
-  .app-sidebar {
+  .app-shell {
+    --shell-sidebar: 0px;
+    padding-inline: 10px;
+  }
+
+  /* منو کشوی شناور می‌شود؛ حالت «جمع‌شده»ی دسکتاپ اینجا معنا ندارد. */
+  .app-shell.is-collapsed {
+    --shell-sidebar: 0px;
+  }
+
+  .app-sidebar,
+  .app-shell.is-collapsed .app-sidebar {
     position: fixed;
-    top: var(--header-height);
+    top: 0;
     bottom: 0;
     inset-inline-start: 0;
+    width: min(300px, 86vw);
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
     z-index: 30;
     transform: translateX(100%);
     transition: transform 0.2s ease;
@@ -1384,8 +2772,9 @@ table.data-table {
     transform: translateX(0);
   }
 
-  .app-main {
-    padding: 16px;
+  /* دکمه‌ی جمع کردن منو در موبایل بی‌معناست. */
+  .sidebar-collapse {
+    display: none;
   }
 
   /* On a phone the dialog uses the full width and drops the outer gutter, so it
@@ -1503,36 +2892,253 @@ table.data-table {
    --------------------------------------------------------------------------- */
 
 /* چیدمان کارت‌های KPI - ریسپانسیو، حداقل ۲۰۰px هر کارت */
+/* ---------------------------------------------------------------------------
+   داشبورد - کارت‌های KPI
+   آیکون رنگی سمت راست عدد؛ همان زبان بصریِ ناوبری پنل ادمین، تا چهار عدد اصلی از یک
+   نگاه تفکیک شوند نه با خواندنِ برچسبشان.
+   --------------------------------------------------------------------------- */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .kpi-card {
-  padding: 18px 20px;
+  --tone: var(--tone-view);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.kpi-card--view {
+  --tone: var(--tone-view);
+}
+
+.kpi-card--success {
+  --tone: var(--tone-success);
+}
+
+.kpi-card--warning {
+  --tone: var(--tone-warning);
+}
+
+.kpi-card--danger {
+  --tone: var(--tone-danger);
+}
+
+.kpi-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: rgb(var(--tone) / 0.13);
+  color: rgb(var(--tone));
+}
+
+.kpi-card__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* عدد کوچک‌تر از قبل (۳۰px) شد: ارتفاع ردیف KPI کم می‌شود و ردیف نمودارها بالاتر
+   می‌آید - یعنی کمتر اسکرول. */
+.kpi-card__value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: rgb(var(--tone));
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-card__label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-muted);
-  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.kpi-card__value {
-  font-size: 30px;
+/* عنوان نمودارها - جمع‌وجورتر از عنوان کارت‌های فرم، چون در یک صفحه چند تا از آن‌ها
+   کنار هم می‌نشیند. */
+.chart-card__title {
+  margin: 0 0 2px;
+  font-size: 14px;
   font-weight: 700;
-  font-variant-numeric: proportional-nums;
-  line-height: 1.2;
+  color: var(--color-text);
 }
 
-.kpi-card--warning .kpi-card__value {
-  color: var(--color-warning);
+/* ---- پنل هشدارها ----------------------------------------------------------- */
+/* چهار فهرست هشدار، داخل یک کارت. قبلاً چهار کارت جدا بودند و فاصله‌ی بین کارت‌ها
+   ارتفاع اضافه می‌ساخت. */
+.alerts-panel {
+  padding: 16px;
 }
 
-.kpi-card--danger .kpi-card__value {
-  color: var(--color-danger);
+.alerts-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.alert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.alert-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.alert-card__head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* شمارنده‌ی هر دسته، تا بدون شمردنِ ردیف‌ها معلوم باشد چند مورد است. */
+.alert-card__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.alert-card__count--danger {
+  background: rgb(var(--tone-danger) / 0.15);
+  color: rgb(var(--tone-danger));
+}
+
+.alert-card__count--warning {
+  background: rgb(var(--tone-warning) / 0.15);
+  color: rgb(var(--tone-warning));
+}
+
+.alert-card__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ---- ناوبری بخش‌ها: نشانِ عددی روی تب ------------------------------------- */
+/* پنهان کردن «بازبینی منقضی‌شده» پشت یک تب فقط وقتی بی‌خطر است که کاربر بدون باز
+   کردنش هم بفهمد چند مورد منتظر اوست. */
+.section-nav__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(var(--tone-danger));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- میله‌ی افقی: کدِ کوتاه کنار عنوان ------------------------------------- */
+/* ستون عنوان پهن‌تر شد (از ۴۲٪ به ۵۲٪) چون نام مدیریت‌های سازمانی طولانی است و با
+   عرض قبلی وسط کلمه بریده می‌شد. */
+.hbar-list .hbar-row {
+  grid-template-columns: 52% 1fr 44px;
+}
+
+.hbar-list .hbar-row__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.hbar-list .hbar-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar-list .hbar-row__code {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--hbar-tone) / 0.14);
+  color: rgb(var(--hbar-tone));
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* هر نمودار ته‌رنگ خودش را دارد تا دو نمودارِ کنار هم با هم قاطی نشوند. */
+.hbar-list {
+  --hbar-tone: var(--tone-revise);
+}
+
+.hbar-list--view {
+  --hbar-tone: var(--tone-view);
+}
+
+.hbar-list--edit {
+  --hbar-tone: var(--tone-edit);
+}
+
+.hbar-list--revise {
+  --hbar-tone: var(--tone-revise);
+}
+
+.hbar-list--history {
+  --hbar-tone: var(--tone-history);
+}
+
+.hbar-list .hbar-row__fill {
+  background: rgb(var(--hbar-tone));
+}
+
+.hbar-list .hbar-row:hover .hbar-row__fill {
+  background: rgb(var(--hbar-tone) / 0.75);
+}
+
+@media (max-width: 1200px) {
+  .alerts-panel__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .alerts-panel__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hbar-list .hbar-row {
+    grid-template-columns: 60% 1fr 38px;
+  }
 }
 
 /* بخش نمودارها - دو ستون در صفحه‌ی عریض، یک ستون در موبایل */
@@ -1837,4 +3443,797 @@ table.data-table {
 .alert-row__days--muted {
   color: var(--color-text-muted);
   background: var(--color-primary-soft);
+}
+/* نوار تب‌های پنل ادمین. دکمه است نه لینک، چون تب‌ها آدرس جدا ندارند و
+   وضعیتشان درون همان صفحه نگه داشته می‌شود. */
+/* ---------------------------------------------------------------------------
+   پنل ادمین
+   ناوبری تب‌ها: هر تب آیکون و رنگ خودش را دارد. تب فعال، کارتی برجسته با ته‌رنگِ
+   همان رنگ می‌شود؛ بقیه خنثی می‌مانند تا تمرکز روی جایی باشد که کاربر ایستاده.
+   --------------------------------------------------------------------------- */
+.section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 16px;
+}
+
+.section-nav__item {
+  --tone: var(--tone-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease,
+    transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.section-nav__item--view {
+  --tone: var(--tone-view);
+}
+
+.section-nav__item--edit {
+  --tone: var(--tone-edit);
+}
+
+.section-nav__item--revise {
+  --tone: var(--tone-revise);
+}
+
+.section-nav__item--history {
+  --tone: var(--tone-history);
+}
+
+.section-nav__item--success {
+  --tone: var(--tone-success);
+}
+
+.section-nav__item--warning {
+  --tone: var(--tone-warning);
+}
+
+/* آیکون همیشه رنگی است - حتی در تب غیرفعال - تا نوار ناوبری از دور هم خوانده شود. */
+.section-nav__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgb(var(--tone) / 0.12);
+  color: rgb(var(--tone));
+  transition: background-color 0.15s ease;
+}
+
+.section-nav__item:hover {
+  border-color: rgb(var(--tone) / 0.4);
+  color: var(--color-text);
+  transform: translateY(-1px);
+}
+
+.section-nav__item:focus-visible {
+  outline: 2px solid rgb(var(--tone));
+  outline-offset: 2px;
+}
+
+.section-nav__item.is-active {
+  border-color: rgb(var(--tone) / 0.45);
+  background: rgb(var(--tone) / 0.1);
+  color: rgb(var(--tone));
+  box-shadow: 0 2px 10px rgb(var(--tone) / 0.18);
+}
+
+.section-nav__item.is-active .section-nav__icon {
+  background: rgb(var(--tone) / 0.2);
+}
+
+/* کارت اصلی هر تب. برخلاف قبل که فرم و جدول دو کارت جدا بودند، حالا یک سطح‌اند و
+   فاصله‌ی خالیِ میانشان حذف شده. */
+.admin-panel {
+  overflow: hidden;
+}
+
+/* ---- نوار بالای تب ---------------------------------------------------------- */
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-toolbar__lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-toolbar__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.panel-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* آمار یک‌نگاهی - قرص‌های کوچک کنار عنوان، به‌جای شمردنِ دستیِ ردیف‌ها. */
+.panel-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.stat-pill strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-pill--success {
+  border-color: rgb(var(--tone-success) / 0.3);
+  background: rgb(var(--tone-success) / 0.1);
+  color: rgb(var(--tone-success));
+}
+
+.stat-pill--success strong {
+  color: rgb(var(--tone-success));
+}
+
+.stat-pill--muted {
+  border-color: rgb(var(--tone-danger) / 0.28);
+  background: rgb(var(--tone-danger) / 0.09);
+  color: rgb(var(--tone-danger));
+}
+
+.stat-pill--muted strong {
+  color: rgb(var(--tone-danger));
+}
+
+/* جستجوی درون‌تبی. فهرست فعالیت سازمانی ده‌ها ردیف دارد و بدون این، پیدا کردن یک
+   مورد یعنی اسکرول کردنِ کل جدول. */
+.panel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 240px;
+  max-width: 100%;
+  padding-inline: 12px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.panel-search:focus-within {
+  border-color: var(--color-teal);
+  background: var(--color-surface);
+}
+
+.panel-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+  outline: none;
+}
+
+/* علامت + روی دکمه‌ی افزودن؛ در حالت باز ۴۵ درجه می‌چرخد و به «بستن» تبدیل می‌شود -
+   همان کنترل، دو حالت، بدون جابه‌جا شدن دکمه. */
+.btn__plus {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+
+.btn__plus.is-open {
+  transform: rotate(45deg);
+}
+
+/* ---- فرم افزودنِ کشویی ------------------------------------------------------ */
+/* فرم دیگر همیشه باز نیست: کار غالب این صفحه مرور و ویرایش است، نه ثبت مورد جدید. */
+.create-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  animation: create-panel-in 0.18s ease-out;
+}
+
+@keyframes create-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.create-panel__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+}
+
+.create-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* توضیح ماهیت یک تب، بالای جدولش. برای آرشیو لازم است: بدون آن کاربر انتظار دارد
+   بتواند ردیف اضافه یا ویرایش کند. */
+.panel-note {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgb(var(--tone-warning) / 0.07);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+/* کد ۵حرفی به‌همراه تجزیه‌ی سه‌جزئی‌اش (مدیریت+فعالیت+نوع سند). */
+.legacy-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legacy-code__parts {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(var(--tone-warning) / 0.12);
+  color: rgb(var(--tone-warning));
+  font-size: 10.5px;
+  font-weight: 700;
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.admin-panel__row-error {
+  margin: 16px 16px 0;
+}
+
+/* ردیف غیرفعال کم‌رنگ‌تر دیده می‌شود تا بدون خواندن ستون «وضعیت» هم از بقیه جدا باشد. */
+.data-table tbody tr.is-inactive-row td:not(.actions-cell) {
+  opacity: 0.6;
+}
+
+/* توضیح کوتاهِ چرایی قفل بودن یک ردیف، جای دکمه‌های عملیات. */
+.lock-note {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  /* در موبایل ناوبری افقی اسکرول می‌شود تا پنج تب روی هم نریزند. */
+  .section-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-block-end: 4px;
+  }
+
+  .section-nav__item {
+    flex: none;
+  }
+
+  .panel-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .panel-search {
+    width: 100%;
+  }
+
+  .panel-toolbar__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panel-toolbar__actions .btn {
+    justify-content: center;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   دکمه‌های آیکونیِ شیشه‌ای (glass) در ستون عملیات جدول
+   سطحِ نیمه‌شفاف + بلورِ پس‌زمینه + یک خط نورِ بالا، تا دکمه روی ردیفِ سفید و روی
+   ردیفِ هاورشده هر دو خوانا بماند و شلوغی دکمه‌های متنی قبلی را نداشته باشد.
+
+   رنگ هر دکمه از متغیر ‎--tone‎ می‌آید؛ بقیه‌ی قواعد یک‌بار نوشته شده‌اند و هر واریانت
+   فقط همین یک متغیر را عوض می‌کند.
+   --------------------------------------------------------------------------- */
+.icon-btn {
+  --tone: 44 76 92;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--tone) / 0.16);
+  background: linear-gradient(135deg, rgb(var(--glass-fill)), rgb(var(--tone) / 0.09));
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  box-shadow:
+    0 1px 2px rgb(var(--tone) / 0.14),
+    inset 0 1px 0 rgb(var(--glass-highlight));
+  color: rgb(var(--tone));
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.icon-btn--view {
+  --tone: var(--tone-view);
+}
+
+.icon-btn--download {
+  --tone: var(--tone-download);
+}
+
+.icon-btn--history {
+  --tone: var(--tone-history);
+}
+
+.icon-btn--edit {
+  --tone: var(--tone-edit);
+}
+
+.icon-btn--revise {
+  --tone: var(--tone-revise);
+}
+
+.icon-btn--danger {
+  --tone: var(--tone-danger);
+}
+
+.icon-btn--success {
+  --tone: var(--tone-success);
+}
+
+.icon-btn--warning {
+  --tone: var(--tone-warning);
+}
+
+.icon-btn--muted {
+  --tone: var(--tone-muted);
+}
+
+/* هاور: دکمه کمی بالا می‌آید و شیشه با رنگ خودش پر می‌شود - بازخورد بدون تغییر
+   اندازه‌ی ردیف. */
+.icon-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgb(var(--tone) / 0.3);
+  background: linear-gradient(135deg, rgb(var(--glass-fill)), rgb(var(--tone) / 0.22));
+  box-shadow:
+    0 4px 12px rgb(var(--tone) / 0.26),
+    inset 0 1px 0 rgb(var(--glass-highlight));
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 3px rgb(var(--tone) / 0.28);
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid rgb(var(--tone));
+  outline-offset: 2px;
+}
+
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.icon-btn__glyph {
+  display: inline-flex;
+}
+
+/* راهنمای شناور جایگزین متنِ حذف‌شده‌ی دکمه است. بالای دکمه باز می‌شود چون کانتینر
+   جدول اسکرول افقی دارد و پایینِ آخرین ردیف بریده می‌شد. */
+.icon-btn__tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  /* عمداً فیزیکی (left) و نه منطقی: جابه‌جایی با transform هم فیزیکی است و ترکیب
+     این دو در حالت راست‌به‌چپ، راهنما را از مرکز دکمه خارج می‌کند. */
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  z-index: 5;
+}
+
+.icon-btn:hover:not(:disabled) .icon-btn__tip,
+.icon-btn:focus-visible .icon-btn__tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* آخرین دکمه به لبه‌ی جدول می‌چسبد و راهنمای وسط‌چینش از کادر بیرون می‌زد (و اسکرول
+   افقی می‌ساخت)؛ برای همین از لبه‌ی خودِ دکمه به سمت داخل باز می‌شود. */
+.actions-cell .icon-btn:last-child .icon-btn__tip {
+  left: 0;
+  transform: translateX(0) translateY(4px);
+}
+
+.actions-cell .icon-btn:last-child:hover:not(:disabled) .icon-btn__tip,
+.actions-cell .icon-btn:last-child:focus-visible .icon-btn__tip {
+  transform: translateX(0) translateY(0);
+}
+
+/* نشانگر چرخان عملیاتِ در حال انجام (باز کردن فایل، غیرفعال کردن). */
+.icon-spin {
+  animation: icon-spin 0.8s linear infinite;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* کاربرانی که کاهش حرکت را انتخاب کرده‌اند، انیمیشن و جابه‌جایی نبینند. */
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn,
+  .icon-btn__tip {
+    transition: none;
+  }
+
+  .icon-btn:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .icon-spin {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   انتخاب چندتایی ردیف‌های جدول
+   --------------------------------------------------------------------------- */
+/* ستون باریک است تا اضافه‌شدنش عرض جدول را بی‌دلیل زیاد نکند. */
+.data-table th.select-cell,
+.data-table td.select-cell {
+  width: 36px;
+  padding-inline: 12px 0;
+}
+
+.row-check {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.row-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ردیف انتخاب‌شده با ته‌رنگ برند مشخص می‌شود؛ رنگش از هاور پررنگ‌تر است تا انتخاب با
+   عبور ماوس اشتباه نشود. */
+.data-table tbody tr.is-selected {
+  background: var(--color-row-selected);
+}
+
+.data-table tbody tr.is-selected:hover {
+  background: var(--color-row-selected-hover);
+}
+
+/* نوار نشانه روی لبه‌ی شروعِ ردیف. روی خودِ سلولِ اول اجرا می‌شود، چون سایه روی ‎<tr>‎
+   با ‎border-collapse: collapse‎ در همه‌ی مرورگرها یکسان رندر نمی‌شود. */
+.data-table tbody tr.is-selected .select-cell {
+  box-shadow: inset -3px 0 0 var(--color-primary);
+}
+
+html[dir="ltr"] .data-table tbody tr.is-selected .select-cell {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   داکِ شناور عملیات گروهی
+   روی محتوا شناور است و جای جدول را نمی‌گیرد؛ روی ستون محتوا وسط‌چین می‌شود، نه روی
+   کل پنجره، چون سایدبار در دسکتاپ عرض ثابتی از صفحه را گرفته است.
+   --------------------------------------------------------------------------- */
+.bulk-dock {
+  position: fixed;
+  bottom: 24px;
+  /* عرضِ مؤثر منو به‌اضافه‌ی فاصله‌های پوسته؛ با جمع شدن منو خودبه‌خود جابه‌جا می‌شود. */
+  inset-inline-start: calc(var(--shell-sidebar, var(--sidebar-width)) + var(--shell-gap) * 2);
+  inset-inline-end: var(--shell-gap);
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  /* خودِ ظرف نباید کلیک‌ها را بگیرد؛ فقط پنل داخلش تعامل‌پذیر است. */
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* تا وقتی داک باز است، انتهای صفحه فضای بیشتری می‌گیرد تا صفحه‌بندیِ پایین جدول زیر
+   آن پنهان نشود. */
+body:has(.bulk-dock) .app-main {
+  padding-bottom: 104px;
+}
+
+.bulk-dock__panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 8px 10px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  /* سطح تیره‌ی برند با کمی شفافیت + بلور: روی جدول روشن به‌خوبی جدا می‌شود. */
+  background: var(--dock-surface);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow:
+    0 12px 32px rgb(20 38 48 / 0.32),
+    0 2px 8px rgb(20 38 48 / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.14);
+  color: var(--color-on-ink);
+  pointer-events: auto;
+  overflow: hidden;
+  animation: bulk-dock-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes bulk-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+
+.bulk-dock__info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline-start: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* شمارنده‌ی انتخاب - تنها جایی در داک که زردِ برند استفاده می‌شود، تا عدد اول از همه
+   دیده شود. روی سطح تیره کنتراست زرد بسیار بالاست. */
+.bulk-dock__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-dock__label {
+  color: rgb(255 255 255 / 0.82);
+}
+
+.bulk-dock__sep {
+  width: 1px;
+  height: 22px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.bulk-dock__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* دکمه‌های داک: آیکون + متن، چون اینجا برخلاف ردیف جدول جا هست و عملیات گروهی
+   حساس‌تر از آن است که فقط با آیکون معرفی شود. */
+.bulk-action {
+  --tone: 255 255 255;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--tone) / 0.28);
+  background: rgb(var(--tone) / 0.12);
+  color: rgb(var(--tone));
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.bulk-action:hover:not(:disabled) {
+  background: rgb(var(--tone) / 0.24);
+  border-color: rgb(var(--tone) / 0.5);
+  transform: translateY(-1px);
+}
+
+.bulk-action:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.bulk-action:focus-visible {
+  outline: 2px solid rgb(var(--tone));
+  outline-offset: 2px;
+}
+
+.bulk-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* روی سطح تیره باید نسخه‌ی روشن‌ترِ همان رنگ‌ها استفاده شود، وگرنه سبز و قرمزِ
+   تیره‌ی جدول اینجا خوانا نیستند. */
+.bulk-action--download {
+  --tone: 110 226 176;
+}
+
+.bulk-action--danger {
+  --tone: 255 154 154;
+}
+
+/* وقتی همه‌ی انتخاب‌شده‌ها قابل غیرفعال‌شدن نیستند، تعداد واقعی روی دکمه می‌آید. */
+.bulk-action__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgb(var(--tone) / 0.24);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* بستن داک = پاک کردن کل انتخاب. */
+.bulk-dock__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.6);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.bulk-dock__clear:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--color-on-ink);
+}
+
+.bulk-dock__clear:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.bulk-dock__clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* نوار پیشرفت عملیات گروهی: با scaleX رشد می‌کند تا در هر فریم layout دوباره محاسبه
+   نشود. مبدأ روی لبه‌ی شروعِ جهت متن است تا در راست‌به‌چپ از راست پر شود. */
+.bulk-dock__progress {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--color-accent);
+  transform-origin: right center;
+  transition: transform 0.25s ease;
+}
+
+html[dir="ltr"] .bulk-dock__progress {
+  transform-origin: left center;
+}
+
+@media (max-width: 768px) {
+  /* سایدبار در این عرض شناور می‌شود و دیگر از عرض محتوا کم نمی‌کند. */
+  .bulk-dock {
+    inset-inline-start: 0;
+    bottom: 16px;
+  }
+
+  .bulk-dock__panel {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* متن توضیحی اولین چیزی است که در عرض کم قربانی می‌شود؛ عدد و دکمه‌ها می‌مانند. */
+  .bulk-dock__label,
+  .bulk-dock__sep {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulk-dock__panel {
+    animation: none;
+  }
+
+  .bulk-action:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .bulk-dock__progress {
+    transition: none;
+  }
 }

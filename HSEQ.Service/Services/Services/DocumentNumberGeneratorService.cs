@@ -16,6 +16,14 @@ namespace HSEQ.Service.Services.Services
     //   5. Defensively confirm the result isn't already in use.
     public class DocumentNumberGeneratorService : IDocumentNumberGeneratorService
     {
+        // پسوند نسخه‌ی انگلیسی. عمداً بیرون از value objectهای DocumentCode و
+        // HeadquartersDocumentCode اعمال می‌شود: آن‌ها فقط ساختار استانداردِ شماره را
+        // می‌سازند و اعتبارسنجی می‌کنند، و این یک برچسبِ نسخه است نه جزئی از کد.
+        private const string EnglishVersionSuffix = " (EN)";
+
+        private static string ApplyEnglishSuffix(string number, bool isEnglishVersion) =>
+            isEnglishVersion ? number + EnglishVersionSuffix : number;
+
         private readonly IDocumentNumberingRepository _numberingRepository;
 
         public DocumentNumberGeneratorService(IDocumentNumberingRepository numberingRepository)
@@ -27,7 +35,8 @@ namespace HSEQ.Service.Services.Services
             Guid projectId,
             Guid organizationalManagementId,
             Guid organizationalActivityId,
-            Guid documentTypeId)
+            Guid documentTypeId,
+            bool isEnglishVersion)
         {
             var project = await _numberingRepository.GetActiveProjectAsync(projectId)
                 ?? throw new ProjectNotFoundException();
@@ -53,13 +62,16 @@ namespace HSEQ.Service.Services.Services
                 serial,
                 revision);
 
+            // بررسی یکتایی روی مقدار نهایی (با پسوند) انجام می‌شود، نه کدِ خام.
+            var number = ApplyEnglishSuffix(code.Value, isEnglishVersion);
+
             // Defensive only: the SEQUENCE-backed serial makes a collision structurally
             // impossible for a freshly generated code, but application-level validation
             // is explicitly required in addition to the database unique constraint.
-            if (await _numberingRepository.NumberExistsAsync(code.Value))
+            if (await _numberingRepository.NumberExistsAsync(number))
                 throw new DuplicateDocumentNumberException();
 
-            return new GeneratedDocumentNumber(code.Value, serial, revision.Major, revision.ContentRevision);
+            return new GeneratedDocumentNumber(number, serial, revision.Major, revision.ContentRevision);
         }
 
         // Same shape as GenerateAsync, minus the Project: master-data lookups for
@@ -71,7 +83,8 @@ namespace HSEQ.Service.Services.Services
         public async Task<GeneratedDocumentNumber> GenerateHeadquartersAsync(
             Guid organizationalManagementId,
             Guid organizationalActivityId,
-            Guid documentTypeId)
+            Guid documentTypeId,
+            bool isEnglishVersion)
         {
             var management = await _numberingRepository.GetActiveManagementAsync(organizationalManagementId)
                 ?? throw new OrganizationalManagementNotFoundException();
@@ -94,10 +107,12 @@ namespace HSEQ.Service.Services.Services
                 serial,
                 revision);
 
-            if (await _numberingRepository.NumberExistsAsync(code.Value))
+            var number = ApplyEnglishSuffix(code.Value, isEnglishVersion);
+
+            if (await _numberingRepository.NumberExistsAsync(number))
                 throw new DuplicateDocumentNumberException();
 
-            return new GeneratedDocumentNumber(code.Value, serial, revision.Major, revision.ContentRevision);
+            return new GeneratedDocumentNumber(number, serial, revision.Major, revision.ContentRevision);
         }
 
         // Same steps as GenerateAsync, with two deliberate differences:
@@ -147,14 +162,17 @@ namespace HSEQ.Service.Services.Services
                 currentDocument.SerialNumber,
                 nextRevision);
 
+            // بازنگریِ یک نسخه‌ی انگلیسی باز هم انگلیسی است، پس پسوند از خودِ سند می‌آید.
+            var number = ApplyEnglishSuffix(code.Value, currentDocument.IsEnglishVersion);
+
             // Unlike the create path, this is a real guard rather than a defensive one:
             // nothing structurally prevents two concurrent revisions of the same document
             // from computing the same next Number.
-            if (await _numberingRepository.NumberExistsAsync(code.Value))
+            if (await _numberingRepository.NumberExistsAsync(number))
                 throw new DuplicateDocumentNumberException();
 
             return new GeneratedDocumentNumber(
-                code.Value,
+                number,
                 currentDocument.SerialNumber,
                 nextRevision.Major,
                 nextRevision.ContentRevision);
@@ -190,11 +208,13 @@ namespace HSEQ.Service.Services.Services
                 currentDocument.SerialNumber,
                 nextRevision);
 
-            if (await _numberingRepository.NumberExistsAsync(code.Value))
+            var number = ApplyEnglishSuffix(code.Value, currentDocument.IsEnglishVersion);
+
+            if (await _numberingRepository.NumberExistsAsync(number))
                 throw new DuplicateDocumentNumberException();
 
             return new GeneratedDocumentNumber(
-                code.Value,
+                number,
                 currentDocument.SerialNumber,
                 nextRevision.Major,
                 nextRevision.ContentRevision);

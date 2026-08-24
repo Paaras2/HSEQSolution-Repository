@@ -44,7 +44,13 @@ namespace HSEQ.API.Migrations
                     b.Property<int>("Pcode")
                         .HasColumnType("int");
 
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
                     b.HasKey("Key");
+
+                    b.HasIndex("Pcode")
+                        .IsUnique();
 
                     b.ToTable("Admins", (string)null);
                 });
@@ -86,6 +92,9 @@ namespace HSEQ.API.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsEnglishVersion")
+                        .HasColumnType("bit");
+
                     b.Property<int>("LastVersion")
                         .HasColumnType("int");
 
@@ -98,8 +107,8 @@ namespace HSEQ.API.Migrations
 
                     b.Property<string>("Number")
                         .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<Guid>("OrganizationalActivityId")
                         .HasColumnType("uniqueidentifier");

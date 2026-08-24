@@ -5,6 +5,7 @@ import { downloadDocumentFile } from '../lib/documentFile'
 import { ApiError } from '../lib/httpClient'
 import type { DocumentDto } from '../types/api'
 import { LoadingState, ErrorState } from './StateViews'
+import { toPersianDigits } from '../lib/digits'
 
 interface DocumentPreviewModalProps {
   document: DocumentDto
@@ -57,7 +58,7 @@ export function DocumentPreviewModal({ document, onClose }: DocumentPreviewModal
   }, [document.key])
 
   return (
-    <Modal title={`پیش‌نمایش ${document.number}`} subtitle={document.name} size="lg" onClose={onClose}>
+    <Modal title={`پیش‌نمایش ${toPersianDigits(document.number)}`} subtitle={document.name} size="lg" onClose={onClose}>
       <div className="preview-body">
         {isLoading && <LoadingState title="در حال بارگذاری فایل..." />}
 
@@ -77,7 +78,7 @@ export function DocumentPreviewModal({ document, onClose }: DocumentPreviewModal
         )}
 
         {!isLoading && !error && objectUrl && previewKind === 'pdf' && (
-          <iframe src={objectUrl} title={document.number} className="preview-frame" />
+          <iframe src={objectUrl} title={toPersianDigits(document.number)} className="preview-frame" />
         )}
 
         {!isLoading && !error && objectUrl && previewKind === 'image' && (

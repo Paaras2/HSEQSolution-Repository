@@ -1,4 +1,4 @@
-using HSEQ.Common;
+﻿using HSEQ.Common;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -30,8 +30,16 @@ namespace HSEQ.Service.Services.Services
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            var isAdmin = await _adminService.IsAdminAsync(Convert.ToInt32(username));
-            string role = (isAdmin) ? "Admin" : "Addi";
+            // نقش از جدول Admins خوانده می‌شود. نبودِ ردیف یعنی کاربر نقشی ندارد و
+            // کلاینت او را «فقط مشاهده» می‌بیند («Addi» همان مقدار قبلی است تا رفتار
+            // توکن‌های موجود عوض نشود).
+            var storedRole = await _adminService.GetRoleAsync(Convert.ToInt32(username));
+            string role = storedRole switch
+            {
+                AppRole.Admin => "Admin",
+                AppRole.DocumentManager => "DocumentManager",
+                _ => "Addi"
+            };
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, username.ToString()),

@@ -4,7 +4,10 @@ export type Capability = 'documents:view' | 'documents:manage' | 'admin:access'
 
 const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   ReadOnly: ['documents:view'],
-  DocumentManager: ['documents:view', 'documents:manage'],
+  // «مدیر اسناد» هم به پنل ادمین دسترسی دارد: اطلاعات پایه را تعریف می‌کند و
+  // می‌تواند مدیر اسناد دیگری بسازد. اما نقش «مدیر سیستم» را نمی‌تواند بدهد یا
+  // بگیرد - آن قاعده سمت سرور در AdminService اعمال می‌شود.
+  DocumentManager: ['documents:view', 'documents:manage', 'admin:access'],
   Admin: ['documents:view', 'documents:manage', 'admin:access'],
 }
 
@@ -14,10 +17,10 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
 // constant in step - when they disagree, the UI offers actions that fail with a
 // 403 only after the user has filled in and submitted a form.
 //
-// Note that real logins cannot produce a "DocumentManager" claim yet:
-// JwtService.GenerateJwtToken issues "Admin" for accounts in the Admins table
-// and the placeholder "Addi" for everyone else, which falls through to ReadOnly
-// below. For now only the dev-login shortcut mints DocumentManager tokens.
+// نقش‌ها حالا در دیتابیس ماندگارند: جدول Admins یک ستون Role دارد و
+// JwtService.GenerateJwtToken همان را در توکن می‌گذارد ("Admin" یا
+// "DocumentManager"). کاربر بدون ردیف، مقدار "Addi" می‌گیرد که پایین به
+// ReadOnly تبدیل می‌شود. dev-login هم مثل قبل هر سه نقش را مستقیم می‌سازد.
 export function resolveRole(backendRoleClaim: string | null): Role {
   switch (backendRoleClaim) {
     case 'Admin':

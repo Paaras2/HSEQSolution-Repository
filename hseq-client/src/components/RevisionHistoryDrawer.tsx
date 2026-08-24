@@ -7,6 +7,7 @@ import { isoToJalaliText } from '../lib/jalali'
 import type { DocumentDto } from '../types/api'
 import { Modal } from './Modal'
 import { LoadingState, ErrorState } from './StateViews'
+import { toPersianDigits } from '../lib/digits'
 
 interface RevisionHistoryDrawerProps {
   document: DocumentDto
@@ -16,7 +17,7 @@ interface RevisionHistoryDrawerProps {
 function revisionLabel(doc: DocumentDto): string {
   return (
     documentVersionLabel(doc.lastVersion) +
-    (doc.contentRevision ? String(doc.contentRevision).padStart(2, '0') : '')
+    (doc.contentRevision ? toPersianDigits(String(doc.contentRevision).padStart(2, '0')) : '')
   )
 }
 
@@ -54,7 +55,9 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
     setFileError(null)
     try {
       const opened = await viewDocumentFile(doc.key)
-      if (!opened) setFileError('مرورگر از باز شدن پنجره جلوگیری کرد. لطفاً به‌جای مشاهده، دانلود کنید.')
+      // اگر مرورگر تب را بلاک کند، به‌جای پیام خطا خودِ فایل دانلود می‌شود - همان
+      // نتیجه‌ای که کاربر می‌خواست، بدون اینکه مجبور شود دکمه‌ی دیگری بزند.
+      if (!opened) await downloadDocumentFile(doc.key, doc.fileName ?? doc.number)
     } catch (err) {
       setFileError(err instanceof ApiError ? err.message : 'امکان باز کردن فایل وجود ندارد.')
     } finally {
@@ -80,7 +83,7 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
       title={
         <>
           تاریخچه بازنگری
-          <span className="modal-title-badge mono">{document.number}</span>
+          <span className="modal-title-badge mono">{toPersianDigits(document.number)}</span>
         </>
       }
       subtitle="هر بازنگری فایل خودش را نگه می‌دارد، پس همه نسخه‌ها مستقلاً قابل مشاهده‌اند."
@@ -112,7 +115,7 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
             {revisions.map((rev) => (
               <li key={rev.key} className={`revision-item ${rev.key === document.key ? 'is-current-row' : ''}`}>
                 <div className="revision-item__head">
-                  <span className="mono">{rev.number}</span>
+                  <span className="mono">{toPersianDigits(rev.number)}</span>
                   {rev.isSuperseded ? (
                     <span className="badge badge-muted">منسوخ</span>
                   ) : (

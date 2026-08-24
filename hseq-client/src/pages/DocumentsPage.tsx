@@ -1,21 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { documentApi } from '../api/documentApi'
+import { searchApi } from '../api/searchApi'
 import { ApiError } from '../lib/httpClient'
 import { documentVersionLabel } from '../types/api'
 import { isoToJalaliText } from '../lib/jalali'
+import { toPersianDigits } from '../lib/digits'
 import type { DocumentDto } from '../types/api'
 import { DocumentFormDrawer } from '../components/DocumentFormDrawer'
 import { RevisionHistoryDrawer } from '../components/RevisionHistoryDrawer'
 import { RelatedDocumentsDrawer } from '../components/RelatedDocumentsDrawer'
+import { DocumentPreviewModal } from '../components/DocumentPreviewModal'
 import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { LoadingState, EmptyState, ErrorState } from '../components/StateViews'
+import { SEARCH_PARAM, hasAnyFilter, readFilters } from '../lib/searchFilters'
+import { IconButton } from '../components/IconButton'
+import {
+  CloseIcon,
+  DeactivateIcon,
+  DownloadIcon,
+  EditIcon,
+  EyeIcon,
+  HistoryIcon,
+  ReviseIcon,
+  SpinnerIcon,
+} from '../components/Icons'
 
 const PAGE_SIZE = 10
-// Single fetch of active documents, then client-side search/paging over that
-// set - the paged API has no search parameter yet. See Known Limitations.
-const FETCH_SIZE = 500
 
 // Creating a document lives on its own route (/documents/new), so only the
 // row-scoped actions open as dialogs here.
@@ -24,29 +36,91 @@ type DrawerState =
   | { mode: 'revise'; document: DocumentDto }
   | null
 
+// وضعیت عملیات گروهی: چون API نسخه‌ی دسته‌ای ندارد، درخواست‌ها یکی‌یکی فرستاده
+// می‌شوند و همین شمارنده پیشرفت را روی نوار انتخاب نشان می‌دهد.
+type BulkState = { kind: 'download' | 'delete'; done: number; total: number } | null
+
+// چک‌باکس‌های کنترل‌شده‌ای که منطقشان روی click است، هنوز باید onChange داشته باشند
+// وگرنه React آن‌ها را فقط-خواندنی می‌داند و هشدار می‌دهد.
+function noop() {}
+
 export function DocumentsPage() {
   const { hasCapability } = useAuth()
   const canManage = hasCapability('documents:manage')
 
   const [documents, setDocuments] = useState<DocumentDto[] | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
   const [loadError, setLoadError] = useState<{ status?: number; message: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [includeInactive, setIncludeInactive] = useState(false)
-  const [search, setSearch] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
+
+  // نوار جستجوی بالای صفحه فیلترها را در آدرس می‌نویسد و این صفحه فقط آن‌ها را
+  // می‌خواند - یعنی بازگشت مرورگر، تازه‌سازی و اشتراک لینکِ جستجو رایگان به دست می‌آید.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filters = useMemo(() => readFilters(searchParams), [searchParams])
+  const isSearching = hasAnyFilter(filters)
   const [page, setPage] = useState(1)
+
+  // برداشتن یک فیلتر از روی تراشه‌های بالای جدول؛ بقیه‌ی پارامترها دست‌نخورده می‌مانند.
+  // استثنا: فعالیت سازمانی زیرمجموعه‌ی مدیریت است، پس با رفتن مدیریت باید آن هم برود -
+  // وگرنه فیلتری باقی می‌ماند که در پنل جستجو دیگر قابل دیدن و تغییر نیست.
+  function clearParam(name: string) {
+    const next = new URLSearchParams(searchParams)
+    next.delete(name)
+    if (name === SEARCH_PARAM.management) next.delete(SEARCH_PARAM.activity)
+    setSearchParams(next, { replace: true })
+  }
+
+  function clearAllParams() {
+    setSearchParams(new URLSearchParams(), { replace: true })
+  }
 
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [historyDocument, setHistoryDocument] = useState<DocumentDto | null>(null)
   const [relationsDocument, setRelationsDocument] = useState<DocumentDto | null>(null)
+  // وقتی مرورگر باز شدن تب را بلاک می‌کند، فایل همین‌جا داخل برنامه نشان داده می‌شود.
+  const [previewDocument, setPreviewDocument] = useState<DocumentDto | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
+
+  // انتخاب چندتایی: فقط کلید اسناد نگه داشته می‌شود تا با هر بار بارگذاری مجدد،
+  // داده‌ی کهنه‌ی ردیف در حافظه نماند.
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set())
+  const [bulk, setBulk] = useState<BulkState>(null)
+  // چک‌باکس سرستون سه حالت دارد؛ حالت «نیمه‌انتخاب» فقط از طریق DOM قابل تنظیم است.
+  const selectAllRef = useRef<HTMLInputElement>(null)
+  // آخرین ردیفِ کلیک‌شده، برای انتخاب بازه‌ای با نگه‌داشتن Shift.
+  const lastToggledKeyRef = useRef<string | null>(null)
+
+  // ورودیِ سرویس جستجو. فهرست بدون فیلتر هم از همین مسیر می‌آید تا یک راهِ داده
+  // داشته باشیم؛ «نمایش غیرفعال‌ها» دقیقاً روی IsActive می‌نشیند (نال یعنی همه).
+  const searchInput = useMemo(
+    () => ({
+      query: filters.query,
+      isActive: includeInactive ? null : true,
+      category: null,
+      documentTypeId: null,
+      organizationalManagementId: filters.managementId || null,
+      organizationalActivityId: filters.activityId || null,
+      projectId: null,
+      onlyLatestRevision: filters.onlyLatest,
+      searchInFileContent: filters.inFileContent,
+      pageNumber: page,
+      pageSize: PAGE_SIZE,
+    }),
+    [filters, includeInactive, page],
+  )
 
   const loadDocuments = useCallback(() => {
     setIsLoading(true)
     setLoadError(null)
-    documentApi
-      .getPaged(1, FETCH_SIZE, includeInactive)
-      .then((result) => setDocuments(result.items))
+    searchApi
+      .search(searchInput)
+      .then((result) => {
+        setDocuments(result.items)
+        setTotalCount(result.totalCount)
+      })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 403) {
           setLoadError({ status: 403, message: 'شما مجوز مشاهده اسناد را ندارید.' })
@@ -55,7 +129,7 @@ export function DocumentsPage() {
         }
       })
       .finally(() => setIsLoading(false))
-  }, [includeInactive])
+  }, [searchInput])
 
   useEffect(() => {
     loadDocuments()
@@ -63,7 +137,38 @@ export function DocumentsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, includeInactive])
+    // با تغییر فیلتر، ردیف‌های انتخاب‌شده ممکن است دیگر در فهرست نباشند؛ انتخابِ
+    // نامرئی خطرناک است، پس پاک می‌شود.
+    setSelectedKeys(new Set())
+  }, [filters, includeInactive])
+
+  // با صفحه‌بندی سمت سرور، ردیف‌های صفحه‌ی قبل دیگر در حافظه نیستند؛ نگه داشتن
+  // انتخابشان فقط شمارنده‌ی داک را گمراه‌کننده می‌کرد.
+  useEffect(() => {
+    setSelectedKeys(new Set())
+  }, [page])
+
+  // خروجی اکسل، همان فیلترهای جاری را به سرور می‌دهد - قابلیتی که پیش‌تر روی صفحه‌ی
+  // «جستجوی پیشرفته» بود و با حذف آن صفحه به اینجا منتقل شد.
+  async function handleExport() {
+    if (isExporting) return
+    setIsExporting(true)
+    try {
+      const blob = await searchApi.exportExcel(searchInput)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'documents-export.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : 'امکان تهیه‌ی خروجی اکسل وجود ندارد.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   // Editing and revising never needed the master-data lookups - only the create
   // form did, and that now loads them itself on /documents/new.
@@ -82,9 +187,9 @@ export function DocumentsPage() {
     setPendingFileId(document.key)
     try {
       const opened = await viewDocumentFile(document.key)
-      if (!opened) {
-        window.alert('مرورگر از باز شدن پنجره جلوگیری کرد. لطفاً به‌جای مشاهده، دانلود کنید.')
-      }
+      // هشدار حذف شد: بلاک‌شدن پاپ‌آپ تقصیر کاربر نیست و پیامش هم کاری از پیش نمی‌برد.
+      // به‌جایش همان فایل در پیش‌نمایش درون‌برنامه‌ای باز می‌شود.
+      if (!opened) setPreviewDocument(document)
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : 'امکان باز کردن فایل وجود ندارد.')
     } finally {
@@ -105,7 +210,7 @@ export function DocumentsPage() {
   }
 
   async function handleDelete(document: DocumentDto) {
-    const confirmed = window.confirm(`سند ${document.number} غیرفعال شود؟ این سند دیگر در فهرست عادی اسناد نمایش داده نخواهد شد.`)
+    const confirmed = window.confirm(`سند ${toPersianDigits(document.number)} غیرفعال شود؟ این سند دیگر در فهرست عادی اسناد نمایش داده نخواهد شد.`)
     if (!confirmed) return
 
     setPendingDeleteId(document.key)
@@ -119,19 +224,124 @@ export function DocumentsPage() {
     }
   }
 
-  const filtered = useMemo(() => {
-    if (!documents) return []
-    const term = search.trim().toLowerCase()
-    if (!term) return documents
-    return documents.filter(
-      (d) =>
-        d.number.toLowerCase().includes(term) ||
-        d.name.toLowerCase().includes(term),
-    )
-  }, [documents, search])
+  // صفحه‌بندی سمت سرور است، پس ردیف‌های همین صفحه همان چیزی است که آمده. مموایز
+  // می‌شود تا آرایه‌ی تازه در هر رندر، محاسبات پایین‌دستی را بی‌اثر نکند.
+  const pageItems = useMemo(() => documents ?? [], [documents])
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  // انتخاب فقط روی ردیف‌های بارگذاری‌شده معنا دارد: با صفحه‌بندی سمت سرور، ردیف‌های
+  // صفحه‌های دیگر اصلاً در حافظه نیستند.
+  const selectedDocuments = useMemo(
+    () => pageItems.filter((d) => selectedKeys.has(d.key)),
+    [pageItems, selectedKeys],
+  )
+  // فقط سند فعال قابل غیرفعال کردن است؛ همین عدد روی دکمه‌ی داک هم نشان داده می‌شود.
+  const selectedActiveCount = selectedDocuments.filter((d) => d.isActive).length
+  const allPageSelected = pageItems.length > 0 && pageItems.every((d) => selectedKeys.has(d.key))
+  const somePageSelected = pageItems.some((d) => selectedKeys.has(d.key))
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = !allPageSelected && somePageSelected
+    }
+  }, [allPageSelected, somePageSelected])
+
+  // انتخاب/لغو یک ردیف. با نگه‌داشتن Shift، همه‌ی ردیف‌های بین آخرین انتخاب و ردیف
+  // فعلی (در همین صفحه) هم‌وضعیت می‌شوند - رفتار متعارف جدول‌های چندانتخابی.
+  function toggleRow(key: string, checked: boolean, withRange: boolean) {
+    // لنگرِ بازه باید همین‌جا خوانده شود، نه داخل به‌روزرسانِ state: آن تابع بعد از
+    // پایان این هندلر اجرا می‌شود و تا آن لحظه ref روی کلید جدید تنظیم شده است.
+    const anchorKey = lastToggledKeyRef.current
+    const useRange = withRange && anchorKey !== null
+    setSelectedKeys((prev) => {
+      const next = new Set(prev)
+      let keys = [key]
+      if (useRange) {
+        const from = pageItems.findIndex((d) => d.key === anchorKey)
+        const to = pageItems.findIndex((d) => d.key === key)
+        if (from !== -1 && to !== -1) {
+          keys = pageItems.slice(Math.min(from, to), Math.max(from, to) + 1).map((d) => d.key)
+        }
+      }
+      for (const k of keys) {
+        if (checked) next.add(k)
+        else next.delete(k)
+      }
+      return next
+    })
+    lastToggledKeyRef.current = key
+  }
+
+  // چک‌باکس سرستون فقط ردیف‌های همین صفحه را می‌گیرد یا رها می‌کند.
+  function togglePage(checked: boolean) {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev)
+      for (const d of pageItems) {
+        if (checked) next.add(d.key)
+        else next.delete(d.key)
+      }
+      return next
+    })
+    lastToggledKeyRef.current = null
+  }
+
+  function clearSelection() {
+    setSelectedKeys(new Set())
+    lastToggledKeyRef.current = null
+  }
+
+  // دانلود گروهی: درخواست‌ها پشت‌سرهم فرستاده می‌شوند تا مرورگر آن‌ها را به‌عنوان
+  // دانلودِ هم‌زمانِ انبوه بلاک نکند.
+  async function handleBulkDownload() {
+    if (bulk || selectedDocuments.length === 0) return
+    const targets = selectedDocuments
+    setBulk({ kind: 'download', done: 0, total: targets.length })
+    const failed: string[] = []
+    for (const [index, doc] of targets.entries()) {
+      try {
+        await downloadDocumentFile(doc.key, doc.fileName ?? doc.number)
+      } catch {
+        failed.push(toPersianDigits(doc.number))
+      }
+      setBulk({ kind: 'download', done: index + 1, total: targets.length })
+    }
+    setBulk(null)
+    if (failed.length > 0) {
+      window.alert('دانلود این اسناد ناموفق بود: ' + failed.join('، '))
+    }
+  }
+
+  // غیرفعال‌سازی گروهی. اسنادِ از قبل غیرفعال کنار گذاشته می‌شوند تا درخواست بی‌اثر
+  // به سرور نرود و شمارشِ تأیید هم واقعی باشد.
+  async function handleBulkDelete() {
+    if (bulk) return
+    const targets = selectedDocuments.filter((d) => d.isActive)
+    if (targets.length === 0) {
+      window.alert('هیچ سند فعالی در انتخاب شما نیست.')
+      return
+    }
+    const confirmed = window.confirm(
+      `${toPersianDigits(targets.length)} سند انتخاب‌شده غیرفعال شود؟ این اسناد دیگر در فهرست عادی اسناد نمایش داده نخواهند شد.`,
+    )
+    if (!confirmed) return
+
+    setBulk({ kind: 'delete', done: 0, total: targets.length })
+    const failed: string[] = []
+    for (const [index, doc] of targets.entries()) {
+      try {
+        await documentApi.remove(doc.key)
+      } catch {
+        failed.push(toPersianDigits(doc.number))
+      }
+      setBulk({ kind: 'delete', done: index + 1, total: targets.length })
+    }
+    setBulk(null)
+    clearSelection()
+    loadDocuments()
+    if (failed.length > 0) {
+      window.alert('غیرفعال کردن این اسناد ناموفق بود: ' + failed.join('، '))
+    }
+  }
 
   return (
     <div>
@@ -143,19 +353,26 @@ export function DocumentsPage() {
       </div>
 
       <div className="card">
+        {/* کادر جستجوی این نوار حذف شد: جستجو حالا یک‌جا در نوار بالای برنامه است و
+            داشتن دو کادر جستجو در یک صفحه فقط سردرگمی می‌ساخت. */}
         <div className="toolbar">
-          <input
-            type="search"
-            className="search-input"
-            placeholder="جستجو بر اساس شماره یا نام..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <span className="toolbar__count">
+            {isSearching ? 'نتیجه‌ی جستجو' : 'همه‌ی اسناد'}
+            <strong>{toPersianDigits(totalCount)}</strong>
+          </span>
           <div className="toolbar-actions">
             <label className="inactive-toggle">
               <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
               نمایش غیرفعال‌ها
             </label>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleExport}
+              disabled={isExporting || totalCount === 0}
+            >
+              {isExporting ? 'در حال آماده‌سازی...' : 'خروجی اکسل'}
+            </button>
             {canManage && (
               <Link to="/documents/new" className="btn btn-primary">
                 افزودن سند
@@ -163,6 +380,47 @@ export function DocumentsPage() {
             )}
           </div>
         </div>
+
+        {/* تراشه‌های فیلترِ فعال: چون فیلترها داخل یک پنل شناور تنظیم می‌شوند، بدون این
+            نوار معلوم نبود نتیجه بر چه اساسی محدود شده. هر تراشه جداگانه پاک می‌شود. */}
+        {isSearching && (
+          <div className="filter-chips">
+            {filters.query && (
+              <button type="button" className="filter-chip" onClick={() => clearParam(SEARCH_PARAM.query)}>
+                <span className="filter-chip__label">عبارت</span>
+                <span className="filter-chip__value">{toPersianDigits(filters.query)}</span>
+                <CloseIcon size={13} />
+              </button>
+            )}
+            {filters.managementId && (
+              <button type="button" className="filter-chip" onClick={() => clearParam(SEARCH_PARAM.management)}>
+                <span className="filter-chip__label">مدیریت سازمانی</span>
+                <CloseIcon size={13} />
+              </button>
+            )}
+            {filters.activityId && (
+              <button type="button" className="filter-chip" onClick={() => clearParam(SEARCH_PARAM.activity)}>
+                <span className="filter-chip__label">فعالیت سازمانی</span>
+                <CloseIcon size={13} />
+              </button>
+            )}
+            {filters.onlyLatest && (
+              <button type="button" className="filter-chip" onClick={() => clearParam(SEARCH_PARAM.onlyLatest)}>
+                <span className="filter-chip__label">فقط آخرین بازنگری</span>
+                <CloseIcon size={13} />
+              </button>
+            )}
+            {filters.inFileContent && (
+              <button type="button" className="filter-chip" onClick={() => clearParam(SEARCH_PARAM.inFileContent)}>
+                <span className="filter-chip__label">جستجو در محتوای فایل</span>
+                <CloseIcon size={13} />
+              </button>
+            )}
+            <button type="button" className="filter-chips__clear" onClick={clearAllParams}>
+              پاک کردن همه
+            </button>
+          </div>
+        )}
 
         {isLoading && <LoadingState title="در حال بارگذاری اسناد..." />}
 
@@ -179,16 +437,31 @@ export function DocumentsPage() {
           />
         )}
 
-        {!isLoading && !loadError && filtered.length === 0 && (
-          <EmptyState title="سندی یافت نشد." description={search ? 'عبارت جستجوی دیگری را امتحان کنید.' : undefined} />
+        {!isLoading && !loadError && pageItems.length === 0 && (
+          <EmptyState
+            title="سندی یافت نشد."
+            description={isSearching ? 'فیلترها را تغییر دهید یا عبارت دیگری را امتحان کنید.' : undefined}
+          />
         )}
 
-        {!isLoading && !loadError && filtered.length > 0 && (
+        {!isLoading && !loadError && pageItems.length > 0 && (
           <>
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
+                    {/* ستون انتخاب چندتایی - سرستون، ردیف‌های همین صفحه را انتخاب می‌کند. */}
+                    <th className="select-cell">
+                      <label className="row-check">
+                        <input
+                          ref={selectAllRef}
+                          type="checkbox"
+                          checked={allPageSelected}
+                          onChange={(e) => togglePage(e.target.checked)}
+                          aria-label="انتخاب همه‌ی ردیف‌های این صفحه"
+                        />
+                      </label>
+                    </th>
                     <th>شماره</th>
                     <th>نام</th>
                     <th>بازنگری</th>
@@ -203,17 +476,32 @@ export function DocumentsPage() {
                 </thead>
                 <tbody>
                   {pageItems.map((doc) => (
-                    <tr key={doc.key}>
+                    <tr key={doc.key} className={selectedKeys.has(doc.key) ? 'is-selected' : undefined}>
+                      {/* چک‌باکس ردیف. انتخاب روی رویداد click انجام می‌شود نه change:
+                          فقط click وضعیت کلید Shift را همراه دارد و انتخاب بازه‌ای به آن
+                          نیاز دارد. کلیدِ Space صفحه‌کلید هم click تولید می‌کند، پس
+                          دسترس‌پذیری از دست نمی‌رود. */}
+                      <td className="select-cell">
+                        <label className="row-check">
+                          <input
+                            type="checkbox"
+                            checked={selectedKeys.has(doc.key)}
+                            onClick={(e) => toggleRow(doc.key, e.currentTarget.checked, e.shiftKey)}
+                            onChange={noop}
+                            aria-label={`انتخاب سند ${toPersianDigits(doc.number)}`}
+                          />
+                        </label>
+                      </td>
                       <td className="mono">
-                        {doc.number}
+                        {toPersianDigits(doc.number)}
                         {doc.relatedDocumentNumber && (
-                          <span className="row-subtext">بازنگری از {doc.relatedDocumentNumber}</span>
+                          <span className="row-subtext">بازنگری از {toPersianDigits(doc.relatedDocumentNumber)}</span>
                         )}
                       </td>
                       <td>{doc.name}</td>
                       <td>
                         {documentVersionLabel(doc.lastVersion)}
-                        {doc.contentRevision ? String(doc.contentRevision).padStart(2, '0') : ''}
+                        {doc.contentRevision ? toPersianDigits(String(doc.contentRevision).padStart(2, '0')) : ''}
                       </td>
                       {/* با کلیک روی سلول، همان دیالوگ مدارک مرتبط باز می‌شود. */}
                       <td>
@@ -228,7 +516,7 @@ export function DocumentsPage() {
                           >
                             {doc.relatedDocumentNumbers.map((number) => (
                               <span key={number} className="badge badge-muted mono">
-                                {number}
+                                {toPersianDigits(number)}
                               </span>
                             ))}
                           </button>
@@ -247,57 +535,63 @@ export function DocumentsPage() {
                           </span>
                         )}
                       </td>
+                      {/* عملیات ردیف: دکمه‌های متنی جای خود را به آیکون‌های شیشه‌ای دادند؛
+                          نام هر عملیات روی راهنمای شناور و aria-label می‌ماند. */}
                       <td className="actions-cell">
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
+                        <IconButton
+                          label="مشاهده"
+                          icon={<EyeIcon />}
+                          tone="view"
                           onClick={() => handleView(doc)}
+                          pending={pendingFileId === doc.key}
                           disabled={pendingFileId !== null}
-                        >
-                          {pendingFileId === doc.key ? 'در حال باز کردن...' : 'مشاهده'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
+                        />
+                        <IconButton
+                          label="دانلود"
+                          icon={<DownloadIcon />}
+                          tone="download"
                           onClick={() => handleDownload(doc)}
                           disabled={pendingFileId !== null}
-                        >
-                          دانلود
-                        </button>
+                        />
                         {/* Only meaningful once the chain has more than one link: either
                             this revision superseded an earlier one, or it was superseded. */}
                         {(doc.relatedDocumentNumber || doc.isSuperseded) && (
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setHistoryDocument(doc)}>
-                            تاریخچه
-                          </button>
+                          <IconButton
+                            label="تاریخچه"
+                            icon={<HistoryIcon />}
+                            tone="history"
+                            onClick={() => setHistoryDocument(doc)}
+                          />
                         )}
-                        {/* برخلاف «تاریخچه»، این همیشه نمایش داده می‌شود: نداشتن مدرک
-                            مرتبط از روی ردیف معلوم نیست، و همین دکمه هم راه دیدن
-                            مرتبط‌ها و هم راه افزودنشان است. */}
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRelationsDocument(doc)}>
-                          مدارک مرتبط
-                        </button>
+                        {/* دکمه‌ی «مدارک مرتبط» از این ستون برداشته شد: مدیریت ارتباط‌ها
+                            داخل فرم ویرایش انجام می‌شود و شماره‌های ستون مقابل هم برای
+                            دیدنشان کلیک‌پذیر مانده‌اند. */}
                         {canManage && (
                           <>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEditDrawer(doc)}>
-                              ویرایش
-                            </button>
+                            <IconButton
+                              label="ویرایش"
+                              icon={<EditIcon />}
+                              tone="edit"
+                              onClick={() => openEditDrawer(doc)}
+                            />
                             {/* Revising a superseded revision would fork the chain, which
                                 the server rejects - so don't offer it. */}
                             {doc.isActive && !doc.isSuperseded && (
-                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => openReviseDrawer(doc)}>
-                                بازنگری
-                              </button>
+                              <IconButton
+                                label="بازنگری"
+                                icon={<ReviseIcon />}
+                                tone="revise"
+                                onClick={() => openReviseDrawer(doc)}
+                              />
                             )}
                             {doc.isActive && (
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
+                              <IconButton
+                                label="غیرفعال کردن"
+                                icon={<DeactivateIcon />}
+                                tone="danger"
                                 onClick={() => handleDelete(doc)}
-                                disabled={pendingDeleteId === doc.key}
-                              >
-                                {pendingDeleteId === doc.key ? 'در حال غیرفعال کردن...' : 'غیرفعال کردن'}
-                              </button>
+                                pending={pendingDeleteId === doc.key}
+                              />
                             )}
                           </>
                         )}
@@ -309,13 +603,13 @@ export function DocumentsPage() {
             </div>
 
             <div className="pagination">
-              <span>{filtered.length} سند</span>
+              <span>{toPersianDigits(totalCount)} سند</span>
               <div className="pagination-controls">
                 <button type="button" className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                   قبلی
                 </button>
                 <span>
-                  صفحه {page} از {totalPages}
+                  صفحه {toPersianDigits(page)} از {toPersianDigits(totalPages)}
                 </span>
                 <button
                   type="button"
@@ -330,6 +624,71 @@ export function DocumentsPage() {
           </>
         )}
       </div>
+
+      {/* داکِ شناور عملیات گروهی: به‌جای نواری که جدول را به پایین هل می‌داد، از لبه‌ی
+          پایین بالا می‌آید. هم جای جدول را نمی‌گیرد، هم موقع اسکرول همیشه در دسترس است. */}
+      {selectedDocuments.length > 0 && (
+        <div className="bulk-dock" role="region" aria-label="عملیات گروهی روی اسناد انتخاب‌شده">
+          <div className="bulk-dock__panel">
+            <div className="bulk-dock__info">
+              <span className="bulk-dock__count">{toPersianDigits(selectedDocuments.length)}</span>
+              <span className="bulk-dock__label">
+                {bulk
+                  ? `${bulk.kind === 'download' ? 'در حال دانلود' : 'در حال غیرفعال کردن'} ${toPersianDigits(bulk.done)} از ${toPersianDigits(bulk.total)}`
+                  : 'سند انتخاب شده'}
+              </span>
+            </div>
+
+            <span className="bulk-dock__sep" aria-hidden="true" />
+
+            <div className="bulk-dock__actions">
+              <button
+                type="button"
+                className="bulk-action bulk-action--download"
+                onClick={handleBulkDownload}
+                disabled={bulk !== null}
+              >
+                {bulk?.kind === 'download' ? <SpinnerIcon size={15} /> : <DownloadIcon size={15} />}
+                دانلود همه
+              </button>
+              {/* غیرفعال‌سازی فقط برای مدیر، و فقط وقتی سند فعالی در انتخاب باشد. */}
+              {canManage && (
+                <button
+                  type="button"
+                  className="bulk-action bulk-action--danger"
+                  onClick={handleBulkDelete}
+                  disabled={bulk !== null || selectedActiveCount === 0}
+                >
+                  {bulk?.kind === 'delete' ? <SpinnerIcon size={15} /> : <DeactivateIcon size={15} />}
+                  غیرفعال کردن
+                  {selectedActiveCount > 0 && selectedActiveCount !== selectedDocuments.length && (
+                    <span className="bulk-action__badge">{toPersianDigits(selectedActiveCount)}</span>
+                  )}
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="bulk-dock__clear"
+              onClick={clearSelection}
+              disabled={bulk !== null}
+              aria-label="لغو انتخاب"
+            >
+              <CloseIcon size={15} />
+            </button>
+
+            {/* نوار پیشرفت باریک، چسبیده به لبه‌ی پایینِ داک. */}
+            {bulk && (
+              <span
+                className="bulk-dock__progress"
+                style={{ transform: `scaleX(${bulk.done / bulk.total})` }}
+                aria-hidden="true"
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {drawer && (
         <DocumentFormDrawer
@@ -348,6 +707,10 @@ export function DocumentsPage() {
 
       {historyDocument && (
         <RevisionHistoryDrawer document={historyDocument} onClose={() => setHistoryDocument(null)} />
+      )}
+
+      {previewDocument && (
+        <DocumentPreviewModal document={previewDocument} onClose={() => setPreviewDocument(null)} />
       )}
 
       {relationsDocument && (

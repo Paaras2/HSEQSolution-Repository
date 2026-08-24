@@ -23,6 +23,11 @@ namespace HSEQ.Domain.Entities
         public Guid? RelatedDocumentId { get; set; }
         public string FileName { get; set; }
 
+        // نسخه‌ی انگلیسی مدرک. بعضی مدارک هم نسخه‌ی فارسی دارند هم انگلیسی؛ در قرارداد
+        // شرکت، نسخه‌ی انگلیسی با پسوند " (EN)" آخر شماره مشخص می‌شود. سریالش مستقل است،
+        // یعنی مثل هر سند جدید دیگری از شمارنده گرفته می‌شود.
+        public bool IsEnglishVersion { get; set; }
+
         // دسته‌بندی سند: ستاد (بدون پروژه) یا پروژه. ساختار شماره‌گذاری بر اساس همین تعیین می‌شود.
         public DocumentCategory Category { get; set; }
 

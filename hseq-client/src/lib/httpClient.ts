@@ -4,6 +4,14 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+// آدرس پایه می‌تواند نسبی باشد («/api» در چیدمان هم‌مبدأِ IIS) یا مطلق
+// («https://host/api» وقتی API روی میزبان دیگری است). URLِ نسبی بدون مبنا خطا می‌دهد،
+// پس مبدأ صفحه به‌عنوان مبنا داده می‌شود؛ برای آدرس مطلق این پارامتر نادیده گرفته
+// می‌شود. همین باعث می‌شود بیلدِ عملیاتی به دامنه گره نخورد.
+function apiUrl(path: string): URL {
+  return new URL(API_BASE_URL + path, window.location.origin)
+}
+
 export class ApiError extends Error {
   status: number
   code?: number
@@ -71,7 +79,7 @@ function authHeaders(): HeadersInit {
 }
 
 export async function apiGet<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
-  const url = new URL(API_BASE_URL + path)
+  const url = apiUrl(path)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined) url.searchParams.set(key, String(value))
@@ -89,7 +97,7 @@ export async function apiGetBlob(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
 ): Promise<Blob> {
-  const url = new URL(API_BASE_URL + path)
+  const url = apiUrl(path)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined) url.searchParams.set(key, String(value))

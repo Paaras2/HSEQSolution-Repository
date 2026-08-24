@@ -1,3 +1,5 @@
+import { toLatinDigits, toPersianDigits } from './digits'
+
 // تبدیل تقویم جلالی (شمسی) و میلادی - بدون هیچ پکیج جانبی.
 //
 // قرارداد کل برنامه: هر چه به سرور می‌رود و از آن می‌آید میلادی و به شکل «yyyy-MM-dd»
@@ -137,21 +139,29 @@ export const JALALI_MONTH_NAMES = [
 // هفته‌ی ایرانی از شنبه شروع می‌شود؛ Date.getDay() یکشنبه را صفر می‌گیرد.
 export const JALALI_WEEKDAY_SHORT = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']
 
+// نام کاملِ روزهای هفته، برای نمایش تاریخ در نوار بالا. ترتیبش با آرایه‌ی بالا یکی است.
+export const JALALI_WEEKDAY_NAMES = [
+  'شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه',
+]
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-// «yyyy-MM-dd» میلادی -> «yyyy/MM/dd» شمسی. ورودی نامعتبر رشته‌ی خالی می‌دهد.
+// «yyyy-MM-dd» میلادی -> «yyyy/MM/dd» شمسی با ارقام فارسی. ورودی نامعتبر رشته‌ی خالی
+// می‌دهد. تنها نقطه‌ی تولیدِ متنِ تاریخ در برنامه است، پس فارسی‌سازی همین‌جا انجام می‌شود.
 export function isoToJalaliText(iso: string): string {
   const parsed = parseIsoDate(iso)
   if (!parsed) return ''
   const j = gregorianToJalali(parsed.gy, parsed.gm, parsed.gd)
-  return `${j.jy}/${pad2(j.jm)}/${pad2(j.jd)}`
+  return toPersianDigits(`${j.jy}/${pad2(j.jm)}/${pad2(j.jd)}`)
 }
 
 // «yyyy/MM/dd» یا «yyyy-MM-dd» شمسی -> «yyyy-MM-dd» میلادی. نامعتبر باشد null.
+// ورودی می‌تواند ارقام فارسی یا عربی داشته باشد؛ همان چیزی که خودمان نمایش داده‌ایم و
+// کاربر ممکن است کپی کند، باید دوباره قابل خواندن باشد.
 export function jalaliTextToIso(text: string): string | null {
-  const match = text.trim().replace(/[-.]/g, '/').match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+  const match = toLatinDigits(text).trim().replace(/[-.]/g, '/').match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
   if (!match) return null
 
   const jy = Number(match[1])

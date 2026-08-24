@@ -15,6 +15,9 @@ namespace HSEQ.API.Model.Dtos
         public DocumentVersion LastVersion { get; set; }
         public int? ContentRevision { get; set; }
         public int SerialNumber { get; set; }
+
+        // نسخه‌ی انگلیسی؛ شماره‌اش با پسوند " (EN)" تمام می‌شود.
+        public bool IsEnglishVersion { get; set; }
         // The revision this document supersedes, i.e. the previous link in the
         // revision chain. Null for a document's first revision.
         public Guid? RelatedDocumentId { get; set; }

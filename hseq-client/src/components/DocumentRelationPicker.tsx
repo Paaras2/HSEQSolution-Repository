@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react'
 import { searchApi } from '../api/searchApi'
 import { DOCUMENT_RELATION_TYPE_OPTIONS } from '../types/api'
 import type { DocumentRelationTypeValue, DocumentSuggestion } from '../types/api'
+import { toPersianDigits } from '../lib/digits'
 
 const SUGGEST_DEBOUNCE_MS = 300
 
@@ -151,7 +152,7 @@ export function DocumentRelationPicker({
               {suggestions.map((s) => (
                 <li key={s.key}>
                   <button type="button" onMouseDown={() => handleSuggestionPick(s)}>
-                    <span className="mono">{s.number}</span>
+                    <span className="mono">{toPersianDigits(s.number)}</span>
                     <span>{s.name}</span>
                   </button>
                 </li>
@@ -161,7 +162,7 @@ export function DocumentRelationPicker({
           <p className="field-hint">
             {target ? (
               <>
-                انتخاب‌شده: <span className="mono">{target.number}</span>
+                انتخاب‌شده: <span className="mono">{toPersianDigits(target.number)}</span>
               </>
             ) : (
               'حداقل ۲ کاراکتر بنویسید و مدرک را از فهرست پیشنهادها انتخاب کنید.'

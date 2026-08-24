@@ -1,4 +1,6 @@
-using HSEQ.API.Model.Dtos;
+﻿using HSEQ.API.Model.Dtos;
+using HSEQ.API.Model.RequestModels;
+using HSEQ.Domain.Common;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -15,10 +17,16 @@ namespace HSEQ.API.Controllers
     public class MasterDataController : ControllerBase
     {
         private readonly IMasterDataService _masterDataService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public MasterDataController(IMasterDataService masterDataService)
+        // نوشتن اطلاعات پایه برای هر دو نقشِ پنل ادمین باز است؛ خواندن (متدهای زیر)
+        // مثل قبل برای هر کاربر احرازهویت‌شده.
+        private const string AdminPanelRoles = "Admin,DocumentManager";
+
+        public MasterDataController(IMasterDataService masterDataService, IUnitOfWork unitOfWork)
         {
             _masterDataService = masterDataService;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpGet("projects")]
@@ -43,6 +51,44 @@ namespace HSEQ.API.Controllers
         public async Task<List<DocumentTypeLookupDto>> GetDocumentTypes()
         {
             return await _masterDataService.GetDocumentTypesAsync();
+        }
+
+        // ---- پنل ادمین ----
+        // یک مسیر مشترک برای هر چهار نوع؛ نوع با پارامتر kind مشخص می‌شود.
+
+        [Authorize(Roles = AdminPanelRoles)]
+        [HttpGet("admin/list")]
+        public async Task<IActionResult> GetAllForAdmin([FromQuery] MasterDataKind kind)
+        {
+            var items = await _masterDataService.GetAllForAdminAsync(kind);
+            return Ok(items);
+        }
+
+        [Authorize(Roles = AdminPanelRoles)]
+        [HttpPost("admin/create")]
+        public async Task<IActionResult> Create([FromForm] CreateMasterDataRequestModel request)
+        {
+            await _masterDataService.CreateAsync(request);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
+        }
+
+        // آرشیو شماره‌مدارک قدیمی - فقط خواندنی، پس فقط GET دارد.
+        [Authorize(Roles = AdminPanelRoles)]
+        [HttpGet("admin/legacy-numbers")]
+        public async Task<LegacyDocumentNumberPagedResult> GetLegacyDocumentNumbers(
+            [FromQuery] LegacyDocumentNumberQueryRequestModel request)
+        {
+            return await _masterDataService.GetLegacyDocumentNumbersAsync(request);
+        }
+
+        [Authorize(Roles = AdminPanelRoles)]
+        [HttpPost("admin/update")]
+        public async Task<IActionResult> Update([FromForm] UpdateMasterDataRequestModel request)
+        {
+            await _masterDataService.UpdateAsync(request);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
         }
     }
 }

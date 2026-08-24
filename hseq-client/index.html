@@ -7,7 +7,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <title>مدیریت اسناد HSEQ</title>
+    <title>مدیریت یکپارچه مدارک و مستندات</title>
+    <script>
+      // پیش از اولین رنگ‌آمیزی اجرا می‌شود تا صفحه با تم اشتباه بالا نیاید. همان منطقِ
+      // src/lib/theme.ts است، عمداً این‌جا تکرار شده چون باید قبل از بارگذاری React اجرا شود.
+      (function () {
+        try {
+          var stored = localStorage.getItem('hseq-theme')
+          document.documentElement.dataset.theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

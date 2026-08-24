@@ -43,6 +43,8 @@ export interface DocumentDto {
   lastVersion: number
   contentRevision: number | null
   serialNumber: number
+  // نسخه‌ی انگلیسی مدرک؛ شماره‌اش با « (EN)» تمام می‌شود.
+  isEnglishVersion: boolean
   // Previous link in the revision chain: the revision this document superseded.
   relatedDocumentId: string | null
   relatedDocumentNumber: string | null
@@ -104,6 +106,8 @@ export interface DocumentTypeLookup {
 export interface CreateDocumentInput {
   name: string
   category: DocumentCategory
+  // نسخه‌ی انگلیسی: سرور پسوند « (EN)» را آخر شماره می‌گذارد. سریال مستقل گرفته می‌شود.
+  isEnglishVersion: boolean
   formerReviewDate: string | null
   currentReviewDate: string | null
   relatedDocumentId: string | null
@@ -284,3 +288,93 @@ export const DOCUMENT_RELATION_TYPE_OPTIONS: { value: DocumentRelationTypeValue;
   { value: 2, label: 'پیوست/فرمِ این مدرک است' },
   { value: 3, label: 'این مدرک جایگزین آن شده است' },
 ]
+
+
+// ---------------------------------------------------------------------------
+// پنل ادمین
+// ---------------------------------------------------------------------------
+
+// آینه‌ی HSEQ.API.Model.RequestModels.MasterDataKind - یک اندپوینت مشترک برای
+// هر چهار نوع اطلاعات پایه، با همین عدد تفکیک می‌شود.
+export const MASTER_DATA_KINDS = {
+  Project: 0,
+  DocumentType: 1,
+  OrganizationalManagement: 2,
+  OrganizationalActivity: 3,
+} as const
+
+export type MasterDataKind = (typeof MASTER_DATA_KINDS)[keyof typeof MASTER_DATA_KINDS]
+
+// آینه‌ی HSEQ.Common.AppRole. نبودِ ردیف یعنی «فقط مشاهده»، پس ۰ اینجا وجود ندارد.
+export const APP_ROLES = {
+  DocumentManager: 1,
+  Admin: 2,
+} as const
+
+export type AppRoleValue = (typeof APP_ROLES)[keyof typeof APP_ROLES]
+
+export function appRoleLabel(role: number): string {
+  return role === APP_ROLES.Admin ? 'مدیر سیستم' : 'مدیر اسناد'
+}
+
+// آینه‌ی HSEQ.API.Model.Dtos.MasterDataItemDto. فیلدهای اختیاری فقط برای نوعی که
+// به آن‌ها نیاز دارد پر می‌شوند - یک جدول مشترک برای هر چهار نوع.
+export interface MasterDataItem {
+  key: string
+  code: string
+  title: string
+  isActive: boolean
+  // فقط پروژه
+  isProjectRelated: boolean | null
+  // فقط فعالیت سازمانی
+  organizationalManagementId: string | null
+  // تعداد مدارک وابسته؛ مبنای اینکه غیرفعال‌سازی مجاز است یا نه.
+  usageCount: number
+}
+
+// یک ردیف از آرشیو شماره‌مدارک قدیمی ستاد. آینه‌ی LegacyDocumentNumberDto سمت سرور.
+// فقط خواندنی: این جدول یک‌بار از اکسل ثبت مدارک وارد شده و به‌روزرسانی نمی‌شود.
+export interface LegacyDocumentNumber {
+  key: string
+  rawNumber: string
+  code5: string | null
+  serialNumber: number | null
+  revisionSuffix: string | null
+  managementCode: string | null
+  activityCode: string | null
+  documentTypeCode: string | null
+  name: string | null
+  unitLabel: string | null
+  // تاریخ‌ها متن خام شمسی‌اند، نه ISO میلادی - همان‌طور که در دیتابیس ذخیره شده‌اند،
+  // پس برخلاف بقیه‌ی تاریخ‌های برنامه از isoToJalaliText رد نمی‌شوند.
+  lastEditShamsiDate: string | null
+  currentEditShamsiDate: string | null
+  currentVersion: string | null
+}
+
+export interface LegacyDocumentNumberPagedResult {
+  items: LegacyDocumentNumber[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
+
+export interface AppUser {
+  key: string
+  pcode: number
+  role: number
+  createdTime: string
+  modifiedDate: string | null
+}
+
+// عنوان و طول کدِ هر نوع. طول‌ها با پیکربندی EF و ساختار شماره‌ی مدرک یکی‌اند.
+export const MASTER_DATA_META: Record<
+  MasterDataKind,
+  { label: string; codeLength: number; needsManagement: boolean; hasProjectFlag: boolean }
+> = {
+  [MASTER_DATA_KINDS.Project]: { label: 'پروژه', codeLength: 4, needsManagement: false, hasProjectFlag: true },
+  [MASTER_DATA_KINDS.DocumentType]: { label: 'نوع سند', codeLength: 2, needsManagement: false, hasProjectFlag: false },
+  [MASTER_DATA_KINDS.OrganizationalManagement]: { label: 'مدیریت سازمانی', codeLength: 1, needsManagement: false, hasProjectFlag: false },
+  [MASTER_DATA_KINDS.OrganizationalActivity]: { label: 'فعالیت سازمانی', codeLength: 2, needsManagement: true, hasProjectFlag: false },
+}

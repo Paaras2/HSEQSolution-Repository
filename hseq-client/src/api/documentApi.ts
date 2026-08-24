@@ -43,6 +43,7 @@ export const documentApi = {
     const form = new FormData()
     form.append('Name', input.name)
     form.append('Category', input.category)
+    form.append('IsEnglishVersion', String(input.isEnglishVersion))
     appendIfPresent(form, 'FormerReviewDate', input.formerReviewDate)
     appendIfPresent(form, 'CurrentReviewDate', input.currentReviewDate)
     appendIfPresent(form, 'RelatedDocumentId', input.relatedDocumentId)

@@ -50,14 +50,16 @@ namespace HSEQ.Service.Services.Services
                     request.ProjectId.Value,
                     request.OrganizationalManagementId,
                     request.OrganizationalActivityId,
-                    request.DocumentTypeId);
+                    request.DocumentTypeId,
+                    request.IsEnglishVersion);
             }
             else
             {
                 generated = await _documentNumberGenerator.GenerateHeadquartersAsync(
                     request.OrganizationalManagementId,
                     request.OrganizationalActivityId,
-                    request.DocumentTypeId);
+                    request.DocumentTypeId,
+                    request.IsEnglishVersion);
             }
 
             var fileName = await _fileService.SaveFileAsync(generated.Number, request.File);
@@ -72,6 +74,7 @@ namespace HSEQ.Service.Services.Services
                 SerialNumber = generated.SerialNumber,
                 LastVersion = generated.LastVersion,
                 ContentRevision = generated.ContentRevision,
+                IsEnglishVersion = request.IsEnglishVersion,
                 Category = request.Category,
                 ProjectId = request.Category == DocumentCategory.Project ? request.ProjectId : null,
                 OrganizationalManagementId = request.OrganizationalManagementId,
@@ -174,7 +177,9 @@ namespace HSEQ.Service.Services.Services
                 CurrentReviewDate = request.CurrentReviewDate,
 
                 // A revision is the same document, so its classification - and therefore
-                // the whole base code - is inherited verbatim.
+                // the whole base code - is inherited verbatim. برچسب نسخه‌ی انگلیسی هم
+                // همراهش می‌آید، وگرنه بازنگریِ یک سند EN پسوندش را از دست می‌داد.
+                IsEnglishVersion = current.IsEnglishVersion,
                 Category = current.Category,
                 ProjectId = current.ProjectId,
                 OrganizationalManagementId = current.OrganizationalManagementId,

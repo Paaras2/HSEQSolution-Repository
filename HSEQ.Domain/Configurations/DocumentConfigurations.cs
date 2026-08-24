@@ -15,10 +15,11 @@ namespace HSEQ.Domain.Configurations
         {
             builder.ToTable("Documents").HasKey(r => r.Key);
 
-            // Max length: PPPP(4)+O(1)+AA(2)+DD(2)+SSS(3)+R(up to 3 for "Z99") = 15.
+            // Max length: PPPP(4)+O(1)+AA(2)+DD(2)+SSS(3)+R(up to 3 for "Z99") = 15،
+            // به‌علاوه‌ی پسوند " (EN)" نسخه‌ی انگلیسی (۵ کاراکتر) = 20.
             builder.Property(d => d.Number)
                 .IsRequired()
-                .HasMaxLength(15);
+                .HasMaxLength(20);
 
             builder.HasIndex(d => d.Number).IsUnique();
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { MonthCount } from '../../types/api'
+import { toPersianDigits } from '../../lib/digits'
 
 interface LineChartProps {
   data: MonthCount[]
@@ -58,7 +59,7 @@ export function LineChart({ data }: LineChartProps) {
             <g key={value}>
               <line className="line-chart__gridline" x1={paddingStart} x2={width - paddingEnd} y1={y} y2={y} />
               <text className="line-chart__axis-label" x={paddingStart - 8} y={y + 4} textAnchor="end">
-                {value}
+                {toPersianDigits(value)}
               </text>
             </g>
           )
@@ -88,7 +89,7 @@ export function LineChart({ data }: LineChartProps) {
               y={height - paddingBottom + 18}
               textAnchor="middle"
             >
-              {d.monthLabel.slice(2)}
+              {toPersianDigits(d.monthLabel.slice(2))}
             </text>
           ) : null,
         )}
@@ -102,7 +103,7 @@ export function LineChart({ data }: LineChartProps) {
             top: `${(points[hoverIndex].y / height) * 100}%`,
           }}
         >
-          {data[hoverIndex].monthLabel} — {data[hoverIndex].count} سند
+          {toPersianDigits(data[hoverIndex].monthLabel)} — {toPersianDigits(data[hoverIndex].count)} سند
         </div>
       )}
     </div>

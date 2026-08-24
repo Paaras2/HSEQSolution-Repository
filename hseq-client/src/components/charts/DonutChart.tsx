@@ -1,3 +1,5 @@
+import { toPersianDigits } from '../../lib/digits'
+
 interface DonutSlice {
   label: string
   count: number
@@ -35,7 +37,7 @@ export function DonutChart({ slices, centerLabel }: DonutChartProps) {
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={`توزیع وضعیت بازبینی، مجموع ${total}`}
+        aria-label={`توزیع وضعیت بازبینی، مجموع ${toPersianDigits(total)}`}
       >
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
           {slices
@@ -58,7 +60,7 @@ export function DonutChart({ slices, centerLabel }: DonutChartProps) {
                   strokeDashoffset={offset}
                 >
                   <title>
-                    {s.label}: {s.count}
+                    {s.label}: {toPersianDigits(s.count)}
                   </title>
                 </circle>
               )
@@ -66,7 +68,7 @@ export function DonutChart({ slices, centerLabel }: DonutChartProps) {
         </g>
 
         <text className="donut-chart__total-value" x={size / 2} y={size / 2 - 2} textAnchor="middle">
-          {total.toLocaleString('en-US')}
+          {toPersianDigits(total.toLocaleString('en-US'))}
         </text>
         <text className="donut-chart__total-label" x={size / 2} y={size / 2 + 16} textAnchor="middle">
           {centerLabel}
@@ -79,7 +81,7 @@ export function DonutChart({ slices, centerLabel }: DonutChartProps) {
           <div className="donut-legend__item" key={s.label}>
             <span className="donut-legend__dot" style={{ background: s.color }} />
             <span className="donut-legend__label">{s.label}</span>
-            <span className="donut-legend__count">{s.count}</span>
+            <span className="donut-legend__count">{toPersianDigits(s.count)}</span>
           </div>
         ))}
       </div>

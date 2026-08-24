@@ -480,3 +480,12 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# --- استقرار ---
+# تنظیمات واقعی عملیاتی روی سرور می‌ماند و هرگز نباید commit شود (رشته‌ی اتصال و
+# کلید امضای JWT داخلش است). فقط قالبِ deploy/ نگه داشته می‌شود.
+appsettings.Production.json
+appsettings.Staging.json
+
+# پشتیبان دیتابیس - داده‌ی واقعی است و جای آن در گیت نیست
+*.bak

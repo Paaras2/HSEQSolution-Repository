@@ -1,4 +1,5 @@
 import type { NamedCount } from '../../types/api'
+import { toPersianDigits } from '../../lib/digits'
 
 interface BarChartProps {
   data: NamedCount[]
@@ -58,7 +59,7 @@ export function BarChart({ data }: BarChartProps) {
             <line className="bar-chart__gridline" x1={paddingStart} x2={width - paddingEnd} y1={y} y2={y} />
             {/* برچسب محور در حاشیه‌ی سمت راست می‌نشیند، نه روی خودِ نمودار */}
             <text className="bar-chart__axis-label" x={width - paddingEnd + 8} y={y + 4} textAnchor="start">
-              {value.toLocaleString('en-US')}
+              {toPersianDigits(value.toLocaleString('en-US'))}
             </text>
           </g>
         )
@@ -71,12 +72,12 @@ export function BarChart({ data }: BarChartProps) {
         return (
           <g key={d.code}>
             <title>
-              {d.label}: {d.count}
+              {d.label}: {toPersianDigits(d.count)}
             </title>
             <path className="bar-chart__bar" d={roundedTopRectPath(x, y, barWidth, Math.max(barHeight, 1), 4)} />
             {barHeight > 14 && (
               <text className="bar-chart__value-label" x={x + barWidth / 2} y={y - 6} textAnchor="middle">
-                {d.count}
+                {toPersianDigits(d.count)}
               </text>
             )}
             <text

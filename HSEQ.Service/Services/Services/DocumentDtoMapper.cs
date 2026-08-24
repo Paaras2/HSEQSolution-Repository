@@ -110,6 +110,7 @@ namespace HSEQ.Service.Services.Services
                 LastVersion = document.LastVersion,
                 ContentRevision = document.ContentRevision,
                 SerialNumber = document.SerialNumber,
+                IsEnglishVersion = document.IsEnglishVersion,
                 RelatedDocumentId = document.RelatedDocumentId,
                 RelatedDocumentNumber = document.RelatedDocumentId.HasValue
                     && relatedNumbers.TryGetValue(document.RelatedDocumentId.Value, out var relatedNumber)

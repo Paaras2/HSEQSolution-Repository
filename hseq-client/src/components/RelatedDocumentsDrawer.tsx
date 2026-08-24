@@ -9,6 +9,7 @@ import { DocumentRelationPicker } from './DocumentRelationPicker'
 import type { PickedRelation } from './DocumentRelationPicker'
 import { Modal } from './Modal'
 import { LoadingState, EmptyState, ErrorState } from './StateViews'
+import { toPersianDigits } from '../lib/digits'
 
 interface RelatedDocumentsDrawerProps {
   document: DocumentDto
@@ -102,7 +103,9 @@ export function RelatedDocumentsDrawer({ document: currentDocument, onClose }: R
     setActionError(null)
     try {
       const opened = await viewDocumentFile(relation.documentId)
-      if (!opened) setActionError('مرورگر از باز شدن پنجره جلوگیری کرد. لطفاً به‌جای مشاهده، دانلود کنید.')
+      // اگر مرورگر تب را بلاک کند، به‌جای پیام خطا خودِ فایل دانلود می‌شود - همان
+      // نتیجه‌ای که کاربر می‌خواست، بدون اینکه مجبور شود دکمه‌ی دیگری بزند.
+      if (!opened) await downloadDocumentFile(relation.documentId, relation.number)
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'امکان باز کردن فایل وجود ندارد.')
     } finally {
@@ -128,7 +131,7 @@ export function RelatedDocumentsDrawer({ document: currentDocument, onClose }: R
       title={
         <>
           مدارک مرتبط
-          <span className="modal-title-badge mono">{currentDocument.number}</span>
+          <span className="modal-title-badge mono">{toPersianDigits(currentDocument.number)}</span>
         </>
       }
       subtitle="ارجاع میان مدارک مستقل - مثلاً یک دستورالعمل و فرمِ آن. برای نسخه‌های همین مدرک، «تاریخچه» را ببینید."
@@ -201,7 +204,7 @@ export function RelatedDocumentsDrawer({ document: currentDocument, onClose }: R
             {relations.map((relation) => (
               <li key={relation.key} className="relation-item">
                 <div className="relation-item__head">
-                  <span className="mono">{relation.number}</span>
+                  <span className="mono">{toPersianDigits(relation.number)}</span>
                   <span
                     className="badge badge-muted"
                     title={documentRelationTypeDescription(relation.relationType, relation.isOutgoing)}

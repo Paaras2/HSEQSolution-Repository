@@ -12,6 +12,7 @@ import {
   parseIsoDate,
   todayJalali,
 } from '../lib/jalali'
+import { toPersianDigits } from '../lib/digits'
 
 interface PersianDatePickerProps {
   id: string
@@ -38,6 +39,10 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
   const [isEditing, setIsEditing] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // نمونه‌ی قالبِ داخل فیلد. قبلاً «۱۴۰۴/۰۱/۰۱» ثابت نوشته شده بود و با گذشت سال کهنه
+  // می‌شد؛ حالا از سال جاری ساخته می‌شود و خودش به‌روز می‌ماند.
+  const placeholder = useMemo(() => toPersianDigits(`${todayJalali().jy}/01/01`), [])
 
   // ماهی که تقویم روی آن باز است. با تغییر مقدار بیرونی هم‌گام می‌شود.
   const [viewMonth, setViewMonth] = useState(() => {
@@ -163,7 +168,7 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
               setViewMonth({ jy: j.jy, jm: j.jm })
             }
           }}
-          placeholder="۱۴۰۴/۰۱/۰۱"
+          placeholder={placeholder}
           inputMode="numeric"
           autoComplete="off"
           disabled={disabled}
@@ -188,7 +193,7 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
               ›
             </button>
             <span className="date-picker__month">
-              {JALALI_MONTH_NAMES[viewMonth.jm - 1]} {viewMonth.jy}
+              {JALALI_MONTH_NAMES[viewMonth.jm - 1]} {toPersianDigits(viewMonth.jy)}
             </span>
             <button type="button" className="date-picker__nav" onClick={() => shiftMonth(1)} aria-label="ماه بعد">
               ‹
@@ -219,7 +224,7 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
                   className={`date-picker__cell${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
                   onClick={() => pickDay(day)}
                 >
-                  {day}
+                  {toPersianDigits(day)}
                 </button>
               )
             })}

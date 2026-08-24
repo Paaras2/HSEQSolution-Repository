@@ -155,4 +155,102 @@ namespace HSEQ.Common
         {
         }
     }
+
+    // ---- پنل ادمین: اطلاعات پایه و نقش کاربران ----
+
+    // کدِ اطلاعات پایه داخل شماره‌ی مدارک حک می‌شود، پس در کل سامانه باید یکتا بماند.
+    public class DuplicateMasterDataCodeException : CustomException
+    {
+        public DuplicateMasterDataCodeException(string code)
+            : base($"کد «{code}» قبلاً ثبت شده است")
+        {
+        }
+    }
+
+    // طول کد هر نوع ثابت است (پروژه ۴، مدیریت ۱، فعالیت ۲، نوع سند ۲) چون ساختار
+    // شماره‌ی مدرک بر همین طول‌ها بنا شده است.
+    public class InvalidMasterDataCodeException : CustomException
+    {
+        public InvalidMasterDataCodeException(int expectedLength)
+            : base($"کد باید دقیقاً {expectedLength} کاراکتر انگلیسی یا عدد باشد")
+        {
+        }
+    }
+
+    public class MasterDataItemNotFoundException : CustomException
+    {
+        public MasterDataItemNotFoundException() : base("ردیف اطلاعات پایه یافت نشد", 404)
+        {
+        }
+    }
+
+    // فعالیت سازمانی زیرمجموعه‌ی یک مدیریت است و بدون آن جایی در شماره‌ی مدرک ندارد.
+    public class ManagementRequiredForActivityException : CustomException
+    {
+        public ManagementRequiredForActivityException()
+            : base("برای فعالیت سازمانی، انتخاب مدیریت سازمانی الزامی است")
+        {
+        }
+    }
+
+    // اگر مدرکی به این ردیف وابسته باشد، غیرفعال‌کردنش فهرست‌های موجود را می‌شکند.
+    public class MasterDataItemInUseException : CustomException
+    {
+        public MasterDataItemInUseException(int usageCount)
+            : base($"این ردیف در {usageCount} مدرک استفاده شده و قابل غیرفعال‌سازی نیست")
+        {
+        }
+    }
+
+    // کسی نمی‌تواند نقش خودش را عوض کند - وگرنه یک مدیر سیستم می‌توانست ناخواسته
+    // دسترسی خودش را قطع کند و راه بازگشتی نماند.
+    public class CannotChangeOwnRoleException : CustomException
+    {
+        public CannotChangeOwnRoleException()
+            : base("نقش خودتان را نمی‌توانید تغییر دهید")
+        {
+        }
+    }
+
+    // فقط مدیر سیستم می‌تواند مدیر سیستم بسازد یا حذف کند. مدیر اسناد فقط
+    // می‌تواند مدیر اسناد تعریف کند - وگرنه راهی برای ارتقای خودش پیدا می‌کرد.
+    public class InsufficientRoleToGrantException : CustomException
+    {
+        public InsufficientRoleToGrantException()
+            : base("فقط مدیر سیستم می‌تواند نقش «مدیر سیستم» بدهد یا بگیرد")
+        {
+        }
+    }
+
+    // آخرین مدیر سیستم نباید حذف شود، وگرنه دیگر کسی نمی‌تواند نقش‌ها را مدیریت کند.
+    public class LastAdminCannotBeRemovedException : CustomException
+    {
+        public LastAdminCannotBeRemovedException()
+            : base("آخرین مدیر سیستم را نمی‌توان حذف یا تنزل داد")
+        {
+        }
+    }
+
+    public class MasterDataTitleRequiredException : CustomException
+    {
+        public MasterDataTitleRequiredException() : base("عنوان الزامی است")
+        {
+        }
+    }
+
+    // نقشی خارج از AppRole. مهم است که صریح رد شود: مقدار ۰ (پیش‌فرض enum) اگر
+    // به دیتابیس می‌رسید، معنای مشخصی نداشت.
+    public class InvalidUserRoleException : CustomException
+    {
+        public InvalidUserRoleException() : base("نقش انتخاب‌شده معتبر نیست")
+        {
+        }
+    }
+
+    public class InvalidUserPcodeException : CustomException
+    {
+        public InvalidUserPcodeException() : base("کد پرسنلی معتبر نیست")
+        {
+        }
+    }
 }

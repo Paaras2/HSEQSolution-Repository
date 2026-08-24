@@ -14,6 +14,10 @@ namespace HSEQ.API.Model.RequestModels
         //Namyande yek file upload shode dar asp.net
         public IFormFile File { get; set; }
 
+        // نسخه‌ی انگلیسی: شماره با پسوند " (EN)" ساخته می‌شود. سریال مستقل گرفته می‌شود،
+        // پس نسخه‌ی انگلیسی و فارسیِ یک مدرک شماره‌ی یکسانی ندارند.
+        public bool IsEnglishVersion { get; set; }
+
         // دسته‌بندی سند - پیش‌فرض «ستاد» (enum default = Headquarters).
         public DocumentCategory Category { get; set; } = DocumentCategory.Headquarters;
 

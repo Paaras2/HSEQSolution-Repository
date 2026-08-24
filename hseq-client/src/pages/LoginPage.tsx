@@ -4,6 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Role } from '../auth/roles'
 import { ApiError } from '../lib/httpClient'
+import { toLatinDigits } from '../lib/digits'
 
 // مقصد بعد از ورود - همیشه فهرست اسناد، چون کار روزمره‌ی کاربر همان‌جاست.
 //
@@ -43,7 +44,8 @@ export function LoginPage() {
     // click, double Enter) while a login request is already in flight.
     if (isSubmitting) return
 
-    const trimmedPcode = pcode.trim()
+    // کاربر ممکن است با صفحه‌کلید فارسی عدد بزند؛ سرور فقط ارقام لاتین می‌پذیرد.
+    const trimmedPcode = toLatinDigits(pcode).trim()
     if (!trimmedPcode || !password) {
       setError('لطفاً کد پرسنلی و رمز عبور را وارد کنید.')
       return
@@ -81,7 +83,7 @@ export function LoginPage() {
       <div className="login-card">
         <div className="login-card__brand">
           <img src="/brand/logo-icon.png" alt="ODCC" className="login-card__brand-mark" />
-          <h1>مدیریت اسناد HSEQ</h1>
+          <h1>مدیریت یکپارچه مدارک و مستندات</h1>
           <p>برای ادامه، با کد پرسنلی خود وارد شوید</p>
         </div>
 
