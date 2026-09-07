@@ -126,9 +126,9 @@ export function DashboardPage() {
   return (
     <div>
       <div className="page-header">
-        <div>
+        <div className="page-header__text">
           <h1>داشبورد</h1>
-          <p>خوش آمدید، کد پرسنلی {toPersianDigits(user?.pcode)}.</p>
+          <p>خوش آمدید، کد پرسنلی {toPersianDigits(user?.pcode)}</p>
         </div>
         <Link to="/documents" className="btn btn-primary">
           {hasCapability('documents:manage') ? 'مدیریت اسناد' : 'مشاهده اسناد'}
@@ -232,8 +232,11 @@ export function DashboardPage() {
                 <h2 className="chart-card__title">اسناد به تفکیک مدیریت سازمانی</h2>
                 <p className="chart-card__hint">فقط آخرین بازنگری هر سند، و فقط اسناد فعال.</p>
                 {/* افقی، نه عمودی: در حالت عمودی زیر هر میله فقط کدِ تک‌حرفی جا می‌شد و
-                    نام مدیریت اصلاً دیده نمی‌شد. */}
-                <HorizontalBarChart data={summary.documentsByManagement} showCode tone="view" />
+                    نام مدیریت اصلاً دیده نمی‌شد.
+                    ته‌رنگ از آبی به فیروزه‌ای برند تغییر کرد: در این تب فقط همین نمودار و
+                    دوناتِ وضعیت دیده می‌شوند، پس تداخلی پیش نمی‌آید و صفحه یک هویتِ رنگی
+                    واحد می‌گیرد به‌جای دو آبیِ رقیب. */}
+                <HorizontalBarChart data={summary.documentsByManagement} showCode tone="revise" />
               </section>
 
               <section className="card chart-card">

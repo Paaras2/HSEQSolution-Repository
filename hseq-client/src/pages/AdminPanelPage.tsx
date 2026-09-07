@@ -12,6 +12,7 @@ import {
 import type {
   AppRoleValue,
   AppUser,
+  FileTextIndexResult,
   LegacyDocumentNumber,
   LegacyDocumentNumberPagedResult,
   MasterDataItem,
@@ -37,6 +38,7 @@ import {
   PlusIcon,
   PowerIcon,
   SearchIcon,
+  SpinnerIcon,
   UserMinusIcon,
   UsersIcon,
 } from '../components/Icons'
@@ -63,6 +65,8 @@ type Tab =
   | { kind: 'users' }
   // آرشیو شماره‌های قدیمی - فقط خواندنی، پس نه فرم افزودن دارد نه عملیات ردیفی.
   | { kind: 'legacy' }
+  // بازسازی متن قابل‌جستجوی فایل‌ها - عملیاتی، نه جدولی.
+  | { kind: 'fileIndex' }
 
 export function AdminPanelPage() {
   const { user } = useAuth()
@@ -73,9 +77,9 @@ export function AdminPanelPage() {
   return (
     <div>
       <div className="page-header">
-        <div>
+        <div className="page-header__text">
           <h1>پنل ادمین</h1>
-          <p>تعریف اطلاعات پایه‌ی شماره‌گذاری و مدیریت سطح دسترسی کاربران.</p>
+          <p>تعریف اطلاعات پایه و مدیریت سطح دسترسی کاربران</p>
         </div>
       </div>
 
@@ -122,6 +126,21 @@ export function AdminPanelPage() {
           </span>
           <span className="section-nav__label">آرشیو شماره‌های قدیمی</span>
         </button>
+
+        {/* بازسازی نمایه‌ی محتوای فایل - کل آرشیو را از نو می‌خواند، پس فقط برای ادمین. */}
+        {isAdmin && (
+          <button
+            type="button"
+            className={`section-nav__item section-nav__item--view${tab.kind === 'fileIndex' ? ' is-active' : ''}`}
+            onClick={() => setTab({ kind: 'fileIndex' })}
+            aria-current={tab.kind === 'fileIndex' ? 'page' : undefined}
+          >
+            <span className="section-nav__icon">
+              <SearchIcon size={17} />
+            </span>
+            <span className="section-nav__label">نمایه‌ی محتوای فایل</span>
+          </button>
+        )}
       </nav>
 
       {tab.kind === 'masterData' && (
@@ -130,6 +149,7 @@ export function AdminPanelPage() {
       )}
       {tab.kind === 'users' && <UsersTab isAdmin={isAdmin} currentPcode={user?.pcode ?? null} />}
       {tab.kind === 'legacy' && <LegacyNumbersTab />}
+      {tab.kind === 'fileIndex' && <FileTextIndexTab />}
     </div>
   )
 }
@@ -207,6 +227,55 @@ function PanelToolbar({
 }
 
 // ---------------------------------------------------------------------------
+// نوار صفحه‌بندی مشترک. سه جدول پنل از آن استفاده می‌کنند، پس یک‌بار نوشته شده.
+// ---------------------------------------------------------------------------
+// ده ردیف، همان اندازه‌ی فهرست اسناد؛ رندر کردن هر ۷۶ ردیف یک‌جا صفحه را چند برابر
+// ارتفاع پنجره می‌کرد و اسکرول را سنگین.
+const ADMIN_PAGE_SIZE = 10
+
+function PanelPagination({
+  page,
+  totalPages,
+  totalLabel,
+  onPage,
+}: {
+  page: number
+  totalPages: number
+  totalLabel: string
+  onPage: (next: number) => void
+}) {
+  // یک صفحه یعنی چیزی برای پیمایش نیست؛ نوار بی‌مصرف فقط جا می‌گیرد.
+  if (totalPages <= 1) return null
+
+  return (
+    <div className="pagination">
+      <span>{totalLabel}</span>
+      <div className="pagination-controls">
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
+          قبلی
+        </button>
+        <span>
+          صفحه {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={page >= totalPages}
+          onClick={() => onPage(page + 1)}
+        >
+          بعدی
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // تب اطلاعات پایه - یک کامپوننت برای هر چهار نوع، چون شکل داده‌شان یکی است.
 // ---------------------------------------------------------------------------
 function MasterDataTab({ kind }: { kind: MasterDataKind }) {
@@ -230,6 +299,7 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [rowError, setRowError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const load = useCallback(() => {
     setIsLoading(true)
@@ -336,6 +406,20 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
       (item) => item.code.toLowerCase().includes(term) || item.title.toLowerCase().includes(term),
     )
   }, [sortedItems, search])
+
+  // صفحه‌بندی سمت مرورگر: کل فهرست از قبل در حافظه است، فقط بریده می‌شود.
+  const totalPages = Math.max(1, Math.ceil((visibleItems?.length ?? 0) / ADMIN_PAGE_SIZE))
+  const pageItems = visibleItems?.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE) ?? null
+
+  // با تغییر عبارت جستجو، صفحه‌ی سوم قبلی ممکن است دیگر وجود نداشته باشد.
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  // همچنین وقتی ردیفی حذف/اضافه شد و صفحه‌ی جاری خالی ماند.
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages))
+  }, [totalPages])
 
   const managementTitleById = useMemo(() => {
     const map = new Map<string, string>()
@@ -494,10 +578,13 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
       )}
 
       {!isLoading && !loadError && visibleItems && visibleItems.length > 0 && (
+        <>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
+                {/* شمارهٔ ردیف، پیوسته در کل فهرست و نه فقط در صفحهٔ جاری. */}
+                <th className="row-index">ردیف</th>
                 <th>کد</th>
                 <th>عنوان</th>
                 {meta.needsManagement && <th>مدیریت سازمانی</th>}
@@ -508,9 +595,10 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
               </tr>
             </thead>
             <tbody>
-              {visibleItems.map((item) => (
+              {(pageItems ?? []).map((item, index) => (
                 <MasterDataRow
                   key={item.key}
+                  rowNumber={(page - 1) * ADMIN_PAGE_SIZE + index + 1}
                   item={item}
                   meta={meta}
                   managementTitle={
@@ -525,6 +613,14 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
             </tbody>
           </table>
         </div>
+
+        <PanelPagination
+          page={page}
+          totalPages={totalPages}
+          totalLabel={`${toPersianDigits(visibleItems.length)} مورد`}
+          onPage={setPage}
+        />
+        </>
       )}
     </div>
   )
@@ -533,12 +629,14 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
 // یک ردیف قابل ویرایش. حالت ویرایش داخل خود ردیف نگه داشته می‌شود تا تغییر یک ردیف،
 // بقیه‌ی جدول را دوباره رندر نکند.
 function MasterDataRow({
+  rowNumber,
   item,
   meta,
   managementTitle,
   isBusy,
   onSave,
 }: {
+  rowNumber: number
   item: MasterDataItem
   meta: (typeof MASTER_DATA_META)[MasterDataKind]
   managementTitle: string
@@ -556,6 +654,7 @@ function MasterDataRow({
 
   return (
     <tr className={item.isActive ? undefined : 'is-inactive-row'}>
+      <td className="row-index mono">{toPersianDigits(rowNumber)}</td>
       <td className="mono">{toPersianDigits(item.code)}</td>
       <td>
         {isEditing ? (
@@ -754,6 +853,8 @@ function LegacyNumbersTab() {
             <table className="data-table">
               <thead>
                 <tr>
+                  {/* شمارهٔ ردیف، پیوسته در کل فهرست و نه فقط در صفحهٔ جاری. */}
+                  <th className="row-index">ردیف</th>
                   <th>شماره مدرک</th>
                   <th>نام مدرک</th>
                   <th>کد ۵حرفی</th>
@@ -765,8 +866,12 @@ function LegacyNumbersTab() {
                 </tr>
               </thead>
               <tbody>
-                {result.items.map((row) => (
-                  <LegacyNumberRow key={row.key} row={row} />
+                {result.items.map((row, index) => (
+                  <LegacyNumberRow
+                    key={row.key}
+                    rowNumber={(page - 1) * LEGACY_PAGE_SIZE + index + 1}
+                    row={row}
+                  />
                 ))}
               </tbody>
             </table>
@@ -805,9 +910,10 @@ function LegacyNumbersTab() {
 // یک ردیف آرشیو. چهار ردیفِ استثنایی اکسل کد ۵حرفی ندارند (شماره‌شان با الگوی استاندارد
 // نمی‌خواند) - آن‌ها با یک نشانِ خاکستری مشخص می‌شوند تا معلوم باشد نبودِ کد یک نقص
 // نمایش نیست، بلکه واقعیتِ همان ردیف است.
-function LegacyNumberRow({ row }: { row: LegacyDocumentNumber }) {
+function LegacyNumberRow({ rowNumber, row }: { rowNumber: number; row: LegacyDocumentNumber }) {
   return (
     <tr>
+      <td className="row-index mono">{toPersianDigits(rowNumber)}</td>
       <td className="mono">{toPersianDigits(row.rawNumber)}</td>
       <td>{row.name ?? '—'}</td>
       <td>
@@ -856,6 +962,7 @@ function UsersTab({ isAdmin, currentPcode }: { isAdmin: boolean; currentPcode: s
   const [pendingPcode, setPendingPcode] = useState<number | null>(null)
   const [isFormOpen, setFormOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const load = useCallback(() => {
     setIsLoading(true)
@@ -935,6 +1042,18 @@ function UsersTab({ isAdmin, currentPcode }: { isAdmin: boolean; currentPcode: s
     if (!term) return users
     return users.filter((u) => String(u.pcode).includes(term))
   }, [users, search])
+
+  // مثل تب اطلاعات پایه: برش سمت مرورگر روی فهرستی که از قبل در حافظه است.
+  const userTotalPages = Math.max(1, Math.ceil((visibleUsers?.length ?? 0) / ADMIN_PAGE_SIZE))
+  const userPageItems = visibleUsers?.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE) ?? null
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, userTotalPages))
+  }, [userTotalPages])
 
   // کاربران «فعال/غیرفعال» ندارند؛ تفکیک معنادارشان نقش است.
   const userStats = useMemo<PanelStat[]>(() => {
@@ -1043,17 +1162,20 @@ function UsersTab({ isAdmin, currentPcode }: { isAdmin: boolean; currentPcode: s
       )}
 
       {!isLoading && !loadError && visibleUsers && visibleUsers.length > 0 && (
+        <>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
+                {/* شمارهٔ ردیف، پیوسته در کل فهرست و نه فقط در صفحهٔ جاری. */}
+                <th className="row-index">ردیف</th>
                 <th>کد پرسنلی</th>
                 <th>سطح دسترسی</th>
                 <th>عملیات</th>
               </tr>
             </thead>
             <tbody>
-              {visibleUsers.map((u) => {
+              {(userPageItems ?? []).map((u, index) => {
                 // نقش خودِ کاربر جاری قابل تغییر نیست (سرور هم ردش می‌کند)، و
                 // دست‌زدن به یک «مدیر سیستم» فقط از عهده‌ی مدیر سیستم برمی‌آید.
                 const isSelf = currentPcode !== null && Number(currentPcode) === u.pcode
@@ -1062,6 +1184,7 @@ function UsersTab({ isAdmin, currentPcode }: { isAdmin: boolean; currentPcode: s
 
                 return (
                   <tr key={u.key}>
+                    <td className="row-index mono">{toPersianDigits((page - 1) * ADMIN_PAGE_SIZE + index + 1)}</td>
                     <td className="mono">{toPersianDigits(u.pcode)}</td>
                     <td>
                       {/* نقش مدیر سیستم رنگ متمایز می‌گیرد؛ در فهرستی از نقش‌های خاکستری،
@@ -1112,7 +1235,138 @@ function UsersTab({ isAdmin, currentPcode }: { isAdmin: boolean; currentPcode: s
             </tbody>
           </table>
         </div>
+
+        <PanelPagination
+          page={page}
+          totalPages={userTotalPages}
+          totalLabel={`${toPersianDigits(visibleUsers.length)} کاربر`}
+          onPage={setPage}
+        />
+        </>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// نمایه‌ی محتوای فایل: بازسازی متنِ قابل‌جستجوی فایل اسناد.
+//
+// متن فایل فقط لحظه‌ی بارگذاری استخراج می‌شود، پس اسنادی که پیش‌تر - یا با
+// استخراج‌کننده‌ی قدیمی - وارد شده‌اند در «جستجو در محتوای فایل» دیده نمی‌شوند.
+// این تب همان کار را از روی فایل‌های روی دیسک از نو انجام می‌دهد.
+// ---------------------------------------------------------------------------
+function FileTextIndexTab() {
+  // پیش‌فرضْ کامل است: متنِ ساخته‌شده با استخراج‌کننده‌ی قدیمی هم باید دور ریخته شود،
+  // نه فقط سطرهای خالی.
+  const [onlyMissing, setOnlyMissing] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+  const [result, setResult] = useState<FileTextIndexResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleRun() {
+    if (isRunning) return
+    setIsRunning(true)
+    setError(null)
+    setResult(null)
+    try {
+      setResult(await adminApi.reindexFileText(onlyMissing))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'امکان بازسازی نمایه وجود ندارد.')
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  return (
+    <div className="card admin-panel">
+      <div className="panel-toolbar">
+        <div className="panel-toolbar__lead">
+          <h2 className="panel-toolbar__title">نمایه‌ی محتوای فایل</h2>
+          {result && (
+            <div className="panel-stats">
+              <span className="stat-pill stat-pill--success">
+                <strong>{toPersianDigits(result.indexed)}</strong> نمایه‌شده
+              </span>
+              <span className="stat-pill stat-pill--muted">
+                <strong>{toPersianDigits(result.withoutText)}</strong> بدون متن
+              </span>
+              <span className="stat-pill">
+                <strong>{toPersianDigits(result.total)}</strong> بررسی‌شده
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="panel-toolbar__actions">
+          <button type="button" className="btn btn-primary" onClick={handleRun} disabled={isRunning}>
+            {isRunning ? <SpinnerIcon size={15} /> : <SearchIcon size={15} />}
+            {isRunning ? 'در حال بازسازی...' : 'بازسازی نمایه'}
+          </button>
+        </div>
+      </div>
+
+      <div className="index-panel">
+        <p className="index-panel__hint">
+          متن هر فایل هنگام بارگذاری استخراج و ذخیره می‌شود تا «جستجو در محتوای فایل» روی آن کار کند.
+          اسنادی که پیش از این وارد سامانه شده‌اند این متن را ندارند؛ با اجرای این گام، فایل‌های موجود
+          دوباره خوانده و نمایه می‌شوند. فایل‌های اسکن‌شده (تصویرِ کاغذ، بدون لایه‌ی متنی) متنی ندارند
+          و در ستون «بدون متن» شمرده می‌شوند.
+        </p>
+
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            checked={onlyMissing}
+            onChange={(event) => setOnlyMissing(event.target.checked)}
+            disabled={isRunning}
+          />
+          <span className="switch-row__track" aria-hidden="true">
+            <span className="switch-row__thumb" />
+          </span>
+          <span className="switch-row__text">
+            <strong>فقط اسناد بدون متن</strong>
+            <span>اسنادی که از قبل متن دارند دست‌نخورده می‌مانند - سریع‌تر، ولی متنِ قدیمی را اصلاح نمی‌کند.</span>
+          </span>
+        </label>
+
+        {isRunning && (
+          <p className="index-panel__hint">
+            کل فایل‌های آرشیو خوانده می‌شوند؛ بسته به تعداد اسناد ممکن است چند لحظه طول بکشد.
+          </p>
+        )}
+
+        {error && (
+          <ErrorState
+            title={error}
+            action={
+              <button type="button" className="btn btn-secondary btn-sm" onClick={handleRun}>
+                تلاش مجدد
+              </button>
+            }
+          />
+        )}
+
+        {result && (
+          <div className="index-panel__result">
+            <p>
+              <strong>{toPersianDigits(result.total)}</strong> سند بررسی شد:
+              {' '}<strong>{toPersianDigits(result.indexed)}</strong> سند نمایه شد،
+              {' '}<strong>{toPersianDigits(result.withoutText)}</strong> سند متن قابل‌استخراج نداشت
+              {result.fileMissing > 0 && <>، <strong>{toPersianDigits(result.fileMissing)}</strong> فایلش پیدا نشد</>}
+              {result.failed > 0 && <>، <strong>{toPersianDigits(result.failed)}</strong> مورد ناموفق بود</>}.
+            </p>
+
+            {/* فهرست مشکلات فقط برای دیدن الگوی خطاست، نه گزارش کامل. */}
+            {result.problems.length > 0 && (
+              <ul className="index-panel__problems">
+                {result.problems.map((problem) => (
+                  <li key={problem}>{problem}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

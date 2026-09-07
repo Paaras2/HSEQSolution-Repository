@@ -120,7 +120,7 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
                     <span className="badge badge-muted">منسوخ</span>
                   ) : (
                     <span className={`badge ${rev.isActive ? 'badge-success' : 'badge-danger'}`}>
-                      {rev.isActive ? 'نسخه جاری' : 'غیرفعال'}
+                      {rev.isActive ? 'نسخه جاری' : 'آرشیو شده'}
                     </span>
                   )}
                 </div>

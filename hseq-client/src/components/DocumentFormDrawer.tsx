@@ -401,7 +401,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
                   <span>
                     {document.isSuperseded
                       ? 'این نسخه بازنگری شده است و وضعیت آن قابل تغییر نیست. برای نسخه‌ی جدید، آخرین بازنگری را بازنگری کنید.'
-                      : 'اسناد غیرفعال از فهرست پیش‌فرض حذف می‌شوند اما حذف نمی‌شوند.'}
+                      : 'اسناد آرشیوشده از فهرست پیش‌فرض کنار می‌روند اما پاک نمی‌شوند.'}
                   </span>
                 </span>
               </label>

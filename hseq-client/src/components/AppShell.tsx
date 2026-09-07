@@ -149,6 +149,13 @@ export function AppShell() {
             <span className="sidebar-collapse__text">{isCollapsed ? 'باز کردن منو' : 'جمع کردن منو'}</span>
             <ChevronsIcon size={16} />
           </button>
+
+          {/* امضای سازنده، آخرین چیز در پای منو. در حالت جمع‌شده پنهان می‌شود؛
+              مثل بقیهٔ متن‌های منو. */}
+          <p className="sidebar-credit">
+            <span>طراحی و توسعه، فناوری اطلاعات، ارتباطات و حکم رانی داده</span>
+            <span className="sidebar-credit__version">نسخه {toPersianDigits('1.0')}</span>
+          </p>
         </div>
       </aside>
 

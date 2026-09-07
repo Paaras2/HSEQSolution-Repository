@@ -2,6 +2,7 @@ import { apiGet, apiPostForm } from '../lib/httpClient'
 import type {
   AppUser,
   AppRoleValue,
+  FileTextIndexResult,
   LegacyDocumentNumberPagedResult,
   MasterDataItem,
   MasterDataKind,
@@ -86,5 +87,16 @@ export const adminApi = {
     const body = new URLSearchParams()
     body.set('pcode', String(pcode))
     await apiPostForm<void>('/Admin/users/remove-role', body)
+  },
+
+  // ---- نمایه‌ی محتوای فایل ----
+
+  // بازسازی متن قابل‌جستجوی فایل‌ها. onlyMissing=true فقط اسنادِ بدون متن را می‌سازد.
+  // درخواستِ کوتاهی نیست (کل آرشیو خوانده می‌شود)، پس فراخوان باید حالت «در حال
+  // انجام» را نشان بدهد.
+  async reindexFileText(onlyMissing: boolean): Promise<FileTextIndexResult> {
+    const body = new URLSearchParams()
+    body.set('onlyMissing', String(onlyMissing))
+    return apiPostForm<FileTextIndexResult>('/Admin/reindex-file-text', body)
   },
 }

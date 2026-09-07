@@ -211,12 +211,12 @@ export function RelatedDocumentsDrawer({ document: currentDocument, onClose }: R
                   >
                     {documentRelationTypeLabel(relation.relationType, relation.isOutgoing)}
                   </span>
-                  {/* یک نسخه‌ی منسوخ هم غیرفعال است، پس اول باید همان بررسی شود -
+                  {/* یک نسخه‌ی منسوخ هم آرشیو شده است، پس اول باید همان بررسی شود -
                       وگرنه «بازنگری شده» به‌اشتباه «حذف‌شده» خوانده می‌شود. */}
                   {relation.isSuperseded ? (
                     <span className="badge badge-danger">منسوخ (بازنگری شده)</span>
                   ) : (
-                    !relation.isActive && <span className="badge badge-danger">غیرفعال</span>
+                    !relation.isActive && <span className="badge badge-danger">آرشیو شده</span>
                   )}
                 </div>
 

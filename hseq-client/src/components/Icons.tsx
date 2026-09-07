@@ -80,7 +80,7 @@ export function ReviseIcon(props: IconProps) {
   )
 }
 
-// غیرفعال کردن سند (حذف نرم)
+// آرشیو کردن سند (حذف نرم)
 export function DeactivateIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -389,6 +389,42 @@ export function CheckIcon(props: IconProps) {
   return (
     <Icon {...props}>
       <path d="m5 12.5 4.5 4.5L19 7" />
+    </Icon>
+  )
+}
+
+/* ---------------------------------------------------------------------------
+   آیکون‌های صفحهٔ ورود
+   --------------------------------------------------------------------------- */
+
+// نشانهٔ فیلد کد پرسنلی
+export function UserIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="3.75" />
+      <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+    </Icon>
+  )
+}
+
+// نشانهٔ فیلد رمز عبور
+export function LockIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+      <path d="M8 10.5V7.75a4 4 0 0 1 8 0v2.75" />
+    </Icon>
+  )
+}
+
+// پنهان کردن رمز - جفتِ EyeIcon در دکمهٔ نمایش/پنهان‌سازی
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4.5l16 15" />
+      <path d="M9.6 6.1A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.6 4.4" />
+      <path d="M15.2 15.4a3.75 3.75 0 0 1-5.1-4.7" />
+      <path d="M6.4 8.1A17.6 17.6 0 0 0 2.5 12s3.5 6.5 9.5 6.5a9.9 9.9 0 0 0 3.1-.5" />
     </Icon>
   )
 }

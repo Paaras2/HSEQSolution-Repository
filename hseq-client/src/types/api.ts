@@ -45,6 +45,10 @@ export interface DocumentDto {
   serialNumber: number
   // نسخه‌ی انگلیسی مدرک؛ شماره‌اش با « (EN)» تمام می‌شود.
   isEnglishVersion: boolean
+  // شماره‌ی مدرک با ساختار کدِ فعلی نمی‌خواند: مدرکی از سامانه‌ی قدیم که با شماره‌ی
+  // تاریخیِ خودش وارد شده تا از دست نرود. فقط یک نشانِ دیداری است و هیچ رفتاری را
+  // عوض نمی‌کند؛ تصمیم درباره‌ی کدینگ این مدارک بعداً گرفته می‌شود.
+  isOutsideCodingStructure: boolean
   // Previous link in the revision chain: the revision this document superseded.
   relatedDocumentId: string | null
   relatedDocumentNumber: string | null
@@ -65,6 +69,20 @@ export interface DocumentDto {
   documentTypeId: string
   file: string | null
   createdByPCode: number
+  // تکه‌ی متنِ فایل که عبارت جستجو در آن پیدا شده. فقط وقتی مقدار دارد که «جستجو در
+  // محتوای فایل» روشن باشد و تطابق در خودِ فایل رخ داده باشد.
+  contentSnippet: string | null
+}
+
+// نتیجه‌ی بازسازی متن قابل‌جستجوی فایل اسناد (پنل ادمین).
+export interface FileTextIndexResult {
+  total: number
+  indexed: number
+  // فایل باز شد ولی متنی نداشت - یعنی PDF اسکن‌شده یا تصویر.
+  withoutText: number
+  fileMissing: number
+  failed: number
+  problems: string[]
 }
 
 export interface PagedResult<T> {

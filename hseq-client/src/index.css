@@ -5,24 +5,31 @@
    می‌کند و هیچ قاعده‌ی دیگری تکرار نمی‌شود. تمِ فعال روی ‎<html data-theme>‎ می‌نشیند.
    =========================================================================== */
 :root {
-  /* پس‌زمینه‌ی صفحه و حاشیه‌ها - خاکستری روشنِ هم‌خانواده‌ی رنگ چهارم پالت */
-  --color-bg: #eef1f3;
+  /* پس‌زمینه‌ی صفحه و حاشیه‌ها - خاکستریِ متمایل به آبیِ برند، یک پله عمیق‌تر از قبل
+     تا کارت‌های سفید روی آن «بنشینند» و لبه‌شان دیده شود. */
+  --color-bg: #e8eef1;
   --color-surface: #ffffff;
-  /* سطح دوم: کارت‌های تودرتو مثل کارت لوگو و کارت کاربر در منو */
-  --color-surface-2: #f5f7f8;
-  --color-border: #dbe1e4;
-  --color-border-strong: #b8bfc1;
+  /* سطح دوم: کارت‌های تودرتو، سرستون جدول و کارت کاربر در منو */
+  --color-surface-2: #f2f7f8;
+  --color-border: #ccd8df;
+  /* خطِ نازکِ داخل جدول - از حاشیه‌ی معمولی روشن‌تر است تا با راه‌راهِ ردیف‌ها قاطی نشود */
+  --color-border-soft: #e0eaee;
+  --color-border-strong: #9dafb9;
 
   /* متن اصلی و متن کم‌رنگ. متن کم‌رنگ یک پله تیره‌تر از ‎#6c8494‎ی پالت است: آن مقدار
      روی سفید نسبت کنتراست ۳٫۹ می‌داد که برای متن ۱۲-۱۴ پیکسلی کافی نیست. خودِ رنگِ
      پالت به‌عنوان ‎--color-secondary‎ سر جایش مانده. */
-  --color-text: #2c4c5c;
-  --color-text-muted: #5a7080;
+  --color-text: #16303d;
+  --color-text-muted: #4e6879;
 
-  /* رنگ برند اصلی (دکمه‌ها، لینک‌های فعال) و حالت‌های آن */
-  --color-primary: #2c4c5c;
-  --color-primary-hover: #6c8494;
-  --color-primary-soft: #cad2d6;
+  /* رنگ کنش‌ها: فیروزه‌ای برند به‌جای همان لاجوردِ متن. قبلاً رنگ دکمه و رنگ متن یکی
+     بود و رابط تک‌رنگ و بی‌جان دیده می‌شد؛ حالا لاجورد سهمِ متن است و فیروزه‌ای سهمِ
+     هرچیزی که کاربر رویش کلیک می‌کند. */
+  --color-primary: #0a6d73;
+  --color-primary-rgb: 10 109 115;
+  --color-primary-hover: #0d868d;
+  /* ته‌رنگِ فیروزه‌ای برای هاورِ سطح‌ها - جای خاکستریِ سردِ قبلی */
+  --color-primary-soft: #dcebec;
   /* متنِ روی سطحِ پررنگِ برند - در حالت تیره سطح روشن‌تر می‌شود و این هم برمی‌گردد */
   --color-on-primary: #ffffff;
 
@@ -70,24 +77,32 @@
   --glass-highlight: 255 255 255 / 0.75;
 
   /* رنگ پایه‌ی سایه‌ها؛ در حالت تیره به مشکی نزدیک می‌شود */
-  --shadow-rgb: 44 76 92;
+  --shadow-rgb: 26 48 60;
 
   /* حلقه‌ی فوکوس فیلدها و پرده‌ی پشت دیالوگ */
-  --color-focus-ring: rgb(44 76 92 / 0.18);
-  --color-overlay: rgb(44 76 92 / 0.55);
+  --color-focus-ring: rgb(10 109 115 / 0.22);
+  --color-overlay: rgb(34 59 72 / 0.55);
 
-  /* ته‌رنگ ردیف انتخاب‌شده‌ی جدول */
-  --color-row-selected: rgb(44 76 92 / 0.08);
-  --color-row-selected-hover: rgb(44 76 92 / 0.13);
+  /* ردیف‌های جدول: راه‌راهِ ملایم، هاور، و انتخاب - هر سه از یک خانواده‌ی رنگی
+     ولی با سه پله‌ی شدتِ متفاوت، تا با هم اشتباه نشوند. */
+  --color-row-alt: #f2f7f8;
+  --color-row-hover: #e1eff0;
+  --color-row-selected: rgb(10 109 115 / 0.11);
+  --color-row-selected-hover: rgb(10 109 115 / 0.17);
 
   /* داکِ شناور عملیات گروهی - در هر دو تم سطحی تیره است، فقط تیرگی‌اش فرق می‌کند */
   --dock-surface: rgb(38 66 80 / 0.94);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --shadow-card: 0 1px 2px rgb(var(--shadow-rgb) / 0.08), 0 1px 3px rgb(var(--shadow-rgb) / 0.1);
-  --shadow-panel: 0 0 24px rgb(var(--shadow-rgb) / 0.16);
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  /* سایه‌ی سه‌لایه: یک خطِ چسبیده برای لبه، یک لایه‌ی نزدیک برای برجستگی و یک لایه‌ی
+     دور برای جدا شدن از پس‌زمینه. سایه‌ی تک‌لایه‌ی قبلی فقط محو بود، نه عمیق. */
+  --shadow-card:
+    0 1px 1px rgb(var(--shadow-rgb) / 0.09),
+    0 2px 4px rgb(var(--shadow-rgb) / 0.07),
+    0 8px 18px rgb(var(--shadow-rgb) / 0.05);
+  --shadow-panel: 0 1px 2px rgb(var(--shadow-rgb) / 0.08), 0 8px 28px rgb(var(--shadow-rgb) / 0.14);
   --shadow-modal: 0 24px 64px rgb(var(--shadow-rgb) / 0.28), 0 4px 12px rgb(var(--shadow-rgb) / 0.12);
   --header-height: 60px;
   --sidebar-width: 264px;
@@ -105,21 +120,24 @@
    لاجورد-خاکستریِ هم‌خانواده‌ی ‎#2c4c5c‎ برند، نه خاکستری خنثی، تا هویت رنگی حفظ شود.
    =========================================================================== */
 :root[data-theme="dark"] {
-  --color-bg: #0f171d;
-  --color-surface: #18232b;
-  --color-surface-2: #1f2c35;
-  --color-border: #2b3d49;
-  --color-border-strong: #3a505f;
+  --color-bg: #0d151a;
+  --color-surface: #16212a;
+  --color-surface-2: #1d2b34;
+  --color-border: #314856;
+  /* معادلِ تیره‌ی خطِ نازک جدول */
+  --color-border-soft: #26363f;
+  --color-border-strong: #47606f;
 
-  --color-text: #e4edf1;
-  --color-text-muted: #92a8b5;
+  --color-text: #eaf3f7;
+  --color-text-muted: #9db3c0;
 
-  /* روی زمینه‌ی تیره، آبیِ برند باید روشن‌تر شود وگرنه نه به‌عنوان متن خوانده می‌شود
-     نه به‌عنوان سطحِ دکمه دیده. متنِ روی آن هم به تیره برمی‌گردد. */
-  --color-primary: #4d9cb8;
-  --color-primary-hover: #6fb4cd;
-  --color-primary-soft: #24343e;
-  --color-on-primary: #0b141a;
+  /* روی زمینه‌ی تیره، فیروزه‌ای برند باید روشن‌تر شود وگرنه نه به‌عنوان متن خوانده
+     می‌شود نه به‌عنوان سطحِ دکمه دیده. متنِ روی آن هم به تیره برمی‌گردد. */
+  --color-primary: #3fb8bd;
+  --color-primary-rgb: 63 184 189;
+  --color-primary-hover: #63cdd1;
+  --color-primary-soft: #1d343a;
+  --color-on-primary: #05181a;
 
   --color-secondary: #8fabba;
 
@@ -159,11 +177,14 @@
   --shadow-panel: 0 0 24px rgb(0 0 0 / 0.45);
   --shadow-modal: 0 24px 64px rgb(0 0 0 / 0.6), 0 4px 12px rgb(0 0 0 / 0.4);
 
-  --color-focus-ring: rgb(77 156 184 / 0.3);
+  --color-focus-ring: rgb(63 184 189 / 0.32);
   --color-overlay: rgb(4 9 12 / 0.68);
 
-  --color-row-selected: rgb(77 156 184 / 0.14);
-  --color-row-selected-hover: rgb(77 156 184 / 0.2);
+  /* راه‌راه در تم تیره روشن‌تر از سطح است، نه تیره‌تر - وگرنه ردیف‌ها گود می‌افتند. */
+  --color-row-alt: #1a2831;
+  --color-row-hover: #21343d;
+  --color-row-selected: rgb(63 184 189 / 0.15);
+  --color-row-selected-hover: rgb(63 184 189 / 0.22);
 
   --dock-surface: rgb(31 44 53 / 0.96);
 
@@ -343,7 +364,7 @@ a {
   gap: 12px;
   padding: 10px 12px;
   border-radius: var(--radius-md);
-  color: var(--color-text-muted);
+  color: var(--color-text);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -474,6 +495,30 @@ a {
   color: var(--color-text-muted);
 }
 
+/* امضای سازنده در پای منو. رنگ متن اصلی و وزن ۶۰۰ دارد تا خوانا باشد؛
+   اندازهٔ کوچکتر از ناوبری، سلسله‌مراتب را حفظ می‌کند. */
+.sidebar-credit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* بدون پدینگِ افقی، تا تمامِ عرضِ منو به متن برسد */
+  padding: 4px 0;
+  text-align: center;
+  /* ۹٫۵ پیکسل کوچکترین اندازه‌ای است که عبارت در یک خطِ منو جا می‌شود
+     (۲۲۰ پیکسل عرضِ متن در مقابلِ ۲۳۴ پیکسل عرضِ قابلِ استفاده). ‎nowrap‎ هست
+     تا اگر روزی قلم عوض شد هم دوخطی نشود. */
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.sidebar-credit__version {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 .sidebar-collapse {
   display: flex;
   align-items: center;
@@ -510,6 +555,7 @@ a {
   .app-shell.is-collapsed .sidebar-section,
   .app-shell.is-collapsed .nav-link__text,
   .app-shell.is-collapsed .user-card__body,
+  .app-shell.is-collapsed .sidebar-credit,
   .app-shell.is-collapsed .sidebar-collapse__text {
     display: none;
   }
@@ -969,9 +1015,9 @@ html[dir="ltr"] .switch-row input:checked + .switch-row__track .switch-row__thum
 }
 
 .toolbar__count strong {
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1048,22 +1094,46 @@ html[dir="ltr"] .switch-row input:checked + .switch-row__track .switch-row__thum
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  /* از ۲۰px کم شد: حالا که عنوان و توضیح یک سطرند، فاصله‌ی قبلی زیرِ سرصفحه یک
+     شکاف خالیِ محسوس می‌ساخت. */
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
+/* عنوان و توضیحش در یک ردیف. توضیح یک جمله‌ی کوتاه است و بردنش به سطر بعد، یک سطر
+   کامل ارتفاع می‌گرفت بی‌آنکه چیزی به خوانایی اضافه کند.
+   baseline (نه center) چون اندازه‌ی قلم دو عنصر فرق دارد و با مرکز، متن کوچک‌تر
+   نسبت به عنوان بالا می‌افتاد. */
+.page-header__text {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* در سرصفحه‌ی یک‌ردیفه دیگر فاصله‌ی زیر عنوان لازم نیست. */
+.page-header__text h1 {
+  margin: 0;
+}
+
 /* نوار تاکیدی زرد کنار عنوان اصلی هر صفحه - تنها جایی که رنگ برند به این اندازه پررنگ استفاده می‌شود */
+/* عنوان صفحه: بزرگ‌تر، ضخیم‌تر و با فاصله‌ی حروفِ کمی جمع‌تر. قبلاً فقط ۲۲ پیکسل با
+   وزنِ پیش‌فرض بود و از متنِ کنارش جدا نمی‌شد؛ صفحه لنگرِ بصری نداشت. */
 .page-header h1 {
   margin: 0 0 4px;
-  font-size: 22px;
-  padding-inline-start: 12px;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  padding-inline-start: 13px;
   border-inline-start: 4px solid var(--color-accent);
 }
 
 .page-header p {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 /* ستون‌فقرات رنگی کنار هر کارت - همون لهجه‌ی رنگی که قبلاً فقط توی هدر/سایدبار بود، حالا توی محتوای اصلی هم دیده می‌شود */
@@ -1113,8 +1183,14 @@ html[dir="ltr"] .switch-row input:checked + .switch-row__track .switch-row__thum
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.08s ease,
+    box-shadow 0.15s ease;
   white-space: nowrap;
+}
+
+/* فشرده‌شدنِ یک‌پیکسلی هنگام کلیک - بازخوردی که دکمه را «واقعی» می‌کند */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
@@ -1122,9 +1198,11 @@ html[dir="ltr"] .switch-row input:checked + .switch-row__track .switch-row__thum
   opacity: 0.6;
 }
 
+/* دکمه‌ی اصلی روی سطحِ روشن باید کمی از صفحه بیرون بزند، نه اینکه در آن حل شود */
 .btn-primary {
   background: var(--color-primary);
   color: var(--color-on-primary);
+  box-shadow: 0 1px 2px rgb(var(--shadow-rgb) / 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -1180,26 +1258,68 @@ table.data-table {
   font-size: 14px;
 }
 
+/* سرستون روی سطحِ دوم می‌نشیند تا از بدنه‌ی جدول جدا شود. ‎text-transform: uppercase‎
+   برداشته شد: روی متن فارسی بی‌اثر بود و فقط عنوان‌های لاتین را بی‌دلیل داد می‌زد. */
 .data-table th {
   text-align: start;
-  padding: 10px 16px;
+  padding: 11px 16px;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  /* خطِ قاطع زیر سرستون: مرزِ «عنوان» و «داده» باید یک‌نگاهی دیده شود */
+  border-bottom: 1px solid var(--color-border-strong);
   white-space: nowrap;
 }
 
+/* ارتفاع ردیف: فاصله‌ی عمودی از ۱۲ به ۸ کم شد. کفِ ارتفاع را دکمه‌های آیکونیِ ستون
+   عملیات تعیین می‌کنند (‎.icon-btn‎)، پس آن‌ها هم یک پله کوچک‌تر شدند؛ وگرنه کم کردنِ
+   padding به‌تنهایی اثر کمی داشت. */
 .data-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border-soft);
   vertical-align: middle;
 }
 
-/* هاور محسوس‌تر روی ردیف جدول - قبلاً با رنگ پس‌زمینه‌ی صفحه یکی بود و عملاً دیده نمی‌شد */
+/* راه‌راهِ یکی‌درمیان: چشم در جدولِ پهن روی یک ردیف می‌ماند و به سطر بالا/پایین نمی‌پرد.
+   عمداً پیش از قاعده‌ی هاور می‌آید - هر دو specificity یکسانی دارند، پس ترتیبِ نوشتن
+   تعیین می‌کند کدام برنده شود و هاور باید روی راه‌راه بنشیند. */
+.data-table tbody tr:nth-child(even) {
+  background: var(--color-row-alt);
+}
+
+/* هاور یک پله پررنگ‌تر از راه‌راه، تا روی هر دو نوع ردیف دیده شود */
 .data-table tbody tr:hover {
-  background: var(--color-primary-soft);
+  background: var(--color-row-hover);
+}
+
+/* نوارِ لبه در هاور - نصفِ شدتِ نوارِ ردیفِ انتخاب‌شده، تا این دو با هم اشتباه نشوند.
+   مثل همان‌جا روی سلولِ اول اجرا می‌شود، چون سایه روی ‎<tr>‎ با ‎border-collapse‎
+   در همه‌ی مرورگرها یکسان رندر نمی‌شود. */
+.data-table tbody tr:hover td:first-child {
+  box-shadow: inset -3px 0 0 rgb(var(--color-primary-rgb) / 0.45);
+}
+
+html[dir="ltr"] .data-table tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 rgb(var(--color-primary-rgb) / 0.45);
+}
+
+/* ستون شمارهٔ ردیف: باریک، وسط‌چین و کم‌رنگ - یک راهنمای شمارشی است،
+   نه دادهٔ سند، پس نباید با ستون شمارهٔ مدرک رقابت کند. */
+.data-table th.row-index,
+.data-table td.row-index {
+  width: 1%;
+  text-align: center;
+  white-space: nowrap;
+  padding-inline: 8px;
+  color: var(--color-text-muted);
+}
+
+/* سرستون «عملیات» وسط‌چین می‌ماند تا روی ستون آیکونی بنشیند،
+   نه چسبیده به لبهٔ سلول. */
+.data-table th.actions-head {
+  text-align: center;
 }
 
 .data-table td.actions-cell {
@@ -1220,10 +1340,19 @@ table.data-table {
 .mono {
   font-family: "Vazirmatn", "Cascadia Code", Consolas, ui-monospace, monospace;
   font-size: 13px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   direction: ltr;
   unicode-bidi: isolate;
+}
+
+/* ستون شماره‌ی سند. خودِ سلول به‌خاطر ‎.mono‎ جهتِ LTR دارد (تا شماره مثل
+   ‎ASYPM-001-C‎ درست خوانده شود) و همین باعث می‌شد مقدارها به چپ بچسبند و زیرِ
+   سرستونِ راست‌چین نیفتند. ‎‎right‎‎ فیزیکی است و به جهتِ سلول کاری ندارد؛
+   ترتیبِ حروفِ خودِ شماره دست‌نخورده می‌ماند. */
+.data-table td.num-cell {
+  text-align: right;
 }
 
 .text-muted {
@@ -1236,6 +1365,40 @@ table.data-table {
   margin-block-start: 2px;
   font-size: 11px;
   color: var(--color-text-muted);
+}
+
+/* نشانِ «خارج از کدینگ» زیر شماره‌ی مدرک. سلولِ شماره LTR است (به‌خاطر \u200E.mono\u200E)، پس
+   جهتش صریحاً برمی‌گردد وگرنه متن فارسیِ نشان برعکس چیده می‌شود. */
+.coding-flag {
+  display: inline-flex;
+  margin-block-start: 3px;
+  padding-block: 1px;
+  font-size: 10.5px;
+  font-weight: 600;
+  direction: rtl;
+  font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  letter-spacing: 0;
+}
+
+/* تکه‌ی متنِ فایل که عبارت جستجو در آن پیدا شده. عمداً تک‌خطی و بریده است: نقشش
+   «چرا این ردیف در نتیجه آمد» است، نه خواندن محتوای سند. */
+.row-snippet {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-block-start: 4px;
+  padding-inline-start: 6px;
+  border-inline-start: 2px solid var(--color-border);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.row-snippet svg {
+  vertical-align: -2px;
+  margin-inline-end: 4px;
+  opacity: 0.7;
 }
 
 /* Revision history: one card per revision, oldest first. */
@@ -1668,6 +1831,7 @@ table.data-table {
   /* پرده‌ی پشت دیالوگ با همون رنگ تیره‌ی برند */
   background: var(--color-overlay);
   backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2616,47 +2780,221 @@ table.data-table {
   gap: 8px;
 }
 
-/* پس‌زمینه‌ی صفحه‌ی ورود: گرادیانت تیره از دو رنگ برند */
+/* ===========================================================================
+   صفحه‌ی ورود
+
+   پس‌زمینه‌ی صفحه یک «شفقِ» آرام است: یک شیبِ پایه، سه هاله‌ی رنگیِ شناور با بلورِ
+   سنگین، یک شبکه‌ی نقطه‌ایِ ریز و یک وینیتِ کم‌رنگ در لبه‌ها. همه‌ی لایه‌ها بی‌لبه و
+   کم‌کنتراست‌اند تا رنگ و عمق بدهند ولی کارتِ ورود نقطه‌ی تمرکز بماند.
+
+   رنگ‌ها در متغیرهای محلیِ همین بخش تعریف شده‌اند و حالت تیره فقط همان چند متغیر
+   را بازنویسی می‌کند؛ خودِ قاعده‌ها یک‌بار بیشتر نوشته نمی‌شوند.
+
+   ستون برند در هر دو تم روی همان گرادیانتِ آبی-سبزِ برند می‌نشیند، پس رنگ متنش
+   ثابت و سفید است؛ ستون فرم اما از متغیرهای تم رنگ می‌گیرد.
+   =========================================================================== */
 .login-page {
+  /* متغیرهای پس‌زمینه - حالت روشن */
+  --login-bg-from: #f4f8fa;
+  --login-bg-to: #d9e6ed;
+  --login-orb-1: rgb(0 140 191 / 0.34);
+  --login-orb-2: rgb(11 118 124 / 0.28);
+  --login-orb-3: rgb(0 150 84 / 0.3);
+  --login-dot: rgb(44 76 92 / 0.13);
+  --login-vignette: rgb(44 76 92 / 0.12);
+
+  position: relative;
   min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: linear-gradient(165deg, var(--color-ink-soft) 0%, var(--color-ink) 100%);
+  padding: clamp(16px, 4vh, 40px) 20px;
+  overflow: hidden;
+  /* شیبِ پایه - از بالای روشن به پایینِ کمی سردتر */
+  background: linear-gradient(155deg, var(--login-bg-from) 0%, var(--login-bg-to) 100%);
 }
 
-.login-card {
-  width: 380px;
-  max-width: 100%;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: 0 20px 60px rgba(44, 76, 92, 0.35);
-  padding: 32px 30px;
+/* حالت تیره - همان ساختار، فقط رنگ‌ها عوض می‌شوند */
+:root[data-theme="dark"] .login-page {
+  --login-bg-from: #111d26;
+  --login-bg-to: #0a1116;
+  --login-orb-1: rgb(0 140 191 / 0.32);
+  --login-orb-2: rgb(62 198 205 / 0.2);
+  --login-orb-3: rgb(0 150 84 / 0.26);
+  --login-dot: rgb(255 255 255 / 0.08);
+  --login-vignette: rgb(0 0 0 / 0.45);
 }
 
-.login-card__brand {
+/* شبکه‌ی نقطه‌ایِ ریز - بافتِ پس‌زمینه که با ماسک به سمت پایین محو می‌شود */
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--login-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(120% 95% at 50% 0%, #000 0%, transparent 76%);
+  mask-image: radial-gradient(120% 95% at 50% 0%, #000 0%, transparent 76%);
+}
+
+/* وینیت - لبه‌های صفحه یک پله تیره‌تر می‌شوند تا کارت وسط جلو بیاید */
+.login-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(130% 100% at 50% 45%, transparent 42%, var(--login-vignette) 100%);
+}
+
+/* ---------------------------------------------------------------------------
+   لایه‌ی شفق: سه هاله‌ی رنگیِ برند که خیلی آرام شناورند
+   --------------------------------------------------------------------------- */
+.login-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* بلورِ سنگین، لکه را به «نور» تبدیل می‌کند نه به «شکل» */
+.login-aurora__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+
+/* آبیِ برند - بالا، سمتِ شروع (راست) */
+.login-aurora__orb--1 {
+  inset-inline-start: -10%;
+  top: -16%;
+  width: min(56vw, 620px);
+  height: min(56vw, 620px);
+  background: var(--login-orb-1);
+  animation: login-orb-1 26s ease-in-out infinite alternate;
+}
+
+/* فیروزه‌ای - پایین، سمتِ پایان (چپ) */
+.login-aurora__orb--2 {
+  inset-inline-end: -12%;
+  bottom: -18%;
+  width: min(52vw, 560px);
+  height: min(52vw, 560px);
+  background: var(--login-orb-2);
+  animation: login-orb-2 32s ease-in-out infinite alternate;
+}
+
+/* سبزِ برند - لکه‌ی کوچک‌ترِ میانی که عمق را کامل می‌کند */
+.login-aurora__orb--3 {
+  inset-inline-start: 38%;
+  bottom: -26%;
+  width: min(44vw, 460px);
+  height: min(44vw, 460px);
+  background: var(--login-orb-3);
+  animation: login-orb-3 38s ease-in-out infinite alternate;
+}
+
+/* جابه‌جاییِ بسیار کند - حرکت باید حس شود، نه دیده */
+@keyframes login-orb-1 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(7%, 9%, 0) scale(1.12);
+  }
+}
+
+@keyframes login-orb-2 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.08);
+  }
+  to {
+    transform: translate3d(-8%, -7%, 0) scale(1);
+  }
+}
+
+@keyframes login-orb-3 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-6%, -11%, 0) scale(1.16);
+  }
+}
+
+/* روی صفحه‌های کوچک بلورِ کمتر - هم سبک‌تر است هم هاله‌ها لبه‌ی تیز نمی‌گیرند */
+@media (max-width: 720px) {
+  .login-aurora__orb {
+    filter: blur(64px);
+  }
+}
+
+/* احترام به تنظیمِ کاهش حرکت - هاله‌ها می‌مانند، فقط ثابت */
+@media (prefers-reduced-motion: reduce) {
+  .login-aurora__orb {
+    animation: none;
+  }
+}
+
+/* کارت اصلی: دو ستون - فرم و برند */
+.login-shell {
+  position: relative;
+  z-index: 1;
+  width: min(940px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 28px 70px rgb(var(--shadow-rgb) / 0.24), 0 2px 8px rgb(var(--shadow-rgb) / 0.08);
+}
+
+/* ---------------------------------------------------------------------------
+   ستون فرم
+   --------------------------------------------------------------------------- */
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 34px 32px 22px;
+  /* شیبِ بسیار ملایم به‌جای سطحِ تخت - در هر دو تم فقط یک پله اختلاف دارد و
+     همان اندازه کافی است که ستون فرم بی‌جان به نظر نرسد. */
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
+}
+
+.login-panel__head {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 24px;
+  gap: 6px;
+  text-align: center;
 }
 
-.login-card__brand-mark {
+.login-panel__mark {
   display: block;
-  height: 56px;
+  height: 52px;
   width: auto;
 }
 
-.login-card__brand h1 {
-  margin: 0;
-  font-size: 18px;
-  text-align: center;
+.login-panel__head h1 {
+  margin: 6px 0 0;
+  font-size: 19px;
   text-wrap: balance;
 }
 
-.login-card__brand p {
+/* تنها جای استفاده از نارنجیِ برند در این صفحه: یک خطِ لهجه‌ی کوتاه زیر عنوان.
+   برای متن یا دکمه به کارش نبردیم چون کنتراستش روی سفید به حد AA نمی‌رسد. */
+.login-panel__head h1::after {
+  content: '';
+  display: block;
+  width: 34px;
+  height: 3px;
+  margin: 10px auto 0;
+  border-radius: 2px;
+  background: #f04f24;
+}
+
+.login-panel__head p {
   margin: 0;
   font-size: 13px;
   color: var(--color-text-muted);
@@ -2665,20 +3003,232 @@ table.data-table {
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.login-form .btn-primary {
-  width: 100%;
-  padding: 10px;
+/* فیلدهای این صفحه یک پله بلندتر و گردتر از فرم‌های داخل برنامه‌اند */
+.login-form .text-input {
+  padding-block: 12px;
   font-size: 15px;
-  margin-top: 4px;
+  border-radius: var(--radius-md);
 }
 
+/* پوسته‌ی فیلد: آیکون در لبه‌ی شروع و (برای رمز) دکمه‌ی نمایش در لبه‌ی پایان */
+.login-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-field .text-input {
+  padding-inline-start: 40px;
+}
+
+.login-field--with-toggle .text-input {
+  padding-inline-end: 42px;
+}
+
+.login-field__icon {
+  position: absolute;
+  inset-inline-start: 13px;
+  display: inline-flex;
+  color: var(--color-text-muted);
+  /* کلیکِ روی آیکون باید به خودِ فیلد برسد، نه اینکه جلویش را بگیرد. */
+  pointer-events: none;
+}
+
+.login-field__toggle {
+  position: absolute;
+  inset-inline-end: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.login-field__toggle:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.login-field__toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* دکمه‌ی ورود با همان گرادیانتِ آبی-سبزِ درختِ لوگو. هر دو سرِ گرادیانت عمداً یک پله
+   تیره‌تر از رنگ خامِ برندند تا متن سفید رویشان کنتراست AA بگیرد. */
+.login-submit {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, #0b6f8f, #0a7a4a);
+  box-shadow: 0 8px 20px rgb(6 80 80 / 0.28);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.login-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.login-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* امضای سازنده - به کفِ ستون چسبیده تا ارتفاعِ دو ستون هم‌تراز بماند */
+.login-panel__credit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: auto 0 0;
+  padding-block-start: 10px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.7;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.login-panel__credit-version {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   ستون برند
+   --------------------------------------------------------------------------- */
+.login-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 40px 28px;
+  color: #ffffff;
+  /* گرادیانتِ رسمیِ برند، مات و بدون شیشه: چیزی پشتش نیست که تار کردنش
+     ارزشی داشته باشد. */
+  background: linear-gradient(160deg, #008cbf 0%, #068a92 52%, #009654 100%);
+  /* محضِ اینکه بچه‌های مطلقش از گوشه‌های گرد بیرون نزنند */
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* الگوی کاج: ماسکِ الفای همان ‎logo-icon.png‎، تکرارشونده و بسیار کم‌رنگ - آن‌قدر
+   که بافت حس شود ولی با خودِ لوگو رقابت نکند. */
+.login-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@supports (mask-image: url('/brand/logo-icon.png')) or (-webkit-mask-image: url('/brand/logo-icon.png')) {
+  .login-hero::before {
+    background-color: #ffffff;
+    opacity: 0.035;
+    -webkit-mask-image: url('/brand/logo-icon.png');
+    mask-image: url('/brand/logo-icon.png');
+    -webkit-mask-size: 96px 178px;
+    mask-size: 96px 178px;
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+  }
+}
+
+/* هاله‌ی نرمِ نور پشتِ لوگو - بدون هیچ لبه‌ای. کارش این است که لوگو روی ستون
+   «بنشیند» و در گرادیانت شناور نماند. */
+.login-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(48% 36% at 50% 31%, rgb(255 255 255 / 0.2), transparent 72%);
+}
+
+/* نسخه‌ی تک‌رنگِ سفیدِ لوگو، ساخته‌شده از ماسکِ همان فایلِ رنگی */
+.login-hero__logo {
+  width: 118px;
+  height: 200px;
+  flex-shrink: 0;
+}
+
+@supports (mask-image: url('/brand/logo-full.png')) or (-webkit-mask-image: url('/brand/logo-full.png')) {
+  .login-hero__logo {
+    background-color: #ffffff;
+    -webkit-mask: url('/brand/logo-full.png') no-repeat center / contain;
+    mask: url('/brand/logo-full.png') no-repeat center / contain;
+  }
+}
+
+.login-hero__text {
+  text-align: center;
+}
+
+.login-hero__text h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.login-hero__text p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.8);
+}
+
+.login-hero__features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 250px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.login-hero__features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 0.92);
+}
+
+.login-hero__feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.14);
+}
+
+/* ---------------------------------------------------------------------------
+   ورود توسعه‌دهنده (فقط در بیلد توسعه رندر می‌شود)
+   --------------------------------------------------------------------------- */
 .dev-login {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--color-border);
+  padding-block-start: 14px;
+  border-block-start: 1px dashed var(--color-border);
 }
 
 .dev-login__toggle {
@@ -2695,6 +3245,15 @@ table.data-table {
   cursor: pointer;
 }
 
+/* فلش با باز شدن بخش می‌چرخد */
+.dev-login__toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.dev-login__toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
 .dev-login__body {
   display: flex;
   flex-direction: column;
@@ -2709,6 +3268,47 @@ table.data-table {
   margin: 0;
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   صفحه‌ی ورود در نمایشگر کوچک: ستون برند به نواری کوتاه بالای فرم تبدیل می‌شود
+   --------------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .login-shell {
+    width: min(440px, 100%);
+    grid-template-columns: 1fr;
+  }
+
+  .login-hero {
+    order: -1;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 16px 20px;
+  }
+
+  .login-hero__logo {
+    width: 40px;
+    height: 68px;
+  }
+
+  .login-hero__text {
+    text-align: start;
+  }
+
+  .login-hero__text h2 {
+    font-size: 15px;
+  }
+
+  /* فهرست قابلیت‌ها و نشانِ داخلِ فرم در این اندازه حذف می‌شوند تا صفحه شلوغ نشود */
+  .login-hero__features,
+  .login-panel__mark {
+    display: none;
+  }
+
+  .login-panel {
+    padding: 26px 22px 18px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -3734,6 +4334,47 @@ table.data-table {
   margin: 16px 16px 0;
 }
 
+/* تب «نمایه‌ی محتوای فایل»: برخلاف بقیه‌ی تب‌های پنل جدول ندارد، یک عملیات است -
+   پس توضیح، کلید تنظیم و گزارش نتیجه در یک ستون ساده می‌آیند. */
+.index-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.index-panel__hint {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 12.5px;
+  line-height: 2;
+  color: var(--color-text-muted);
+}
+
+.index-panel__result {
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-surface-2);
+  font-size: 13px;
+  line-height: 2;
+}
+
+.index-panel__result p {
+  margin: 0;
+}
+
+/* فهرست مشکلات می‌تواند بلند شود؛ محدود کردن ارتفاع، گزارش را از بلعیدن صفحه
+   بازمی‌دارد. */
+.index-panel__problems {
+  margin: 10px 0 0;
+  padding-inline-start: 18px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 /* ردیف غیرفعال کم‌رنگ‌تر دیده می‌شود تا بدون خواندن ستون «وضعیت» هم از بقیه جدا باشد. */
 .data-table tbody tr.is-inactive-row td:not(.actions-cell) {
   opacity: 0.6;
@@ -3798,16 +4439,19 @@ table.data-table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--tone) / 0.16);
-  background: linear-gradient(135deg, rgb(var(--glass-fill)), rgb(var(--tone) / 0.09));
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  border-radius: 7px;
+  border: 1px solid rgb(var(--tone) / 0.34);
+  background: linear-gradient(135deg, rgb(var(--glass-fill)), rgb(var(--tone) / 0.16));
+  /* اینجا عمداً backdrop-filter نداریم. این دکمه‌ها همیشه روی سطح یکدستِ کارت می‌نشینند
+     و تار کردنِ یک رنگِ تخت هیچ اثر دیداری ندارد - ولی مرورگر مجبور می‌شود به ازای هر
+     دکمه و در هر فریمِ اسکرول پس‌زمینه‌اش را دوباره تار کند. در پنل ادمین که ۵۷ تا ۹۲
+     ردیف یک‌جا رندر می‌شود، این یعنی بیش از ۱۰۰ عنصرِ تارکننده - علتِ هنگ کردن و ناقص
+     رندر شدن صفحه. ظاهر شیشه‌ای از گرادیانت و خط نورِ داخلی می‌آید، نه از تاری. */
   box-shadow:
-    0 1px 2px rgb(var(--tone) / 0.14),
+    0 1px 2px rgb(var(--tone) / 0.18),
     inset 0 1px 0 rgb(var(--glass-highlight));
   color: rgb(var(--tone));
   cursor: pointer;

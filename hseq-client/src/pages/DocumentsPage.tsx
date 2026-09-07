@@ -24,6 +24,7 @@ import {
   EyeIcon,
   HistoryIcon,
   ReviseIcon,
+  SearchIcon,
   SpinnerIcon,
 } from '../components/Icons'
 
@@ -53,6 +54,11 @@ export function DocumentsPage() {
   const [loadError, setLoadError] = useState<{ status?: number; message: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [includeInactive, setIncludeInactive] = useState(false)
+
+  // «نمایش آرشیو» فقط برای کسی معنا دارد که می‌تواند سند را آرشیو/بازگردانی کند.
+  // برای نقش «فقط مشاهده» نه کلیدش رندر می‌شود و نه مقدارش اثر می‌گذارد؛ دومی مهم
+  // است تا اگر نقشِ همین نشست عوض شد، فهرست روی حالتِ قبلی جا نماند.
+  const showInactive = canManage && includeInactive
   const [isExporting, setIsExporting] = useState(false)
 
   // نوار جستجوی بالای صفحه فیلترها را در آدرس می‌نویسد و این صفحه فقط آن‌ها را
@@ -94,11 +100,11 @@ export function DocumentsPage() {
   const lastToggledKeyRef = useRef<string | null>(null)
 
   // ورودیِ سرویس جستجو. فهرست بدون فیلتر هم از همین مسیر می‌آید تا یک راهِ داده
-  // داشته باشیم؛ «نمایش غیرفعال‌ها» دقیقاً روی IsActive می‌نشیند (نال یعنی همه).
+  // داشته باشیم؛ «نمایش آرشیو» دقیقاً روی IsActive می‌نشیند (نال یعنی همه).
   const searchInput = useMemo(
     () => ({
       query: filters.query,
-      isActive: includeInactive ? null : true,
+      isActive: showInactive ? null : true,
       category: null,
       documentTypeId: null,
       organizationalManagementId: filters.managementId || null,
@@ -109,7 +115,7 @@ export function DocumentsPage() {
       pageNumber: page,
       pageSize: PAGE_SIZE,
     }),
-    [filters, includeInactive, page],
+    [filters, showInactive, page],
   )
 
   const loadDocuments = useCallback(() => {
@@ -140,7 +146,7 @@ export function DocumentsPage() {
     // با تغییر فیلتر، ردیف‌های انتخاب‌شده ممکن است دیگر در فهرست نباشند؛ انتخابِ
     // نامرئی خطرناک است، پس پاک می‌شود.
     setSelectedKeys(new Set())
-  }, [filters, includeInactive])
+  }, [filters, showInactive])
 
   // با صفحه‌بندی سمت سرور، ردیف‌های صفحه‌ی قبل دیگر در حافظه نیستند؛ نگه داشتن
   // انتخابشان فقط شمارنده‌ی داک را گمراه‌کننده می‌کرد.
@@ -210,7 +216,7 @@ export function DocumentsPage() {
   }
 
   async function handleDelete(document: DocumentDto) {
-    const confirmed = window.confirm(`سند ${toPersianDigits(document.number)} غیرفعال شود؟ این سند دیگر در فهرست عادی اسناد نمایش داده نخواهد شد.`)
+    const confirmed = window.confirm(`سند ${toPersianDigits(document.number)} آرشیو شود؟ این سند دیگر در فهرست عادی اسناد نمایش داده نخواهد شد.`)
     if (!confirmed) return
 
     setPendingDeleteId(document.key)
@@ -218,7 +224,7 @@ export function DocumentsPage() {
       await documentApi.remove(document.key)
       loadDocuments()
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : 'امکان غیرفعال کردن سند وجود ندارد.')
+      window.alert(err instanceof ApiError ? err.message : 'امکان آرشیو کردن سند وجود ندارد.')
     } finally {
       setPendingDeleteId(null)
     }
@@ -235,7 +241,7 @@ export function DocumentsPage() {
     () => pageItems.filter((d) => selectedKeys.has(d.key)),
     [pageItems, selectedKeys],
   )
-  // فقط سند فعال قابل غیرفعال کردن است؛ همین عدد روی دکمه‌ی داک هم نشان داده می‌شود.
+  // فقط سند فعال قابل آرشیو کردن است؛ همین عدد روی دکمه‌ی داک هم نشان داده می‌شود.
   const selectedActiveCount = selectedDocuments.filter((d) => d.isActive).length
   const allPageSelected = pageItems.length > 0 && pageItems.every((d) => selectedKeys.has(d.key))
   const somePageSelected = pageItems.some((d) => selectedKeys.has(d.key))
@@ -311,7 +317,7 @@ export function DocumentsPage() {
     }
   }
 
-  // غیرفعال‌سازی گروهی. اسنادِ از قبل غیرفعال کنار گذاشته می‌شوند تا درخواست بی‌اثر
+  // آرشیوِ گروهی. اسنادِ از قبل آرشیوشده کنار گذاشته می‌شوند تا درخواست بی‌اثر
   // به سرور نرود و شمارشِ تأیید هم واقعی باشد.
   async function handleBulkDelete() {
     if (bulk) return
@@ -321,7 +327,7 @@ export function DocumentsPage() {
       return
     }
     const confirmed = window.confirm(
-      `${toPersianDigits(targets.length)} سند انتخاب‌شده غیرفعال شود؟ این اسناد دیگر در فهرست عادی اسناد نمایش داده نخواهند شد.`,
+      `${toPersianDigits(targets.length)} سند انتخاب‌شده آرشیو شوند؟ این اسناد دیگر در فهرست عادی اسناد نمایش داده نخواهند شد.`,
     )
     if (!confirmed) return
 
@@ -339,16 +345,16 @@ export function DocumentsPage() {
     clearSelection()
     loadDocuments()
     if (failed.length > 0) {
-      window.alert('غیرفعال کردن این اسناد ناموفق بود: ' + failed.join('، '))
+      window.alert('آرشیو کردن این اسناد ناموفق بود: ' + failed.join('، '))
     }
   }
 
   return (
     <div>
       <div className="page-header">
-        <div>
+        <div className="page-header__text">
           <h1>اسناد</h1>
-          <p>مرور و مدیریت اسناد کنترل‌شده HSEQ.</p>
+          <p>مرور و مدیریت اسناد کنترل شده</p>
         </div>
       </div>
 
@@ -361,10 +367,18 @@ export function DocumentsPage() {
             <strong>{toPersianDigits(totalCount)}</strong>
           </span>
           <div className="toolbar-actions">
-            <label className="inactive-toggle">
-              <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
-              نمایش غیرفعال‌ها
-            </label>
+            {/* کلیدِ «نمایش آرشیو» فقط برای مدیر اسناد - کاربرِ فقط-مشاهده اصلاً
+                سند آرشیوشده‌ای نمی‌بیند که بخواهد نمایشش را روشن کند. */}
+            {canManage && (
+              <label className="inactive-toggle">
+                <input
+                  type="checkbox"
+                  checked={includeInactive}
+                  onChange={(e) => setIncludeInactive(e.target.checked)}
+                />
+                نمایش آرشیو
+              </label>
+            )}
             <button
               type="button"
               className="btn btn-secondary"
@@ -462,6 +476,8 @@ export function DocumentsPage() {
                         />
                       </label>
                     </th>
+                    {/* شمارهٔ ردیف: پیوسته در کل نتیجه، نه فقط در صفحهٔ جاری. */}
+                    <th className="row-index">ردیف</th>
                     <th>شماره</th>
                     <th>نام</th>
                     <th>بازنگری</th>
@@ -471,11 +487,11 @@ export function DocumentsPage() {
                     <th>وضعیت</th>
                     {/* Always rendered: viewing a document's file is available to every
                         authenticated user, so this column is no longer manage-only. */}
-                    <th>عملیات</th>
+                    <th className="actions-head">عملیات</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems.map((doc) => (
+                  {pageItems.map((doc, index) => (
                     <tr key={doc.key} className={selectedKeys.has(doc.key) ? 'is-selected' : undefined}>
                       {/* چک‌باکس ردیف. انتخاب روی رویداد click انجام می‌شود نه change:
                           فقط click وضعیت کلید Shift را همراه دارد و انتخاب بازه‌ای به آن
@@ -492,13 +508,38 @@ export function DocumentsPage() {
                           />
                         </label>
                       </td>
-                      <td className="mono">
+                      {/* شمارهٔ ردیف با احتساب صفحه‌بندی، پس صفحهٔ ۲ از ۱۱ شروع می‌شود. */}
+                      <td className="row-index mono">{toPersianDigits((page - 1) * PAGE_SIZE + index + 1)}</td>
+                      <td className="mono num-cell">
                         {toPersianDigits(doc.number)}
+                        {/* نشانِ «خارج از کدینگ» زیر خودِ شماره می‌آید، چون مشکل دقیقاً
+                            همان شماره است نه وضعیت سند. راهنمای شناور علتش را می‌گوید.
+                            فقط برای کسی که می‌تواند سند مدیریت کند - کاربرِ فقط-مشاهده
+                            نیازی به دیدنِ این جزئیاتِ داخلی ندارد. */}
+                        {canManage && doc.isOutsideCodingStructure && (
+                          <span
+                            className="badge badge-warning coding-flag"
+                            title="شماره‌ی این مدرک با ساختار کد فعلی نمی‌خواند؛ از سامانه‌ی قدیم با شماره‌ی خودش وارد شده است."
+                          >
+                            خارج از کدینگ
+                          </span>
+                        )}
                         {doc.relatedDocumentNumber && (
                           <span className="row-subtext">بازنگری از {toPersianDigits(doc.relatedDocumentNumber)}</span>
                         )}
                       </td>
-                      <td>{doc.name}</td>
+                      <td>
+                        {doc.name}
+                        {/* وقتی تطابق در متن فایل رخ داده، همان تکه‌ی متن زیر نام سند
+                            می‌آید - وگرنه ردیفی که نه شماره‌اش و نه نامش عبارت را ندارد،
+                            بی‌دلیل در نتیجه به نظر می‌رسید. */}
+                        {doc.contentSnippet && (
+                          <span className="row-snippet" title={doc.contentSnippet}>
+                            <SearchIcon size={12} />
+                            {doc.contentSnippet}
+                          </span>
+                        )}
+                      </td>
                       <td>
                         {documentVersionLabel(doc.lastVersion)}
                         {doc.contentRevision ? toPersianDigits(String(doc.contentRevision).padStart(2, '0')) : ''}
@@ -531,7 +572,7 @@ export function DocumentsPage() {
                           <span className="badge badge-muted">منسوخ (بازنگری شده)</span>
                         ) : (
                           <span className={`badge ${doc.isActive ? 'badge-success' : 'badge-danger'}`}>
-                            {doc.isActive ? 'فعال' : 'غیرفعال'}
+                            {doc.isActive ? 'فعال' : 'آرشیو شده'}
                           </span>
                         )}
                       </td>
@@ -586,7 +627,7 @@ export function DocumentsPage() {
                             )}
                             {doc.isActive && (
                               <IconButton
-                                label="غیرفعال کردن"
+                                label="آرشیو"
                                 icon={<DeactivateIcon />}
                                 tone="danger"
                                 onClick={() => handleDelete(doc)}
@@ -634,7 +675,7 @@ export function DocumentsPage() {
               <span className="bulk-dock__count">{toPersianDigits(selectedDocuments.length)}</span>
               <span className="bulk-dock__label">
                 {bulk
-                  ? `${bulk.kind === 'download' ? 'در حال دانلود' : 'در حال غیرفعال کردن'} ${toPersianDigits(bulk.done)} از ${toPersianDigits(bulk.total)}`
+                  ? `${bulk.kind === 'download' ? 'در حال دانلود' : 'در حال آرشیو'} ${toPersianDigits(bulk.done)} از ${toPersianDigits(bulk.total)}`
                   : 'سند انتخاب شده'}
               </span>
             </div>
@@ -651,7 +692,7 @@ export function DocumentsPage() {
                 {bulk?.kind === 'download' ? <SpinnerIcon size={15} /> : <DownloadIcon size={15} />}
                 دانلود همه
               </button>
-              {/* غیرفعال‌سازی فقط برای مدیر، و فقط وقتی سند فعالی در انتخاب باشد. */}
+              {/* آرشیو فقط برای مدیر، و فقط وقتی سند فعالی در انتخاب باشد. */}
               {canManage && (
                 <button
                   type="button"
@@ -660,7 +701,7 @@ export function DocumentsPage() {
                   disabled={bulk !== null || selectedActiveCount === 0}
                 >
                   {bulk?.kind === 'delete' ? <SpinnerIcon size={15} /> : <DeactivateIcon size={15} />}
-                  غیرفعال کردن
+                  آرشیو
                   {selectedActiveCount > 0 && selectedActiveCount !== selectedDocuments.length && (
                     <span className="bulk-action__badge">{toPersianDigits(selectedActiveCount)}</span>
                   )}
