@@ -367,19 +367,64 @@ Start-Sleep -Seconds 5
 Write-Ok "Application Pool '$SiteName' ری‌سایکل شد"
 
 Write-Step 'بررسی سلامت'
-$healthUrl = "http://localhost/api/MasterData/projects"
-try {
-    $resp = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
-    Write-Ok "API پاسخ داد ($($resp.StatusCode))"
-} catch {
-    $code = $null
-    if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
-    if ($code -eq 401) {
-        # ۴۰۱ یعنی برنامه بالا آمده و لایه‌ی احراز هویت کار می‌کند - همان چیزی که
-        # از یک مسیر محافظت‌شده انتظار داریم.
-        Write-Ok 'API بالا آمد و احراز هویت فعال است (401 روی مسیر محافظت‌شده)'
+
+# وضعیت پاسخ یک نشانی، بدون پرتاب استثنا. کد HTTP خودش داده است، نه خطا: ۴۰۱ روی
+# مسیر محافظت‌شده یعنی برنامه سالم بالا آمده.
+function Get-HttpStatus {
+    param([string]$Url)
+    try {
+        $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+        return [int]$r.StatusCode
+    } catch {
+        if ($_.Exception.Response) { return [int]$_.Exception.Response.StatusCode }
+        return 0
+    }
+}
+
+# مسیری که کلاینت واقعاً صدا می‌زند. کلاینت با VITE_API_BASE_URL=/api ساخته شده،
+# پس هر فراخوانش به <origin>/api/<Controller> می‌رود.
+$clientApiHealth = 'http://localhost/api/Health'
+# مسیری که اگر بک‌اند به‌عنوان Application زیر /api ثبت شده باشد پاسخ می‌دهد: IIS
+# پیشوند /api را به‌عنوان PathBase برمی‌دارد و مسیرِ خودِ کنترلر ("api/Health") بعد
+# از آن می‌آید، یعنی نشانی نهایی دوبار /api دارد.
+$pathBaseApiHealth = 'http://localhost/api/api/Health'
+
+$clientStatus = Get-HttpStatus $clientApiHealth
+$pathBaseStatus = Get-HttpStatus $pathBaseApiHealth
+
+if ($clientStatus -eq 200) {
+    Write-Ok 'بررسی سلامت پاسخ داد (۲۰۰) - دیتابیس هم در دسترس است'
+    if ($pathBaseStatus -eq 200) {
+        Write-Warn 'هر دو نشانی /api/Health و /api/api/Health پاسخ می‌دهند - چیدمان را بازبینی کنید.'
+    }
+}
+elseif ($clientStatus -eq 503) {
+    # برنامه بالا آمده ولی به دیتابیس نمی‌رسد. این دقیقاً همان خرابی‌ای است که با
+    # بررسی قدیمی (۴۰۱ روی مسیر محافظت‌شده) دیده نمی‌شد.
+    Write-Fail 'برنامه بالا آمد ولی به دیتابیس وصل نمی‌شود (۵۰۳). رشته‌ی اتصال و دسترسی هویت Application Pool به SQL را بررسی کنید.'
+}
+elseif ($pathBaseStatus -in 200, 503) {
+    # این حالت یعنی بک‌اند بالاست، ولی زیر مسیری نشسته که کلاینت آنجا را صدا نمی‌زند.
+    Write-Fail @'
+ناسازگاری مسیر: بک‌اند فقط روی /api/api/... پاسخ می‌دهد، ولی کلاینت /api/... را صدا می‌زند.
+با این چیدمان همه‌ی فراخوان‌های کلاینت ۴۰۴ می‌گیرند.
+
+این حالت باید با میان‌افزارِ PathBase در Program.cs پوشش داده شده باشد؛ دیدنش یعنی
+آن میان‌افزار برداشته شده یا بسته‌ای قدیمی‌تر از آن اصلاح در حال استقرار است.
+بسته‌ی به‌روز را منتشر و دوباره استقرار دهید.
+'@
+}
+elseif ($clientStatus -eq 404 -and $pathBaseStatus -eq 404) {
+    Write-Fail 'هیچ‌کدام از نشانی‌های سلامت پاسخ ندادند (۴۰۴). بک‌اند بالا نیامده یا مسیر Application اشتباه است.'
+}
+else {
+    # بسته‌های قدیمی‌تر HealthController را ندارند؛ در آن حالت مسیر محافظت‌شده هنوز
+    # نشان می‌دهد که برنامه بالا آمده است.
+    $legacyStatus = Get-HttpStatus 'http://localhost/api/MasterData/projects'
+    if ($legacyStatus -eq 401) {
+        Write-Warn 'HealthController در این بسته نیست؛ فقط تأیید شد که برنامه بالا آمده (۴۰۱ روی مسیر محافظت‌شده). اتصال دیتابیس بررسی نشد.'
     } else {
-        Write-Fail "بررسی سلامت ناموفق: $($_.Exception.Message)"
+        Write-Fail "بررسی سلامت ناموفق (کد $clientStatus روی $clientApiHealth)."
     }
 }
 

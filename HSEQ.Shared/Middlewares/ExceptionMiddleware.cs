@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,12 @@ namespace HSEQ.Shared.Middlewares
     public class ExceptionMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionMiddleware> _logger;
 
-        public ExceptionMiddleware(RequestDelegate next)
+        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext httpContext)
@@ -33,6 +36,13 @@ namespace HSEQ.Shared.Middlewares
             }
             catch (Exception ex)
             {
+                // خطای پیش‌بینی‌نشده سمت سرور لاگ می‌شود، ولی چیزی از آن به کاربر
+                // برنمی‌گردد. بدون این، خطای ۵۰۰ هیچ ردی از خودش باقی نمی‌گذاشت و
+                // عیب‌یابی پس از استقرار عملاً ناممکن بود. مقصد لاگ را میزبان تعیین
+                // می‌کند؛ روی IIS همان stdout ماژول ASP.NET Core است.
+                _logger.LogError(ex, "خطای مدیریت‌نشده در {Method} {Path}",
+                    httpContext.Request.Method, httpContext.Request.Path);
+
                 httpContext.Response.StatusCode = 500;
                 httpContext.Response.ContentType = "application/json";
                 var result = JsonSerializer.Serialize(new { message = "Internal server error" });

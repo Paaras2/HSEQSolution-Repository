@@ -177,6 +177,30 @@ Invoke-Checked -Command 'dotnet' -Arguments @(
 # ماشین توسعه‌دهنده را همراه خودش می‌برد.
 Get-ChildItem -Path $backendOut -Filter 'appsettings.Development.json' -ErrorAction SilentlyContinue |
     Remove-Item -Force
+
+# appsettings.json پایه همیشه همراه برنامه منتشر می‌شود و مقادیر توسعه‌ی داخلش
+# (رشته‌ی اتصالِ LocalDB و کلید امضای توسعه) در بسته‌ی عملیاتی جایی ندارند.
+#
+# برنامه بدون این‌ها هم بالا نمی‌آمد - ProductionConfigurationValidator هر دو را
+# صریحاً رد می‌کند - ولی نبودنشان در بسته بهتر از بودنشان است: اپراتور موقع خواندن
+# فایل به مقدارِ توسعه برنمی‌خورد و اشتباهی رویش تکیه نمی‌کند.
+#
+# جایگزینی روی متن خام انجام می‌شود نه با تبدیل JSON، چون این فایل کامنت دارد و
+# رفت‌وبرگشت JSON کامنت‌ها و قالب‌بندی‌اش را از بین می‌برد.
+$packagedSettings = Join-Path $backendOut 'appsettings.json'
+if (Test-Path $packagedSettings) {
+    $raw = Get-Content $packagedSettings -Raw
+    $before = $raw
+    # هر مقداری که نشانه‌ی توسعه دارد خالی می‌شود؛ کلیدش می‌ماند تا ساختار فایل
+    # به‌هم نریزد و اعتبارسنجیِ راه‌اندازی «مقدار ندارد» را صریح گزارش کند.
+    $raw = [regex]::Replace($raw, '"[^"]*\(localdb\)[^"]*"', '""')
+    $raw = [regex]::Replace($raw, '"[^"]*DEVELOPMENT-ONLY[^"]*"', '""')
+    if ($raw -ne $before) {
+        Set-Content -Path $packagedSettings -Value $raw -Encoding UTF8 -NoNewline
+        Write-Ok 'مقادیر توسعه از appsettings.json بسته پاک شد'
+    }
+}
+
 Write-Ok "بک‌اند در Backend\ ($((Get-ChildItem $backendOut -Recurse -File).Count) فایل)"
 
 # ---------------------------------------------------------------------------
@@ -269,6 +293,16 @@ if (Test-Path $frontendDir) {
 $backendSettings = @(Get-ChildItem $backendOut -Filter 'appsettings*.json' -ErrorAction SilentlyContinue)
 foreach ($f in $backendSettings) {
     if ($f.Name -like '*Development*') { $leakFindings += "فایل تنظیمات توسعه در بسته: $($f.Name)" }
+
+    # محتوای فایل هم بررسی می‌شود، نه فقط نامش: مقدارِ توسعه ممکن است داخل
+    # appsettings.json پایه مانده باشد. این بررسی مکملِ پاک‌سازی بالاست تا اگر روزی
+    # آن گام خراب شد، بسته بی‌سروصدا با مقدار توسعه بیرون نرود.
+    $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
+    if ($content -match '\(localdb\)') { $leakFindings += "رشته‌ی اتصال LocalDB در $($f.Name)" }
+    if ($content -match 'DEVELOPMENT-ONLY') { $leakFindings += "کلید توسعه در $($f.Name)" }
+    # رمز داخل رشته‌ی اتصال - احراز هویت یکپارچه ویندوز رمز ندارد، پس دیدنش یعنی
+    # اعتبارنامه‌ی واقعی داخل بسته نشسته است.
+    if ($content -match '(?i)(password|pwd)\s*=\s*[^";\s]+') { $leakFindings += "رمز عبور داخل رشته‌ی اتصال در $($f.Name)" }
 }
 
 # فایل‌هایی که هرگز نباید در بسته باشند
