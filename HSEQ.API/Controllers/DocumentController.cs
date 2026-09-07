@@ -101,6 +101,7 @@ namespace HSEQ.API.Controllers
         public async Task<DocumentDto> Get(Guid documentId)
         {
             var res = await _documentService.GetByIdAsync(documentId);
+            DocumentDtoVisibility.ApplyOutsideCodingVisibility(res, User);
             return res;
         }
 
@@ -132,6 +133,7 @@ namespace HSEQ.API.Controllers
         public async Task<IActionResult> GetRevisionHistory([FromQuery] Guid documentId)
         {
             var result = await _documentService.GetRevisionHistoryAsync(documentId);
+            DocumentDtoVisibility.ApplyOutsideCodingVisibility(result, User);
             return Ok(result);
         }
 
@@ -179,6 +181,7 @@ namespace HSEQ.API.Controllers
             [FromQuery] bool includeInactiveItems = false)
         {
             var result = await _documentService.GetAllPaginationAsync(pageNumber, pageSize, includeInactiveItems);
+            DocumentDtoVisibility.ApplyOutsideCodingVisibility(result.Items, User);
             return Ok(result);
         }
 

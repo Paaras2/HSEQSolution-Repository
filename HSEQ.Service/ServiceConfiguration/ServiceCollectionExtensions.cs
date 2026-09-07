@@ -1,4 +1,4 @@
-﻿using HSEQ.Service.Interfaces.Repositories;
+using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
 using HSEQ.Service.Services.Repositories;
 using HSEQ.Service.Services.Services;
@@ -17,6 +17,8 @@ namespace HSEQ.Service
         {
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<ISeedDatabase, SeedDatabase>();
+            // ورود یک‌باره‌ی اسناد سامانه‌ی قدیمی؛ فقط از خط فرمان صدا زده می‌شود.
+            services.AddScoped<ILegacyDocumentImportService, LegacyDocumentImportService>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IFileService, FileService>();
@@ -28,6 +30,8 @@ namespace HSEQ.Service
             services.AddScoped<IMasterDataRepository, MasterDataRepository>();
             services.AddScoped<IMasterDataService, MasterDataService>();
             services.AddScoped<IFileTextExtractionService, FileTextExtractionService>();
+            // بازسازی متن فایلِ اسناد موجود - هم از پنل ادمین و هم از خط فرمان.
+            services.AddScoped<IDocumentTextIndexService, DocumentTextIndexService>();
             services.AddScoped<ISearchService, SearchService>();
             services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<IDocumentRelationRepository, DocumentRelationRepository>();

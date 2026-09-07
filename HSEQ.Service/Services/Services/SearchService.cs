@@ -1,5 +1,6 @@
 ﻿using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
+using HSEQ.Common;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
@@ -68,13 +69,49 @@ namespace HSEQ.Service.Services.Services
             // شماره‌ی مدارک مرتبط هر ردیف نتیجه - یک کوئری برای کل صفحه، نه یکی به ازای هر ردیف.
             var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
 
+            var items = documents
+                .Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers))
+                .ToList();
+
+            // نشان دادن اینکه عبارت *کجای* فایل پیدا شده - بدون این، ردیفی که نه در
+            // شماره‌اش و نه در نامش عبارت نیست، بی‌دلیل در نتیجه به نظر می‌رسد.
+            if (request.SearchInFileContent && !string.IsNullOrWhiteSpace(request.Query))
+                AttachContentSnippets(items, documents, PersianText.Normalize(request.Query.Trim()));
+
             return new PagedResult
             {
-                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers)).ToList(),
+                Items = items,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount
             };
+        }
+
+        // طول تکه‌ی متنِ نمایشی و مقدار متنِ پیش/پس از عبارت.
+        private const int SnippetPadding = 60;
+
+        private static void AttachContentSnippets(List<DocumentDto> items, List<Document> documents, string term)
+        {
+            if (term.Length == 0)
+                return;
+
+            // ردیف‌های نتیجه و موجودیت‌ها هم‌ترتیب‌اند (از یک Select ساخته شده‌اند).
+            for (var i = 0; i < items.Count && i < documents.Count; i++)
+            {
+                var text = documents[i].ExtractedText;
+                if (string.IsNullOrEmpty(text))
+                    continue;
+
+                var at = text.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+                if (at < 0)
+                    continue;
+
+                var from = Math.Max(0, at - SnippetPadding);
+                var to = Math.Min(text.Length, at + term.Length + SnippetPadding);
+
+                var snippet = text[from..to];
+                items[i].ContentSnippet = (from > 0 ? "…" : "") + snippet + (to < text.Length ? "…" : "");
+            }
         }
 
         public async Task<List<DocumentSuggestionDto>> SuggestAsync(string query)
@@ -83,8 +120,11 @@ namespace HSEQ.Service.Services.Services
             if (term.Length < MinSuggestionQueryLength)
                 return new List<DocumentSuggestionDto>();
 
+            // همان قاعده‌ی جستجوی اصلی: هر دو شکلِ نوشتاری عبارت امتحان می‌شود.
+            var normalizedTerm = PersianText.Normalize(term);
+
             return await _documentRepository.GetAllAsQueryable()
-                .Where(d => d.IsActive && (d.Number.Contains(term) || d.Name.Contains(term)))
+                .Where(d => d.IsActive && (d.Number.Contains(term) || d.Name.Contains(term) || d.Name.Contains(normalizedTerm)))
                 .OrderBy(d => d.Number)
                 .Take(SuggestionLimit)
                 .Select(d => new DocumentSuggestionDto { Key = d.Key, Number = d.Number, Name = d.Name })
@@ -152,9 +192,25 @@ namespace HSEQ.Service.Services.Services
             if (!string.IsNullOrWhiteSpace(request.Query))
             {
                 var term = request.Query.Trim();
+
+                // متن استخراج‌شده‌ی فایل‌ها یکسان‌سازی‌شده ذخیره می‌شود (ی/ک عربی به
+                // فارسی، نیم‌فاصله به فاصله، ارقام به لاتین)، پس عبارت جستجو هم باید
+                // همان تبدیل را ببیند - وگرنه کولیشن دیتابیس «ي» و «ی» را دو حرف
+                // متفاوت می‌بیند و هیچ‌وقت چیزی پیدا نمی‌شود.
+                var normalizedTerm = PersianText.Normalize(term);
+
                 query = request.SearchInFileContent
-                    ? query.Where(d => d.Number.Contains(term) || d.Name.Contains(term) || (d.ExtractedText != null && d.ExtractedText.Contains(term)))
-                    : query.Where(d => d.Number.Contains(term) || d.Name.Contains(term));
+                    ? query.Where(d =>
+                        d.Number.Contains(term) ||
+                        d.Name.Contains(term) ||
+                        d.Name.Contains(normalizedTerm) ||
+                        (d.ExtractedText != null && d.ExtractedText.Contains(normalizedTerm)))
+                    // نام اسناد در دیتابیس هر دو شکل «ي» عربی و «ی» فارسی را دارد، پس
+                    // هر دو حالتِ عبارت امتحان می‌شود. این فقط نتیجه اضافه می‌کند.
+                    : query.Where(d =>
+                        d.Number.Contains(term) ||
+                        d.Name.Contains(term) ||
+                        d.Name.Contains(normalizedTerm));
             }
 
             if (request.OnlyLatestRevision)

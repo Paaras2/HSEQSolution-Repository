@@ -257,20 +257,82 @@ namespace HSEQ.Service.Services.Services
             if (document == null)
                 throw new DocumentNotFoundException();
 
-            // Every revision inherits the serial number of the document it revises, and
-            // serials come from a global SEQUENCE capped at 999 with no cycling - so
-            // sharing a serial means belonging to the same revision chain. That makes
-            // the whole chain one query instead of a walk along RelatedDocumentId.
-            var chain = await _documentRepository.GetAllAsQueryable()
-                .Where(d => d.SerialNumber == document.SerialNumber)
-                .OrderBy(d => d.LastVersion)
-                .ThenBy(d => d.ContentRevision)
+            // زنجیره‌ی بازنگری با پیوند RelatedDocumentId ساخته می‌شود، نه با SerialNumber.
+            // سریالِ اسناد ستادی برای هر کد پنج‌حرفی مستقل از صفر شمرده می‌شود، پس مثلاً
+            // AGEWI-001، TSDDM-001 و IGERE-001 همگی SerialNumber = 1 دارند و شرط قبلی
+            // مدارک کاملاً بی‌ربط را در تاریخچه‌ی یکدیگر نشان می‌داد.
+            //
+            // نامزدها با یک کوئری محدود می‌شوند به اسنادی که همان هویت پایه‌ی شماره را
+            // دارند (دسته، پروژه، مدیریت، فعالیت، نوع، سریال و برچسب نسخه‌ی انگلیسی) -
+            // این‌ها هنگام بازنگری عیناً کپی می‌شوند، پس هر عضو زنجیره حتماً در این مجموعه
+            // هست. پیوند واقعی بعد در حافظه دنبال می‌شود، بدون رفت‌وبرگشت اضافه به دیتابیس.
+            var candidates = await _documentRepository.GetAllAsQueryable()
+                .Where(d => d.SerialNumber == document.SerialNumber
+                    && d.Category == document.Category
+                    && d.ProjectId == document.ProjectId
+                    && d.OrganizationalManagementId == document.OrganizationalManagementId
+                    && d.OrganizationalActivityId == document.OrganizationalActivityId
+                    && d.DocumentTypeId == document.DocumentTypeId
+                    && d.IsEnglishVersion == document.IsEnglishVersion)
                 .ToListAsync();
+
+            // فقط زنجیره‌ی همین مدرک: از خودش به عقب تا ریشه و به جلو تا آخرین بازنگری.
+            var chain = BuildRevisionChain(document, candidates);
 
             var relatedNumbers = await DocumentDtoMapper.LoadRelatedNumbersAsync(_documentRepository, chain);
             var supersededKeys = await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, chain.Select(d => d.Key).ToList());
 
             return chain.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys)).ToList();
+        }
+
+        // زنجیره‌ی بازنگریِ یک سند را از میان نامزدها بیرون می‌کشد: ابتدا با دنبال‌کردن
+        // RelatedDocumentId به عقب تا قدیمی‌ترین نسخه، سپس با پیمایش پیوندهای معکوس به
+        // جلو تا آخرین بازنگری. خروجی از قدیمی به جدید مرتب است.
+        private static List<Domain.Entities.Document> BuildRevisionChain(
+            Domain.Entities.Document document,
+            List<Domain.Entities.Document> candidates)
+        {
+            // خودِ سند حتماً در نگاشت باشد، حتی اگر کوئری نامزدها آن را برنگرداند.
+            var byKey = candidates
+                .GroupBy(d => d.Key)
+                .ToDictionary(g => g.Key, g => g.First());
+            byKey[document.Key] = document;
+
+            // نگاشت «نسخه‌ی قبلی -> نسخه‌ی بعدی» برای پیمایش رو به جلو. زنجیره خطی است
+            // (ReviseAsync بازنگری دوباره‌ی یک نسخه‌ی منسوخ را رد می‌کند)، ولی TryAdd
+            // مانع از خطا روی داده‌ی قدیمیِ ناسازگار می‌شود.
+            var nextByPrevious = new Dictionary<Guid, Domain.Entities.Document>();
+            foreach (var candidate in byKey.Values)
+            {
+                if (candidate.RelatedDocumentId.HasValue && byKey.ContainsKey(candidate.RelatedDocumentId.Value))
+                    nextByPrevious.TryAdd(candidate.RelatedDocumentId.Value, candidate);
+            }
+
+            // عقب‌گرد تا ریشه. visited هم تکرار را می‌گیرد هم حلقه‌ی احتمالی در داده را.
+            var visited = new HashSet<Guid>();
+            var chain = new List<Domain.Entities.Document>();
+            var cursor = document;
+            while (cursor != null && visited.Add(cursor.Key))
+            {
+                chain.Add(cursor);
+                cursor = cursor.RelatedDocumentId.HasValue
+                    && byKey.TryGetValue(cursor.RelatedDocumentId.Value, out var previous)
+                        ? previous
+                        : null;
+            }
+
+            // ترتیب خروجی از قدیمی به جدید است، پس عقب‌گرد باید معکوس شود.
+            chain.Reverse();
+
+            // جلو رفتن از خودِ سند تا آخرین بازنگری.
+            var forward = document;
+            while (nextByPrevious.TryGetValue(forward.Key, out var newer) && visited.Add(newer.Key))
+            {
+                chain.Add(newer);
+                forward = newer;
+            }
+
+            return chain;
         }
 
         //Pagination

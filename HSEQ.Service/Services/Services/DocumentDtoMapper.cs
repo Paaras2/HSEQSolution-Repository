@@ -111,6 +111,7 @@ namespace HSEQ.Service.Services.Services
                 ContentRevision = document.ContentRevision,
                 SerialNumber = document.SerialNumber,
                 IsEnglishVersion = document.IsEnglishVersion,
+                IsOutsideCodingStructure = document.IsOutsideCodingStructure,
                 RelatedDocumentId = document.RelatedDocumentId,
                 RelatedDocumentNumber = document.RelatedDocumentId.HasValue
                     && relatedNumbers.TryGetValue(document.RelatedDocumentId.Value, out var relatedNumber)

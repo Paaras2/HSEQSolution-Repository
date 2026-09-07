@@ -18,6 +18,11 @@ namespace HSEQ.API.Model.Dtos
 
         // نسخه‌ی انگلیسی؛ شماره‌اش با پسوند " (EN)" تمام می‌شود.
         public bool IsEnglishVersion { get; set; }
+
+        // شماره‌اش با ساختار کدِ فعلی نمی‌خواند - مدرکی از سامانه‌ی قدیم که با شماره‌ی
+        // تاریخیِ خودش وارد شده. کلاینت با همین یک مقدار نشانِ «خارج از کدینگ» را
+        // روی ردیف می‌گذارد؛ هیچ رفتار دیگری به آن وابسته نیست.
+        public bool IsOutsideCodingStructure { get; set; }
         // The revision this document supersedes, i.e. the previous link in the
         // revision chain. Null for a document's first revision.
         public Guid? RelatedDocumentId { get; set; }
@@ -41,5 +46,10 @@ namespace HSEQ.API.Model.Dtos
         public Guid DocumentTypeId { get; set; }
         public string? File { set; get; }
         public int CreatedByPCode { get; set; }
+
+        // تکه‌ای از متن فایل که عبارت جستجو در آن پیدا شده. فقط وقتی پر می‌شود که
+        // «جستجو در محتوای فایل» روشن باشد و تطابق در خودِ فایل رخ داده باشد - یعنی
+        // کاربر می‌بیند چرا این سند در نتیجه آمده، نه اینکه حدس بزند.
+        public string? ContentSnippet { get; set; }
     }
 }

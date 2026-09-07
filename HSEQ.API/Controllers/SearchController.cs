@@ -24,7 +24,9 @@ namespace HSEQ.API.Controllers
         [HttpGet("documents")]
         public async Task<PagedResult> SearchDocuments([FromQuery] SearchDocumentsRequestModel request)
         {
-            return await _searchService.SearchAsync(request);
+            var result = await _searchService.SearchAsync(request);
+            DocumentDtoVisibility.ApplyOutsideCodingVisibility(result.Items, User);
+            return result;
         }
 
         [HttpGet("suggestions")]

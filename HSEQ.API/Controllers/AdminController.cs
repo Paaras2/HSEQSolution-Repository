@@ -20,16 +20,23 @@ namespace HSEQ.API.Controllers
         private readonly IAdminService _isUserAdminService;
         private readonly IUserService _userService;
         private readonly IUnitOfWork _unitOfWork;
+        // بازسازی متن فایل‌ها برای جستجو در محتوا.
+        private readonly IDocumentTextIndexService _documentTextIndexService;
 
         // پنل ادمین برای هر دو نقش باز است. قواعد ریزتر (اینکه چه کسی چه نقشی می‌تواند
         // بدهد) در AdminService اعمال می‌شود، چون به وضعیت دیتابیس نیاز دارد.
         private const string AdminPanelRoles = "Admin,DocumentManager";
 
-        public AdminController(IAdminService isUserAdminService, IUserService userService, IUnitOfWork unitOfWork)
+        public AdminController(
+            IAdminService isUserAdminService,
+            IUserService userService,
+            IUnitOfWork unitOfWork,
+            IDocumentTextIndexService documentTextIndexService)
         {
             _isUserAdminService = isUserAdminService;
             _userService = userService;
             _unitOfWork = unitOfWork;
+            _documentTextIndexService = documentTextIndexService;
         }
 
         // «آیا این کد پرسنلی مدیر سیستم است؟» - اطلاعاتی درباره‌ی کاربرانِ دیگر است،
@@ -73,6 +80,20 @@ namespace HSEQ.API.Controllers
             await _isUserAdminService.RemoveUserRoleAsync(pcode, actingPcode, actingRole);
             await _unitOfWork.SaveChangesAsync();
             return Ok();
+        }
+
+        // بازسازی متن قابل‌جستجوی فایل اسناد.
+        //
+        // فقط Admin: کاری سنگین است که تمام فایل‌های آرشیو را می‌خواند و یک ستون کل
+        // جدول اسناد را بازنویسی می‌کند - نه چیزی که مدیر مدارک در کار روزمره بزند.
+        [Authorize(Roles = "Admin")]
+        [HttpPost]
+        [Route("reindex-file-text")]
+        public async Task<DocumentTextIndexResult> ReindexFileText(
+            [FromForm] bool onlyMissing,
+            CancellationToken cancellationToken)
+        {
+            return await _documentTextIndexService.ReindexAsync(onlyMissing, cancellationToken);
         }
 
         // نقشِ درخواست‌دهنده از خود توکن خوانده می‌شود، نه از بدنه‌ی درخواست - وگرنه

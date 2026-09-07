@@ -1,27 +1,31 @@
-﻿using HSEQ.Service.Interfaces.Services;
-using System;
-using System.IO;
+using HSEQ.Common;
+using HSEQ.Service.Interfaces.Services;
 using System.IO.Compression;
-using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace HSEQ.Service.Services.Services
 {
-    // پیاده‌سازی بدون هیچ پکیج جدید:
-    //   .txt  -> خواندن مستقیم متن (پشتیبانی کامل، هر زبانی)
-    //   .docx -> یک فایل zip است؛ متن از word/document.xml با XML استاندارد دات‌نت
-    //            استخراج می‌شود (پشتیبانی کامل، فارسی هم مشکلی ندارد)
-    //   .pdf  -> بهترین‌تلاش: فقط عملگرهای نمایش متن (Tj/TJ) داخل جریان‌های محتوا را
-    //            می‌خواند. برای PDFهای اسکن‌شده یا با فونت فارسی جاسازی‌شده/CID، ممکن است
-    //            متنی پیدا نکند - این یک محدودیت شناخته‌شده است (رفعش بدون یک کتابخانه‌ی
-    //            واقعی PDF یا OCR ممکن نیست).
-    //   بقیه‌ی فرمت‌ها (تصویر و...) -> نال
+    // استخراج متن فایل برای «جستجو در محتوای فایل» - بدون هیچ پکیج جانبی:
+    //   .txt و هم‌خانواده‌ها -> خواندن مستقیم
+    //   .docx / .xlsx / .pptx -> فایل zip با XML استاندارد، با XDocument خوانده می‌شود
+    //   .pdf                  -> PdfTextExtractor (تحلیل واقعیِ ساختار PDF)
+    //   بقیه (تصویر و...)     -> نال
+    //
+    // خروجی همیشه از PersianText.Normalize رد می‌شود تا همان شکلی ذخیره شود که
+    // SearchService عبارت جستجو را به آن تبدیل می‌کند؛ وگرنه «ي» عربیِ داخل فایل با
+    // «ی» فارسیِ تایپ‌شده هرگز جور در نمی‌آمد.
     public class FileTextExtractionService : IFileTextExtractionService
     {
         // جلوگیری از حجم بیش‌ازحد ستون ExtractedText برای فایل‌های خیلی بزرگ.
         private const int MaxExtractedLength = 200_000;
+
+        private static readonly XNamespace WordNamespace =
+            "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+        private static readonly XNamespace SpreadsheetNamespace =
+            "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        private static readonly XNamespace DrawingNamespace =
+            "http://schemas.openxmlformats.org/drawingml/2006/main";
 
         public string? Extract(Stream stream, string fileName)
         {
@@ -30,17 +34,22 @@ namespace HSEQ.Service.Services.Services
                 var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
                 var text = extension switch
                 {
-                    ".txt" => ExtractPlainText(stream),
-                    ".docx" => ExtractDocx(stream),
-                    ".pdf" => ExtractPdfBestEffort(stream),
+                    ".txt" or ".csv" or ".md" or ".xml" or ".json" or ".htm" or ".html" => ExtractPlainText(stream),
+                    ".docx" => ExtractWord(stream),
+                    ".xlsx" => ExtractExcel(stream),
+                    ".pptx" => ExtractPowerPoint(stream),
+                    ".pdf" => ExtractPdf(stream),
                     _ => null,
                 };
 
                 if (string.IsNullOrWhiteSpace(text))
                     return null;
 
-                text = text.Trim();
-                return text.Length > MaxExtractedLength ? text[..MaxExtractedLength] : text;
+                var normalized = PersianText.Normalize(text);
+                if (normalized.Length == 0)
+                    return null;
+
+                return normalized.Length > MaxExtractedLength ? normalized[..MaxExtractedLength] : normalized;
             }
             catch
             {
@@ -55,87 +64,102 @@ namespace HSEQ.Service.Services.Services
             return reader.ReadToEnd();
         }
 
-        private static string? ExtractDocx(Stream stream)
-        {
-            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
-            var entry = archive.GetEntry("word/document.xml");
-            if (entry is null)
-                return null;
-
-            using var entryStream = entry.Open();
-            var doc = XDocument.Load(entryStream);
-            XNamespace w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-            return string.Join(" ", doc.Descendants(w + "t").Select(t => t.Value));
-        }
-
-        // NonBacktracking حیاتی است: در ShowTextArrayPattern کلاس [^\[\]] بک‌اسلش را
-        // استثنا نمی‌کند و با شاخه‌ی \\. هم‌پوشان است؛ روی بایت‌های باینری PDF این ابهام به
-        // backtracking نمایی می‌رسید و ذخیره‌ی یک PDF یک‌مگابایتی عملاً هرگز تمام نمی‌شد.
-        // موتور NonBacktracking زمان خطی را تضمین می‌کند.
-        private static readonly Regex StreamBlockPattern =
-            new(@"stream\r?\n(?<data>.*?)\r?\nendstream", RegexOptions.Singleline | RegexOptions.NonBacktracking);
-        private static readonly Regex ShowTextPattern =
-            new(@"\((?<text>(?:[^()\\]|\\.)*)\)\s*Tj", RegexOptions.NonBacktracking);
-        private static readonly Regex ShowTextArrayPattern =
-            new(@"\[(?<arr>(?:[^\[\]]|\\.)*)\]\s*TJ", RegexOptions.NonBacktracking);
-        private static readonly Regex ArrayStringPattern =
-            new(@"\((?<text>(?:[^()\\]|\\.)*)\)", RegexOptions.NonBacktracking);
-
-        private static string? ExtractPdfBestEffort(Stream stream)
+        private static string? ExtractPdf(Stream stream)
         {
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
-            // Latin1 یک نگاشت یک‌به‌یک بایت<->کاراکتر است - لازم برای پیدا کردن مارکرهای
-            // متنی PDF (stream/endstream/Tj/TJ) بدون خراب‌کردن بایت‌های خام جریان فشرده.
-            var raw = Encoding.Latin1.GetString(buffer.ToArray());
-
-            var result = new StringBuilder();
-            foreach (Match streamMatch in StreamBlockPattern.Matches(raw))
-            {
-                // بعد از رسیدن به سقف MaxExtractedLength ادامه‌ی اسکن فقط دورریز می‌شود.
-                if (result.Length >= MaxExtractedLength)
-                    break;
-
-                var content = DecompressIfNeeded(streamMatch.Groups["data"].Value);
-                AppendShownText(content, result);
-            }
-
-            return result.Length > 0 ? result.ToString() : null;
+            // سقف با ضریب اطمینان: یکسان‌سازیِ بعدی فقط متن را کوتاه‌تر می‌کند.
+            return PdfTextExtractor.Extract(buffer.ToArray(), MaxExtractedLength * 2);
         }
 
-        private static string DecompressIfNeeded(string rawStreamData)
+        // ------------------------------------------------------------------
+        // فرمت‌های آفیس - همگی zip حاوی XML
+        // ------------------------------------------------------------------
+
+        private static string? ExtractWord(Stream stream)
         {
-            // هدر zlib همیشه با 0x78 شروع می‌شود؛ بدون آن، تلاش برای بازکردن فقط یک استثنای
-            // پرهزینه به ازای هر بلوک بود - جریان غیرفشرده مستقیم برگردانده می‌شود.
-            if (rawStreamData.Length == 0 || rawStreamData[0] != '\x78')
-                return rawStreamData;
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            var builder = new StringBuilder();
 
-            try
+            // سرصفحه و پاصفحه هم خوانده می‌شوند: شماره‌ی مدرک و نام شرکت معمولاً
+            // آنجا هستند، نه در متن اصلی.
+            foreach (var entry in archive.Entries)
             {
-                var dataBytes = Encoding.Latin1.GetBytes(rawStreamData);
-                using var compressed = new MemoryStream(dataBytes);
-                using var zlib = new ZLibStream(compressed, CompressionMode.Decompress);
-                using var reader = new StreamReader(zlib, Encoding.Latin1);
-                return reader.ReadToEnd();
+                var isBodyPart = entry.FullName == "word/document.xml"
+                    || entry.FullName.StartsWith("word/header", StringComparison.Ordinal)
+                    || entry.FullName.StartsWith("word/footer", StringComparison.Ordinal);
+
+                if (!isBodyPart)
+                    continue;
+
+                using var entryStream = entry.Open();
+                var document = XDocument.Load(entryStream);
+
+                // پاراگراف واحدِ خط است: تکه‌های داخل یک پاراگراف بدون فاصله به هم
+                // می‌چسبند (وگرنه یک واژه‌ی قالب‌بندی‌شده تکه‌تکه می‌شد) و بین
+                // پاراگراف‌ها خط جدید می‌آید.
+                foreach (var paragraph in document.Descendants(WordNamespace + "p"))
+                {
+                    foreach (var node in paragraph.Descendants())
+                    {
+                        if (node.Name == WordNamespace + "t")
+                            builder.Append(node.Value);
+                        else if (node.Name == WordNamespace + "tab" || node.Name == WordNamespace + "br")
+                            builder.Append(' ');
+                    }
+
+                    builder.Append('\n');
+                }
             }
-            catch
-            {
-                // جریان از قبل فشرده نبوده (یا فرمت فشرده‌سازی دیگری دارد) - متن خام را برگردان.
-                return rawStreamData;
-            }
+
+            return builder.Length > 0 ? builder.ToString() : null;
         }
 
-        private static void AppendShownText(string content, StringBuilder result)
+        private static string? ExtractExcel(Stream stream)
         {
-            foreach (Match m in ShowTextPattern.Matches(content))
-                result.Append(UnescapePdfString(m.Groups["text"].Value)).Append(' ');
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            var builder = new StringBuilder();
 
-            foreach (Match arrayMatch in ShowTextArrayPattern.Matches(content))
-                foreach (Match m in ArrayStringPattern.Matches(arrayMatch.Groups["arr"].Value))
-                    result.Append(UnescapePdfString(m.Groups["text"].Value)).Append(' ');
+            // در xlsx تقریباً همه‌ی متن‌ها در جدول رشته‌های مشترک نگهداری می‌شوند؛
+            // sharedStrings تنها جایی است که باید خوانده شود.
+            var shared = archive.GetEntry("xl/sharedStrings.xml");
+            if (shared is not null)
+            {
+                using var entryStream = shared.Open();
+                foreach (var text in XDocument.Load(entryStream).Descendants(SpreadsheetNamespace + "t"))
+                    builder.Append(text.Value).Append('\n');
+            }
+
+            // رشته‌های درجا (inlineStr) که در جدول مشترک نیستند.
+            foreach (var entry in archive.Entries)
+            {
+                if (!entry.FullName.StartsWith("xl/worksheets/sheet", StringComparison.Ordinal))
+                    continue;
+
+                using var entryStream = entry.Open();
+                foreach (var inline in XDocument.Load(entryStream).Descendants(SpreadsheetNamespace + "is"))
+                    builder.Append(inline.Value).Append('\n');
+            }
+
+            return builder.Length > 0 ? builder.ToString() : null;
         }
 
-        private static string UnescapePdfString(string s) =>
-            s.Replace("\\(", "(").Replace("\\)", ")").Replace("\\\\", "\\");
+        private static string? ExtractPowerPoint(Stream stream)
+        {
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            var builder = new StringBuilder();
+
+            foreach (var entry in archive.Entries)
+            {
+                if (!entry.FullName.StartsWith("ppt/slides/slide", StringComparison.Ordinal))
+                    continue;
+
+                using var entryStream = entry.Open();
+                foreach (var text in XDocument.Load(entryStream).Descendants(DrawingNamespace + "t"))
+                    builder.Append(text.Value).Append('\n');
+            }
+
+            return builder.Length > 0 ? builder.ToString() : null;
+        }
     }
 }
