@@ -118,7 +118,10 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
         $gitCommit = (& git rev-parse HEAD 2>$null)
         $status = @(& git status --porcelain 2>$null)
         $gitDirty = $status.Count -gt 0
-        $dirtyPaths = $status | ForEach-Object { $_.Substring(3) }
+        # @() لازم است: روی درخت کاریِ تمیز خروجی خط لوله هیچ است، نه آرایه‌ی خالی،
+        # و بعداً ‎.Count‎ روی ‎$null‎ زیر Set-StrictMode خطا می‌داد - یعنی اسکریپت
+        # دقیقاً در حالتی می‌شکست که انتشار رسمی از آن ساخته می‌شود.
+        $dirtyPaths = @($status | ForEach-Object { $_.Substring(3) })
     }
     finally { Pop-Location }
 }
