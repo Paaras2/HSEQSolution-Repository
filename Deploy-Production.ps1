@@ -26,6 +26,10 @@
 .PARAMETER DataPath
     مسیر داده‌های ماندگار: فایل مدارک و لاگ‌ها. بیرون از پوشه‌ی نسخه.
 
+.PARAMETER Port
+    پورت http سایت. پیش‌فرض ۸۰. فقط هنگام ساختِ سایت اثر دارد؛ اگر سایت از قبل باشد
+    بایندینگ‌هایش دست نمی‌خورد و فقط با این مقدار مقایسه می‌شوند.
+
 .PARAMETER Hostname
     نام میزبانی که سایت رویش پاسخ می‌دهد (host header). بدون آن، سایت روی پورت ۸۰
     بدون host header ساخته می‌شود و با هر سایت دیگری روی آن پورت تداخل پیدا می‌کند.
@@ -70,6 +74,7 @@ param(
     [string]$ApiPath = 'C:\Applications\HSEQ\current\api',
     [string]$DataPath = 'C:\ApplicationData\HSEQ',
 
+    [ValidateRange(1, 65535)][int]$Port = 80,
     [string]$Hostname = '',
     [string]$HttpsCertThumbprint = '',
 
@@ -203,7 +208,7 @@ Write-Step 'بررسی نام میزبان و گواهی'
 # شوند: گواهیِ نبوده وسط پیکربندی IIS سایت را نیمه‌کاره رها می‌کند، و نامی که روی
 # خود سرور resolve نمی‌شود بررسی سلامتِ پایان کار را بی‌دلیل قرمز می‌کند.
 if (-not $Hostname -and -not $HttpsCertThumbprint) {
-    Write-Warn 'بدون -Hostname و -HttpsCertThumbprint: سایت روی http و پورت ۸۰ بدون host header.'
+    Write-Warn "بدون -Hostname و -HttpsCertThumbprint: سایت روی http و پورت $Port بدون host header."
 } else {
     if ($Hostname) {
         try {
@@ -259,6 +264,28 @@ if (-not $iisAvailable) {
     Write-Warn 'رد شد - IIS در دسترس نیست.'
 } elseif ($existingSite = Get-Website -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $SiteName }) {
     Write-Ok "سایت '$SiteName' موجود است - به‌روزرسانی می‌شود، ساخت مجدد نه"
+
+    # بایندینگ‌های سایتِ موجود عمداً دست نمی‌خورند. ولی اگر هیچ‌کدام با -Port جور
+    # نباشند، بررسی سلامتِ پایان کار به جای اشتباهی می‌زند و بی‌دلیل قرمز می‌شود -
+    # پس همین‌جا گفته می‌شود، نه آنجا.
+    $matching = @($existingSite.Bindings.Collection | Where-Object {
+        ($_.bindingInformation -split ':', 3)[1] -eq "$Port"
+    })
+    if ($matching.Count -eq 0) {
+        $actual = @($existingSite.Bindings.Collection | ForEach-Object { $_.bindingInformation }) -join ' , '
+        Write-Warn "هیچ بایندینگی روی پورت $Port نیست. بایندینگ‌های فعلی: $actual"
+        Write-Warn "اگر سایت روی پورت دیگری است، همان را با -Port بدهید تا بررسی سلامت درست کار کند."
+    }
+
+    # host header روی همه‌ی بایندینگ‌ها یعنی صدا زدن با IP خطای 400 می‌گیرد.
+    $openBinding = @($existingSite.Bindings.Collection | Where-Object {
+        $parts = $_.bindingInformation -split ':', 3
+        $parts.Count -eq 3 -and $parts[1] -eq "$Port" -and -not $parts[2]
+    })
+    if ($matching.Count -gt 0 -and $openBinding.Count -eq 0 -and -not $Hostname) {
+        Write-Warn 'همه‌ی بایندینگ‌های این پورت host header دارند؛ صدا زدن با IP خطای ۴۰۰ می‌گیرد.'
+        Write-Warn 'یا -Hostname را با همان نام بدهید، یا در IIS Manager فیلد Host name را خالی کنید.'
+    }
 } else {
     Write-Warn "سایت '$SiteName' موجود نیست و باید ساخته شود."
 
@@ -267,7 +294,7 @@ if (-not $iisAvailable) {
     # *:80:<نام میزبان> کنار هم کار می‌کنند. بدون این تفکیک، روی هر سروری که
     # Default Web Site فعال دارد استقرار همیشه شکست می‌خورد.
     # پورت ۴۴۳ فقط وقتی بررسی می‌شود که واقعاً قرار باشد بایندینگ HTTPS ساخته شود.
-    $portsToCheck = @(80)
+    $portsToCheck = @($Port)
     if ($HttpsCertThumbprint) { $portsToCheck += 443 }
 
     foreach ($port in $portsToCheck) {
@@ -328,7 +355,8 @@ if ($DryRun) {
     Write-Host "  - نسخه‌برداری از استقرار فعلی"
     Write-Host "  - کپی Backend به $ApiPath و Frontend به $SitePath"
     Write-Host "  - تنظیم سایت '$SiteName' و Application با مسیر /api"
-    if ($Hostname) { Write-Host "  - بایندینگ http روی پورت ۸۰ با host header '$Hostname'" }
+    if ($Hostname) { Write-Host "  - بایندینگ http روی پورت $Port با host header '$Hostname'" }
+    else            { Write-Host "  - بایندینگ http روی پورت $Port بدون host header" }
     if ($HttpsCertThumbprint) { Write-Host "  - بایندینگ https روی پورت ۴۴۳ و وصل کردن گواهی" }
     Write-Host "  - ری‌سایکل فقط Application Pool مربوط به همین سایت"
     Write-Host "  - بررسی سلامت"
@@ -430,11 +458,11 @@ if (-not $existingSite) {
         Set-ItemProperty "IIS:\AppPools\$SiteName" -Name managedRuntimeVersion -Value ''
     }
     if ($Hostname) {
-        $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port 80 -HostHeader $Hostname -Force
-        Write-Ok "سایت '$SiteName' ساخته شد (host header: $Hostname)"
+        $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port $Port -HostHeader $Hostname -Force
+        Write-Ok "سایت '$SiteName' ساخته شد (پورت $Port، host header: $Hostname)"
     } else {
-        $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port 80 -Force
-        Write-Ok "سایت '$SiteName' ساخته شد"
+        $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port $Port -Force
+        Write-Ok "سایت '$SiteName' ساخته شد (پورت $Port)"
     }
 } else {
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name physicalPath -Value $SitePath
@@ -511,7 +539,10 @@ function Get-HttpStatus {
 # وقتی سایت با host header ساخته شده، درخواست به localhost اصلاً به این سایت
 # نمی‌رسد - IIS آن را به سایتِ بدون host header می‌دهد. پس بررسی سلامت باید با
 # همان نامی انجام شود که سایت رویش گوش می‌دهد.
-$healthBase = if ($Hostname) { "http://$Hostname" } else { 'http://localhost' }
+$healthHost = if ($Hostname) { $Hostname } else { 'localhost' }
+# پورت غیر ۸۰ باید در خودِ نشانی بیاید، وگرنه بررسی سلامت به پورت ۸۰ می‌زند -
+# یعنی به سایت دیگری، یا به هیچ‌جا.
+$healthBase = if ($Port -eq 80) { "http://$healthHost" } else { "http://${healthHost}:$Port" }
 
 $clientApiHealth = "$healthBase/api/Health"
 # مسیری که اگر بک‌اند به‌عنوان Application زیر /api ثبت شده باشد پاسخ می‌دهد: IIS
