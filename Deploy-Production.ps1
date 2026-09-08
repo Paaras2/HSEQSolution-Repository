@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     استقرار بسته‌ی انتشار HSEQ روی سرور ویندوزی با IIS.
 
@@ -26,6 +26,14 @@
 .PARAMETER DataPath
     مسیر داده‌های ماندگار: فایل مدارک و لاگ‌ها. بیرون از پوشه‌ی نسخه.
 
+.PARAMETER Hostname
+    نام میزبانی که سایت رویش پاسخ می‌دهد (host header). بدون آن، سایت روی پورت ۸۰
+    بدون host header ساخته می‌شود و با هر سایت دیگری روی آن پورت تداخل پیدا می‌کند.
+
+.PARAMETER HttpsCertThumbprint
+    اثر انگشت گواهی در Cert:\LocalMachine\My. با دادنش بایندینگ HTTPS روی ۴۴۳ ساخته
+    و گواهی به آن وصل می‌شود. بدون آن به بایندینگ‌های HTTPS اصلاً دست زده نمی‌شود.
+
 .PARAMETER ApplySchema
     اجرای Database\migrations.sql. بدون این سوئیچ، دیتابیس دست نمی‌خورد.
 
@@ -46,6 +54,12 @@
 
 .EXAMPLE
     .\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_20260823-150000" -ApplySchema -SqlServer "SQLPROD01"
+
+.EXAMPLE
+    # کنار سایت‌های موجودِ همان سرور (host header) و با HTTPS:
+    .\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_20260823-150000" `
+        -Hostname 'hseq.odcc.local' -HttpsCertThumbprint 'A1B2C3...' `
+        -ApplySchema -SqlServer "SQLPROD01"
 #>
 [CmdletBinding()]
 param(
@@ -55,6 +69,9 @@ param(
     [string]$SitePath = 'C:\Applications\HSEQ\current\frontend',
     [string]$ApiPath = 'C:\Applications\HSEQ\current\api',
     [string]$DataPath = 'C:\ApplicationData\HSEQ',
+
+    [string]$Hostname = '',
+    [string]$HttpsCertThumbprint = '',
 
     [switch]$ApplySchema,
     [string]$SqlServer,
@@ -135,24 +152,36 @@ $iisAvailable = $false
 if (-not (Get-Module -ListAvailable -Name WebAdministration)) {
     Write-Fail 'ماژول WebAdministration نیست - یعنی IIS نصب نشده.'
 } else {
-    Import-Module WebAdministration -ErrorAction SilentlyContinue
-    $iisAvailable = $true
-    Write-Ok 'IIS موجود است'
-
-    # ماژول ASP.NET Core - بدون آن بک‌اند اصلاً بالا نمی‌آید.
-    $aspNetCore = Get-WebGlobalModule -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'AspNetCoreModuleV2' }
-    if ($aspNetCore) {
-        Write-Ok 'AspNetCoreModuleV2 نصب است'
-    } else {
-        Write-Fail 'AspNetCoreModuleV2 نیست. ASP.NET Core Hosting Bundle را آفلاین نصب کنید (این اسکریپت چیزی از اینترنت دانلود نمی‌کند).'
+    # وجود خودِ ماژول به معنای نصب بودن IIS نیست: Windows PowerShell 5.1 مانیفست
+    # WebAdministration را همیشه دارد، ولی بدون نصب IIS ارائه‌دهنده‌اش ثبت نشده و
+    # اولین فراخوانی خطا می‌دهد. چون $ErrorActionPreference روی Stop است، آن خطا
+    # کل اسکریپت را وسط مرحله‌ی بررسی می‌کشت - یعنی دقیقاً همان استقرار نیمه‌کاره‌ای
+    # که این ترتیب برای جلوگیری از آن طراحی شده. پس اینجا خطا مهار می‌شود و
+    # به‌صورت یک بررسیِ ناموفقِ صریح گزارش می‌شود.
+    $globalModules = $null
+    try {
+        Import-Module WebAdministration -ErrorAction Stop
+        $globalModules = @(Get-WebGlobalModule -ErrorAction Stop)
+        $iisAvailable = $true
+        Write-Ok 'IIS موجود است'
+    } catch {
+        Write-Fail "IIS در دسترس نیست (ماژول هست ولی کار نمی‌کند): $($_.Exception.Message)"
     }
 
-    # URL Rewrite - برای مسیرهای داخلی React لازم است، وگرنه رفرش روی /documents خطای 404 می‌دهد.
-    $rewrite = Get-WebGlobalModule -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'RewriteModule' }
-    if ($rewrite) {
-        Write-Ok 'URL Rewrite نصب است'
-    } else {
-        Write-Fail 'URL Rewrite نیست. بدون آن رفرش صفحه روی مسیرهای داخلی برنامه 404 می‌دهد.'
+    if ($iisAvailable) {
+        # ماژول ASP.NET Core - بدون آن بک‌اند اصلاً بالا نمی‌آید.
+        if ($globalModules | Where-Object { $_.Name -eq 'AspNetCoreModuleV2' }) {
+            Write-Ok 'AspNetCoreModuleV2 نصب است'
+        } else {
+            Write-Fail 'AspNetCoreModuleV2 نیست. ASP.NET Core Hosting Bundle را آفلاین نصب کنید (این اسکریپت چیزی از اینترنت دانلود نمی‌کند).'
+        }
+
+        # URL Rewrite - برای مسیرهای داخلی React لازم است، وگرنه رفرش روی /documents خطای 404 می‌دهد.
+        if ($globalModules | Where-Object { $_.Name -eq 'RewriteModule' }) {
+            Write-Ok 'URL Rewrite نصب است'
+        } else {
+            Write-Fail 'URL Rewrite نیست. بدون آن رفرش صفحه روی مسیرهای داخلی برنامه 404 می‌دهد.'
+        }
     }
 }
 
@@ -165,6 +194,46 @@ if ($aspnet10) {
     Write-Ok "ASP.NET Core Runtime موجود: $(($aspnet10 | Select-Object -First 1))"
 } else {
     Write-Fail 'ASP.NET Core Runtime 10 پیدا نشد. Hosting Bundle نسخه ۱۰ لازم است.'
+}
+
+# ---------------------------------------------------------------------------
+Write-Step 'بررسی نام میزبان و گواهی'
+# ---------------------------------------------------------------------------
+# هر دو اختیاری‌اند، ولی اگر داده شده باشند باید همین‌جا - پیش از هر تغییری - تأیید
+# شوند: گواهیِ نبوده وسط پیکربندی IIS سایت را نیمه‌کاره رها می‌کند، و نامی که روی
+# خود سرور resolve نمی‌شود بررسی سلامتِ پایان کار را بی‌دلیل قرمز می‌کند.
+if (-not $Hostname -and -not $HttpsCertThumbprint) {
+    Write-Warn 'بدون -Hostname و -HttpsCertThumbprint: سایت روی http و پورت ۸۰ بدون host header.'
+} else {
+    if ($Hostname) {
+        try {
+            $null = [System.Net.Dns]::GetHostAddresses($Hostname)
+            Write-Ok "نام '$Hostname' روی همین سرور resolve می‌شود"
+        } catch {
+            Write-Warn "نام '$Hostname' روی همین سرور resolve نمی‌شود."
+            Write-Warn 'سایت ساخته می‌شود، ولی بررسی سلامتِ پایان کار به آن نمی‌رسد. یک رکورد DNS یا یک سطر در hosts لازم است.'
+        }
+    }
+
+    if ($HttpsCertThumbprint) {
+        # فاصله و خط تیره‌ای که هنگام کپی از پنجره‌ی گواهی ویندوز می‌آید حذف شود.
+        $HttpsCertThumbprint = ($HttpsCertThumbprint -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+        $cert = Get-ChildItem -Path Cert:\LocalMachine\My -ErrorAction SilentlyContinue |
+                Where-Object { $_.Thumbprint -eq $HttpsCertThumbprint }
+        if (-not $cert) {
+            Write-Fail "گواهی با این اثر انگشت در Cert:\LocalMachine\My نیست: $HttpsCertThumbprint"
+        } else {
+            Write-Ok "گواهی پیدا شد: $($cert.Subject)"
+            if (-not $cert.HasPrivateKey) {
+                Write-Fail 'گواهی کلید خصوصی ندارد؛ برای بایندینگ HTTPS قابل استفاده نیست.'
+            }
+            if ($cert.NotAfter -lt (Get-Date)) {
+                Write-Fail "گواهی در $($cert.NotAfter.ToString('yyyy-MM-dd')) منقضی شده است."
+            } elseif ($cert.NotAfter -lt (Get-Date).AddDays(30)) {
+                Write-Warn "گواهی در $($cert.NotAfter.ToString('yyyy-MM-dd')) منقضی می‌شود."
+            }
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -192,12 +261,28 @@ if (-not $iisAvailable) {
     Write-Ok "سایت '$SiteName' موجود است - به‌روزرسانی می‌شود، ساخت مجدد نه"
 } else {
     Write-Warn "سایت '$SiteName' موجود نیست و باید ساخته شود."
-    # پورت را از سایت دیگری نمی‌گیریم.
-    foreach ($port in 80, 443) {
-        $conflict = Get-Website -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -ne $SiteName -and $_.Bindings.Collection.bindingInformation -match ":${port}:" }
-        if ($conflict) {
-            Write-Fail "پورت $port در اختیار سایت '$($conflict.Name)' است. این اسکریپت پورت سایت دیگری را نمی‌گیرد."
+
+    # بایندینگ سایت دیگری را نمی‌گیریم. اما «همان پورت» به‌تنهایی تداخل نیست: IIS
+    # بایندینگ‌ها را با host header تفکیک می‌کند، پس سایتی روی *:80: و سایت ما روی
+    # *:80:<نام میزبان> کنار هم کار می‌کنند. بدون این تفکیک، روی هر سروری که
+    # Default Web Site فعال دارد استقرار همیشه شکست می‌خورد.
+    # پورت ۴۴۳ فقط وقتی بررسی می‌شود که واقعاً قرار باشد بایندینگ HTTPS ساخته شود.
+    $portsToCheck = @(80)
+    if ($HttpsCertThumbprint) { $portsToCheck += 443 }
+
+    foreach ($port in $portsToCheck) {
+        $conflict = @(Get-Website -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -ne $SiteName -and @(
+                $_.Bindings.Collection | Where-Object {
+                    $parts = $_.bindingInformation -split ':', 3
+                    $parts.Count -eq 3 -and $parts[1] -eq "$port" -and $parts[2] -eq $Hostname
+                }
+            ).Count -gt 0
+        })
+        if ($conflict.Count -gt 0) {
+            $which = if ($Hostname) { "با نام میزبان '$Hostname'" } else { 'بدون نام میزبان' }
+            Write-Fail ("پورت $port $which در اختیار سایت '$($conflict[0].Name)' است. " +
+                        'بایندینگ سایت دیگری گرفته نمی‌شود - با -Hostname یک نام میزبان بدهید تا کنار آن سایت بنشیند.')
         }
     }
 }
@@ -243,6 +328,8 @@ if ($DryRun) {
     Write-Host "  - نسخه‌برداری از استقرار فعلی"
     Write-Host "  - کپی Backend به $ApiPath و Frontend به $SitePath"
     Write-Host "  - تنظیم سایت '$SiteName' و Application با مسیر /api"
+    if ($Hostname) { Write-Host "  - بایندینگ http روی پورت ۸۰ با host header '$Hostname'" }
+    if ($HttpsCertThumbprint) { Write-Host "  - بایندینگ https روی پورت ۴۴۳ و وصل کردن گواهی" }
     Write-Host "  - ری‌سایکل فقط Application Pool مربوط به همین سایت"
     Write-Host "  - بررسی سلامت"
     Write-Host ''
@@ -342,8 +429,13 @@ if (-not $existingSite) {
         # ASP.NET Core خودش میزبان است، پس app pool نباید CLR بارگذاری کند.
         Set-ItemProperty "IIS:\AppPools\$SiteName" -Name managedRuntimeVersion -Value ''
     }
-    $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port 80 -Force
-    Write-Ok "سایت '$SiteName' ساخته شد"
+    if ($Hostname) {
+        $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port 80 -HostHeader $Hostname -Force
+        Write-Ok "سایت '$SiteName' ساخته شد (host header: $Hostname)"
+    } else {
+        $null = New-Website -Name $SiteName -PhysicalPath $SitePath -ApplicationPool $SiteName -Port 80 -Force
+        Write-Ok "سایت '$SiteName' ساخته شد"
+    }
 } else {
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name physicalPath -Value $SitePath
     Write-Ok "سایت '$SiteName' به‌روزرسانی شد"
@@ -358,6 +450,39 @@ if (-not $apiApp) {
 } else {
     Set-ItemProperty "IIS:\Sites\$SiteName\api" -Name physicalPath -Value $ApiPath
     Write-Ok "Application با مسیر /api به‌روزرسانی شد"
+}
+
+# بایندینگ HTTPS فقط وقتی که اثر انگشت داده شده باشد. بدون آن هیچ بایندینگی دست
+# نمی‌خورد، پس سایتی که گواهی‌اش دستی در IIS Manager تنظیم شده با استقرار مجدد
+# خراب نمی‌شود.
+if ($HttpsCertThumbprint) {
+    Write-Step 'بایندینگ HTTPS'
+
+    $sslFilter = { ($_.bindingInformation -split ':', 3)[2] -eq $Hostname }
+    $httpsBinding = @(Get-WebBinding -Name $SiteName -Protocol https -ErrorAction SilentlyContinue |
+                      Where-Object $sslFilter)
+
+    if ($httpsBinding.Count -eq 0) {
+        if ($Hostname) {
+            # SslFlags 1 یعنی SNI: چند گواهی روی همان پورت ۴۴۳، هر کدام برای یک نام.
+            $null = New-WebBinding -Name $SiteName -Protocol https -Port 443 -HostHeader $Hostname -SslFlags 1
+        } else {
+            $null = New-WebBinding -Name $SiteName -Protocol https -Port 443
+        }
+        $httpsBinding = @(Get-WebBinding -Name $SiteName -Protocol https -ErrorAction SilentlyContinue |
+                          Where-Object $sslFilter)
+        Write-Ok 'بایندینگ HTTPS روی پورت ۴۴۳ ساخته شد'
+    } else {
+        Write-Ok 'بایندینگ HTTPS از قبل موجود بود'
+    }
+
+    # AddSslCertificate روی خودِ بایندینگ - برخلاف IIS:\SslBindings، با SNI هم کار می‌کند.
+    try {
+        $httpsBinding[0].AddSslCertificate($HttpsCertThumbprint, 'My')
+        Write-Ok "گواهی $($HttpsCertThumbprint.Substring(0, 8))... به بایندینگ وصل شد"
+    } catch {
+        Write-Fail "وصل کردن گواهی به بایندینگ HTTPS ناموفق: $($_.Exception.Message)"
+    }
 }
 
 Write-Step 'ری‌استارت Application Pool'
@@ -383,11 +508,16 @@ function Get-HttpStatus {
 
 # مسیری که کلاینت واقعاً صدا می‌زند. کلاینت با VITE_API_BASE_URL=/api ساخته شده،
 # پس هر فراخوانش به <origin>/api/<Controller> می‌رود.
-$clientApiHealth = 'http://localhost/api/Health'
+# وقتی سایت با host header ساخته شده، درخواست به localhost اصلاً به این سایت
+# نمی‌رسد - IIS آن را به سایتِ بدون host header می‌دهد. پس بررسی سلامت باید با
+# همان نامی انجام شود که سایت رویش گوش می‌دهد.
+$healthBase = if ($Hostname) { "http://$Hostname" } else { 'http://localhost' }
+
+$clientApiHealth = "$healthBase/api/Health"
 # مسیری که اگر بک‌اند به‌عنوان Application زیر /api ثبت شده باشد پاسخ می‌دهد: IIS
 # پیشوند /api را به‌عنوان PathBase برمی‌دارد و مسیرِ خودِ کنترلر ("api/Health") بعد
 # از آن می‌آید، یعنی نشانی نهایی دوبار /api دارد.
-$pathBaseApiHealth = 'http://localhost/api/api/Health'
+$pathBaseApiHealth = "$healthBase/api/api/Health"
 
 $clientStatus = Get-HttpStatus $clientApiHealth
 $pathBaseStatus = Get-HttpStatus $pathBaseApiHealth
@@ -420,7 +550,7 @@ elseif ($clientStatus -eq 404 -and $pathBaseStatus -eq 404) {
 else {
     # بسته‌های قدیمی‌تر HealthController را ندارند؛ در آن حالت مسیر محافظت‌شده هنوز
     # نشان می‌دهد که برنامه بالا آمده است.
-    $legacyStatus = Get-HttpStatus 'http://localhost/api/MasterData/projects'
+    $legacyStatus = Get-HttpStatus "$healthBase/api/MasterData/projects"
     if ($legacyStatus -eq 401) {
         Write-Warn 'HealthController در این بسته نیست؛ فقط تأیید شد که برنامه بالا آمده (۴۰۱ روی مسیر محافظت‌شده). اتصال دیتابیس بررسی نشد.'
     } else {
@@ -429,7 +559,7 @@ else {
 }
 
 try {
-    $spa = Invoke-WebRequest -Uri 'http://localhost/' -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+    $spa = Invoke-WebRequest -Uri "$healthBase/" -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
     if ($spa.Content -match '<div id="root"') { Write-Ok 'کلاینت سرو می‌شود' }
     else { Write-Warn 'ریشه پاسخ داد ولی محتوایش شبیه کلاینت نیست.' }
 } catch {
