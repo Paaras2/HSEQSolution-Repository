@@ -19,13 +19,17 @@
     اگر داده شود، اتصال SQL با همین میزبان آزمایش می‌شود. در غیر این صورت میزبان از
     رشته‌ی اتصالِ داخل appsettings.Production.json برداشته می‌شود.
 
+.PARAMETER DatabaseName
+    نام دیتابیسی که ساختارش بررسی می‌شود.
+
 .EXAMPLE
     .\Diagnose-Deployment.ps1 -SiteName 'HSEQTest'
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$SiteName,
-    [string]$SqlServer = ''
+    [string]$SqlServer = '',
+    [string]$DatabaseName = 'HSEQDb'
 )
 
 Set-StrictMode -Version Latest
@@ -381,9 +385,66 @@ if (-not $sqlTarget -or $sqlTarget -match '<[^>]+>') {
         Write-Ok 'اتصال به SQL Server برقرار شد (با هویت شما)'
         if ($dbExists -eq 1) {
             Write-Ok "دیتابیس HSEQDb موجود است"
+
+            # وجود دیتابیس یعنی اتصال برقرار است، نه اینکه ساختارش ساخته شده.
+            # /api/Health هم فقط CanConnectAsync را می‌سنجد، پس روی دیتابیسِ خالی
+            # پاسخ Healthy می‌دهد در حالی که اولین ورود با ۵۰۰ شکست می‌خورد: مسیر
+            # ورود نقش کاربر را از جدول Admins می‌خواند و آن جدول وجود ندارد.
+            # این دقیقاً همان حالتی است که از بیرون قابل تشخیص نبود.
+            $conn2 = New-Object System.Data.SqlClient.SqlConnection
+            $conn2.ConnectionString = "Server=$sqlTarget;Database=$DatabaseName;Integrated Security=True;TrustServerCertificate=True;Connect Timeout=10"
+            try {
+                $conn2.Open()
+                $c2 = $conn2.CreateCommand()
+                $c2.CommandText = @"
+SELECT
+    (SELECT COUNT(*) FROM sys.tables WHERE name = 'Admins'),
+    (SELECT COUNT(*) FROM sys.tables),
+    (SELECT COUNT(*) FROM sys.tables WHERE name = '__EFMigrationsHistory')
+"@
+                $r = $c2.ExecuteReader()
+                $null = $r.Read()
+                $adminsTable = [int]$r.GetValue(0)
+                $tableCount  = [int]$r.GetValue(1)
+                $historyTable = [int]$r.GetValue(2)
+                $r.Close()
+
+                if ($tableCount -eq 0) {
+                    Write-Fail 'دیتابیس خالی است - هیچ جدولی ندارد.' `
+                               "Database\migrations.sql بسته را روی HSEQDb اجرا کنید (اسکریپت idempotent است)."
+                } elseif ($adminsTable -eq 0) {
+                    Write-Fail "جدول Admins وجود ندارد (فقط $tableCount جدول هست) - ورود کاربر با ۵۰۰ شکست می‌خورد." `
+                               "Database\migrations.sql را روی HSEQDb اجرا کنید."
+                } else {
+                    Write-Ok "ساختار دیتابیس ساخته شده ($tableCount جدول، از جمله Admins)"
+
+                    # تعداد مهاجرت‌های اعمال‌شده: اگر تاریخچه خالی باشد، جدول‌ها به
+                    # روشی خارج از EF ساخته شده‌اند و استقرار بعدی دوباره تلاش می‌کند.
+                    if ($historyTable -eq 1) {
+                        $c3 = $conn2.CreateCommand()
+                        $c3.CommandText = 'SELECT COUNT(*) FROM [__EFMigrationsHistory]'
+                        $applied = [int]$c3.ExecuteScalar()
+                        Write-Info "مهاجرت‌های اعمال‌شده: $applied"
+                    }
+
+                    $c4 = $conn2.CreateCommand()
+                    $c4.CommandText = 'SELECT COUNT(*) FROM [Admins]'
+                    $adminRows = [int]$c4.ExecuteScalar()
+                    if ($adminRows -eq 0) {
+                        Write-Warn 'جدول Admins خالی است - هیچ‌کس نقش «مدیر سیستم» ندارد.'
+                        Write-Info 'ورود کار می‌کند ولی همه فقط «مشاهده» خواهند بود.'
+                    } else {
+                        Write-Ok "جدول Admins $adminRows ردیف دارد"
+                    }
+                }
+            } catch {
+                Write-Fail "خواندن ساختار HSEQDb ناموفق: $($_.Exception.Message)"
+            } finally {
+                if ($conn2.State -eq 'Open') { $conn2.Close() }
+            }
         } else {
             Write-Fail 'دیتابیس HSEQDb روی این سرور نیست.' `
-                       "یک دیتابیس خالی HSEQDb بسازید، سپس Deploy-Production.ps1 را با -ApplySchema اجرا کنید."
+                       "یک دیتابیس خالی HSEQDb بسازید، سپس Database\migrations.sql را روی آن اجرا کنید."
         }
     } catch {
         Write-Fail "اتصال به SQL ناموفق: $($_.Exception.Message)" `
