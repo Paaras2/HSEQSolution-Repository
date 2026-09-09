@@ -203,7 +203,7 @@ body,
 
 body {
   margin: 0;
-  font-family: "Vazirmatn", "Segoe UI", Tahoma, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Vazirmatn Variable", "Vazirmatn", "Segoe UI", Tahoma, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
 }
@@ -1338,7 +1338,7 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
    فونت دیگری سوییچ کند - نتیجه‌اش ارقامی با ارتفاع و وزنِ ناهماهنگ بود. تراز ستونی هم
    با ‎tabular-nums‎ حفظ می‌شود. */
 .mono {
-  font-family: "Vazirmatn", "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-family: "Vazirmatn Variable", "Vazirmatn", "Cascadia Code", Consolas, ui-monospace, monospace;
   font-size: 13px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -1376,7 +1376,7 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   font-size: 10.5px;
   font-weight: 600;
   direction: rtl;
-  font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  font-family: "Vazirmatn Variable", "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
   letter-spacing: 0;
 }
 
