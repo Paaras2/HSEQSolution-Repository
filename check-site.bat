@@ -103,6 +103,40 @@ if "!SITEREL!"=="(none)" (
 )
 echo.
 
+echo [3c] Is anything sensitive reachable over the web?
+echo ----------------------------------------------------------------
+REM The SPA rewrite deliberately leaves real files alone so assets are served
+REM as-is. That also means ANY file under the site root is downloadable - so a
+REM backend folder placed inside the site root publishes its own config, JWT
+REM signing key included.
+set "EXPOSED=0"
+for /r "%SITE%" %%F in (appsettings.Production.json) do (
+    if exist "%%F" (
+        set "EXPOSED=1"
+        echo     FOUND: %%F
+        set "REL=%%F"
+        call set "REL=%%REL:!SITE!=%%"
+        echo     Reachable at: http://^<host^>:^<port^>!REL:\=/!
+    )
+)
+for /r "%SITE%" %%F in (HSEQ.API.dll) do (
+    if exist "%%F" (
+        set "EXPOSED=1"
+        echo     FOUND: %%F
+    )
+)
+if "!EXPOSED!"=="1" (
+    echo.
+    echo     ^<-- SECURITY PROBLEM. Backend files sit inside the site root,
+    echo         so they are served as static files. Move the backend folder
+    echo         OUT of the site folder, e.g. to a sibling directory, and
+    echo         repoint the /api application at the new location.
+    echo         Then rotate the JWT key: anything already exposed is public.
+) else (
+    echo     None - no backend files under the site root.
+)
+echo.
+
 echo [4] Full listing of the site folder
 echo ----------------------------------------------------------------
 dir /a "%SITE%"
