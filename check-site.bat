@@ -79,6 +79,30 @@ if exist "%SITE%\web.config" (
 )
 echo.
 
+echo [3b] Do the client and backend folders come from the same release?
+echo ----------------------------------------------------------------
+set "APIDIR=%SITE%-api"
+set "SITEREL=(none)"
+set "APIREL=(none)"
+if exist "%SITE%\RELEASE.txt" for /f "usebackq delims=" %%L in ("%SITE%\RELEASE.txt") do if "!SITEREL!"=="(none)" set "SITEREL=%%L"
+if exist "%APIDIR%\RELEASE.txt" for /f "usebackq delims=" %%L in ("%APIDIR%\RELEASE.txt") do if "!APIREL!"=="(none)" set "APIREL=%%L"
+echo     client  (%SITE%): !SITEREL!
+echo     backend (%APIDIR%): !APIREL!
+if "!SITEREL!"=="(none)" (
+    echo     No RELEASE.txt - this predates version stamping, so the two
+    echo     folders cannot be compared. Recopy both from the current package.
+) else (
+    if "!SITEREL!"=="!APIREL!" (
+        echo     MATCH - both folders are from the same release.
+    ) else (
+        echo     MISMATCH ^<-- THE PROBLEM. The two folders are from different
+        echo         releases. A new client against an old backend makes every
+        echo         API call return 404, because the backend of that release
+        echo         lacks the path-prefix fix. Copy BOTH folders from one package.
+    )
+)
+echo.
+
 echo [4] Full listing of the site folder
 echo ----------------------------------------------------------------
 dir /a "%SITE%"
