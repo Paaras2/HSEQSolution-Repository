@@ -481,9 +481,12 @@ if ($config -and $config.PSObject.Properties.Name -contains 'UserManagementAPI')
 Write-Step 'پاسخ واقعی HTTP'
 # ---------------------------------------------------------------------------
 function Get-Status {
-    param([string]$Url)
+    param(
+        [string]$Url,
+        [string]$Method = 'GET'
+    )
     try {
-        $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+        $r = Invoke-WebRequest -Uri $Url -Method $Method -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
         return [int]$r.StatusCode
     } catch {
         if ($_.Exception.PSObject.Properties.Name -contains 'Response' -and $_.Exception.Response) {
@@ -516,6 +519,29 @@ if ($testUrls.Count -eq 0) {
             500     { Write-Fail "  /api/Health  →  ۵۰۰ - برنامه بالا نیامد (به احتمال زیاد تنظیمات)." 'لاگ stdout را روشن کنید - پایین توضیح داده شده.' }
             0       { Write-Fail "  /api/Health  →  اتصال برقرار نشد." }
             default { Write-Warn "  /api/Health  →  $healthStatus" }
+        }
+
+        # مسیر دوتایی باید ۴۰۴ بدهد. پیشوند /api یک مالک دارد - خودِ IIS، از راه
+        # Application زیر همان مسیر - پس هیچ کنترلری دوباره «api» را اعلام نمی‌کند.
+        # پاسخ دادنِ این نشانی یعنی بسته‌ای قدیمی‌تر از آن اصلاح مستقر شده، و در آن
+        # حالت مسیری که کلاینت صدا می‌زند (/api/Auth/login) ۴۰۴ می‌گیرد.
+        $doubledStatus = Get-Status "$base/api/api/Health"
+        if ($doubledStatus -in 200, 503) {
+            Write-Fail "  /api/api/Health  →  $doubledStatus - باید ۴۰۴ باشد؛ پیشوند /api دو مالک دارد." `
+                       'بسته‌ی به‌روز را با Publish-Production.ps1 بسازید و دوباره استقرار دهید. با این چیدمان ورود کاربران کار نمی‌کند.'
+        } else {
+            Write-Ok "  /api/api/Health  →  $doubledStatus - درست است، مسیر دوتایی وجود ندارد"
+        }
+
+        # خودِ مسیر ورود. بررسی سلامت می‌تواند سالم باشد در حالی که مسیر ورود نباشد -
+        # خرابی‌ای که روی سرور دیده شد دقیقاً همین شکل بود.
+        # بدنه‌ی خالی: هیچ اعتبارنامه‌ای لازم نیست و هیچ تلاش ورودی هم ثبت نمی‌شود.
+        $loginStatus = Get-Status "$base/api/Auth/login" -Method 'POST'
+        switch ($loginStatus) {
+            404     { Write-Fail "  POST /api/Auth/login  →  ۴۰۴ - هیچ کاربری نمی‌تواند وارد شود." 'مسیر Application در IIS و تازه بودن بسته را بررسی کنید.' }
+            500     { Write-Fail "  POST /api/Auth/login  →  ۵۰۰ - خطای مدیریت‌نشده." 'لاگ stdout بک‌اند را ببینید.' }
+            0       { Write-Fail "  POST /api/Auth/login  →  اتصال برقرار نشد." }
+            default { Write-Ok   "  POST /api/Auth/login  →  $loginStatus - به اکشن می‌رسد" }
         }
     }
 }

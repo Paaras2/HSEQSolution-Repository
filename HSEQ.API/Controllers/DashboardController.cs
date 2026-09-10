@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HSEQ.API.Controllers
 {
     // فقط خواندنی، پس مثل بقیه‌ی مسیرهای گزارش‌گیری برای هر کاربر احرازهویت‌شده باز است.
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class DashboardController : ControllerBase

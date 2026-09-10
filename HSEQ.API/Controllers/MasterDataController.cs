@@ -11,7 +11,7 @@ namespace HSEQ.API.Controllers
     // Read-only reference data for populating Document form dropdowns (Project,
     // Organizational Management/Activity, Document Type). Any authenticated user
     // can read these - they are needed to view Documents, not only to manage them.
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class MasterDataController : ControllerBase

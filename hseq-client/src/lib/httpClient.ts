@@ -2,14 +2,16 @@
 // auth header attachment, and HTTP status handling (401/403/other errors).
 // Nothing outside this file should call fetch() directly against the API.
 
+import { joinApiPath, resolveApiUrl } from './apiUrl'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 // آدرس پایه می‌تواند نسبی باشد («/api» در چیدمان هم‌مبدأِ IIS) یا مطلق
-// («https://host/api» وقتی API روی میزبان دیگری است). URLِ نسبی بدون مبنا خطا می‌دهد،
-// پس مبدأ صفحه به‌عنوان مبنا داده می‌شود؛ برای آدرس مطلق این پارامتر نادیده گرفته
-// می‌شود. همین باعث می‌شود بیلدِ عملیاتی به دامنه گره نخورد.
+// («https://host/api» وقتی API روی میزبان دیگری است). ساختِ نشانی در apiUrl.ts
+// متمرکز است تا هر دو مسیرِ زیر - GET و POST - دقیقاً یک نشانی بسازند و بشود
+// بدون مرورگر آزمودش.
 function apiUrl(path: string): URL {
-  return new URL(API_BASE_URL + path, window.location.origin)
+  return resolveApiUrl(API_BASE_URL, path, window.location.origin)
 }
 
 export class ApiError extends Error {
@@ -116,7 +118,7 @@ export async function apiGetBlob(
 }
 
 export async function apiPostForm<T>(path: string, body: FormData | URLSearchParams): Promise<T> {
-  const response = await fetch(API_BASE_URL + path, {
+  const response = await fetch(joinApiPath(API_BASE_URL, path), {
     method: 'POST',
     headers: { ...authHeaders() },
     body,

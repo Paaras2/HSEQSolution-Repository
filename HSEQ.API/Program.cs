@@ -56,6 +56,15 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddAuthorization();
 
+// پورت عمومی HTTPS برای هدایت (بخش Https:RedirectToHttps پایین‌تر). بدون این مقدار،
+// میان‌افزار سعی می‌کند پورت را از بایندینگ‌های سرور حدس بزند - که پشت IIS و روی
+// پورت غیراستاندارد جواب نمی‌دهد. عمداً اختیاری است: اگر ندهید یعنی ۴۴۳.
+var httpsPort = configuration.GetValue<int?>("Https:Port");
+if (httpsPort is > 0)
+{
+    builder.Services.AddHttpsRedirection(options => options.HttpsPort = httpsPort);
+}
+
 // CORS: در محیط عملیاتی فقط دامنه‌های اعلام‌شده در appsettings ("Cors:AllowedOrigins")
 // اجازه دارند. قبلاً AllowAnyOrigin بود، یعنی هر سایتی در شبکه می‌توانست از طرف مرورگرِ
 // کاربرِ لاگین‌کرده به این API درخواست بزند.
@@ -85,44 +94,59 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // ---------------------------------------------------------------------------
-// سازگاری با میزبانی زیر مسیر /api در IIS
+// مالکِ پیشوند /api
 // ---------------------------------------------------------------------------
-// کنترلرها با [Route("api/[controller]")] نوشته شده‌اند، ولی روی سرور، بک‌اند
-// به‌عنوان یک Application زیر مسیر /api ثبت می‌شود. در آن حالت IIS پیشوند /api را
-// به‌عنوان PathBase برمی‌دارد و از مسیر حذف می‌کند، پس درخواستِ /api/Search به
-// مسیرِ /Search می‌رسد و با هیچ کنترلری جور در نمی‌آید - یعنی همه‌ی فراخوان‌های
-// کلاینت ۴۰۴ می‌گرفتند.
+// قرارداد عمومی - همان چیزی که مرورگر صدا می‌زند - این است:
 //
-// این میان‌افزار همان پیشوند را به مسیر برمی‌گرداند تا مسیریابی در هر دو چیدمان
-// یکسان رفتار کند:
-//   - زیر Application با مسیر /api  →  PathBase="/api" و Path="/Search"  →  Path="/api/Search"
-//   - در ریشه‌ی سایت یا روی Kestrel →  PathBase خالی است  →  هیچ تغییری نمی‌کند
+//     /api/Auth/login
 //
-// عمداً به‌جای عوض کردن مسیر کنترلرها یا آدرس کلاینت انتخاب شد: هیچ‌کدام از آن دو
-// در محیط توسعه قابل آزمایش نبودند، ولی این یکی هست.
-app.Use((context, next) =>
+// این پیشوند دقیقاً *یک* مالک دارد: میزبان. کنترلرها فقط نام خودشان را اعلام
+// می‌کنند ([Route("[controller]")])، پس هیچ‌جای کد دوباره «api» نمی‌نویسد.
+//
+//   - زیر IIS: بک‌اند یک Application با مسیر /api است. خودِ IIS پیشوند را به‌عنوان
+//     PathBase برمی‌دارد و /Auth/login را تحویل برنامه می‌دهد - یعنی همان چیزی که
+//     کنترلر انتظار دارد. اینجا هیچ کاری لازم نیست.
+//
+//   - روی Kestrel (توسعه، اجرای مستقیم dotnet HSEQ.API.dll، آزمون دود): هیچ
+//     میزبانی پیشوند را برنمی‌دارد، پس خودِ برنامه با UsePathBase همان کار را
+//     می‌کند. نتیجه: /api/Auth/login در هر دو چیدمان به یک اکشن می‌رسد.
+//
+// شرطِ «PathBase خالی باشد» عمدی است و دو چیز را تضمین می‌کند:
+//   ۱) وقتی میزبان پیشوند را اعلام کرده، برنامه دوباره برنمی‌دارد - پس مسیرِ
+//      دوتایی /api/api/Auth/login جزو قرارداد عمومی نیست و ۴۰۴ می‌گیرد.
+//   ۲) اگر روزی Application با مسیر دیگری (مثلاً /hseq-api) ثبت شود، همه‌چیز
+//      بدون تغییر کد کار می‌کند، چون مالکِ پیشوند همچنان میزبان است.
+//
+// برخلاف نسخه‌ی قبلی، مسیرِ درخواست بازنویسی نمی‌شود و PathBase هم پاک نمی‌شود:
+// PathBase دست‌نخورده می‌ماند، پس هر نشانی‌ای که برنامه تولید می‌کند (ریدایرکت،
+// هدر Location، نشانی سرورِ Swagger) پیشوند /api را با خود دارد.
+var apiPathBase = (configuration.GetValue("Api:PathBase", "/api") ?? string.Empty).Trim();
+
+if (!string.IsNullOrEmpty(apiPathBase))
 {
-    if (context.Request.PathBase.HasValue)
-    {
-        context.Request.Path = context.Request.PathBase.Add(context.Request.Path);
-        context.Request.PathBase = PathString.Empty;
-    }
+    // «api» به‌جای «/api» یک اشتباه تایپیِ محتمل در فایل تنظیمات است. بدون این
+    // اصلاح، PathString همان‌جا استثنا می‌داد و برنامه اصلاً بالا نمی‌آمد - یعنی
+    // یک اسلشِ جاافتاده کل سامانه را می‌خواباند. اسلشِ انتهایی هم برداشته می‌شود،
+    // چون «/api/» با «/api» یکی نیست و مسیرها را به هم می‌ریزد.
+    if (!apiPathBase.StartsWith('/')) apiPathBase = '/' + apiPathBase;
+    apiPathBase = apiPathBase.TrimEnd('/');
+}
 
-    return next(context);
-});
+if (!string.IsNullOrEmpty(apiPathBase))
+{
+    app.UseWhen(
+        context => !context.Request.PathBase.HasValue,
+        branch => branch.UsePathBase(apiPathBase));
+}
 
-// مسیریابی صریحاً همین‌جا شروع می‌شود - بعد از میان‌افزار بالا، نه قبلش.
+// مسیریابی صریحاً همین‌جا شروع می‌شود - بعد از تعیین PathBase، نه قبلش.
 //
 // بدون این فراخوانی، ASP.NET Core خودش UseRouting را در *ابتدای* pipeline درج
-// می‌کند. یعنی انتخاب endpoint پیش از میان‌افزار بالا انجام می‌شد و روی مسیرِ
-// کوتاه‌شده (/Health به‌جای /api/Health) نگاه می‌کرد؛ چیزی پیدا نمی‌کرد و درخواست
-// ۴۰۴ می‌گرفت. میان‌افزار مسیر را درست می‌کرد، ولی دیگر کسی به آن نگاه نمی‌کرد.
+// می‌کند؛ یعنی انتخاب endpoint پیش از میان‌افزار بالا انجام می‌شد و روی مسیرِ
+// دست‌نخورده (/api/Auth/login به‌جای /Auth/login) نگاه می‌کرد و ۴۰۴ می‌داد.
 //
-// نشانه‌اش دقیقاً همین بود که روی سرور دیده شد: /api/Health خطای ۴۰۴ می‌داد ولی
-// /api/api/Health کار می‌کرد - چون فقط دومی *پس از* برداشتن پیشوند توسط IIS هنوز
-// با مسیر کنترلر جور در می‌آمد.
-//
-// با فراخوانی صریح، مسیریابی همین‌جا می‌نشیند و مسیرِ اصلاح‌شده را می‌بیند.
+// همین ترتیب بود که روی سرور شکست: /api/Auth/login خطای ۴۰۴ می‌داد ولی
+// /api/api/Auth/login کار می‌کرد. با فراخوانی صریح، مسیریابی همین‌جا می‌نشیند.
 app.UseRouting();
 
 // Pipeline تنظیمات
@@ -135,15 +159,35 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "HSEQ");
+        // نشانی نسبی، نه مطلق. با نشانی مطلق («/swagger/...») مرورگر آن را از ریشه‌ی
+        // مبدأ حساب می‌کرد و زیر PathBase=/api به /swagger/v1/swagger.json می‌رفت که
+        // وجود ندارد. نسبی بودن یعنی از دلِ صفحه‌ی UI حساب می‌شود، پس در هر دو
+        // چیدمان به {PathBase}/swagger/v1/swagger.json می‌رسد.
+        options.SwaggerEndpoint("v1/swagger.json", "HSEQ");
         options.RoutePrefix = "swagger";
     });
 }
 
-if (!app.Environment.IsDevelopment())
+// هدایت به HTTPS یک تصمیم صریح است، نه نتیجه‌ی جانبیِ نام محیط.
+//
+// پیش از این هر محیطی غیر از Development این میان‌افزار را روشن می‌کرد. سایت روی
+// یک بایندینگ HTTP سرو می‌شود، پس میان‌افزار پورت HTTPS را پیدا نمی‌کرد، هیچ
+// هدایتی هم انجام نمی‌داد و فقط *به‌ازای هر درخواست* یک هشدار در لاگ می‌نوشت:
+//
+//     Failed to determine the https port for redirect.
+//
+// دو ایراد داشت: لاگ را پر می‌کرد تا جایی که هشدارهای واقعی گم می‌شدند، و اگر
+// روزی یک بایندینگ HTTPS به سایت اضافه می‌شد، رفتار برنامه بی‌آنکه کسی چیزی
+// عوض کرده باشد به «هدایت اجباری» تغییر می‌کرد.
+//
+// حالا با تنظیمات کنترل می‌شود:
+//   Https:RedirectToHttps  - پیش‌فرض false، یعنی همان رفتار مؤثرِ فعلی
+//   Https:Port             - فقط وقتی پورت عمومی HTTPS چیزی جز ۴۴۳ است
+if (configuration.GetValue("Https:RedirectToHttps", false))
 {
     app.UseHttpsRedirection();
 }
+
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors("Cors");
 app.UseAuthentication();

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     ساخت بسته‌ی انتشار سامانه مدیریت یکپارچه مدارک و مستندات (HSEQ).
 
@@ -152,8 +152,9 @@ Write-Ok 'restore انجام شد'
 # ---------------------------------------------------------------------------
 Write-Step 'اجرای تست‌های بک‌اند'
 # ---------------------------------------------------------------------------
-# در این مخزن هیچ پروژه‌ی تستی وجود ندارد. عمداً تست ساختگی تولید نمی‌شود؛ گام رد
-# می‌شود و در گزارش به‌عنوان «اجرا نشد» ثبت می‌گردد.
+# HSEQ.API.Tests قرارداد عمومی API را می‌آزماید - از جمله اینکه /api/Auth/login به
+# اکشن می‌رسد و /api/api/Auth/login نمی‌رسد. اگر این‌ها نگذرند، بسته ساخته نمی‌شود:
+# همان خرابی یک‌بار روی سرور رفت و ورودِ همه‌ی کاربران را قطع کرد.
 $testProjects = @(Get-ChildItem -Path $RepoRoot -Filter '*.csproj' -Recurse -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.BaseName -match '(?i)test' })
 if ($testProjects.Count -eq 0) {
@@ -221,6 +222,12 @@ if ($SkipFrontend) {
     }
 
     Invoke-Checked -Command 'npm' -Arguments @('run', 'lint') -WorkingDirectory $ClientDir -What 'lint'
+
+    # آزمون‌های کلاینت روی اجراکننده‌ی داخلی Node اجرا می‌شوند (بدون هیچ وابستگی
+    # اضافه). مهم‌ترینشان نشانی‌ای است که کلاینت برای ورود می‌سازد: باید دقیقاً
+    # /api/Auth/login باشد.
+    Invoke-Checked -Command 'npm' -Arguments @('test') -WorkingDirectory $ClientDir -What 'آزمون‌های کلاینت'
+
     # tsc -b داخل خود اسکریپت build هست، پس typecheck جدا لازم نیست.
     Invoke-Checked -Command 'npm' -Arguments @('run', 'build') -WorkingDirectory $ClientDir -What 'build کلاینت'
 
@@ -382,9 +389,58 @@ foreach ($rel in $expected) {
 if ($missing.Count -gt 0) { throw "بسته ناقص است. موارد غایب: $($missing -join ', ')" }
 Write-Ok 'همه‌ی اجزای مورد انتظار موجودند'
 
+# ---------------------------------------------------------------------------
+Write-Step 'ساخت آرشیو انتقال'
+# ---------------------------------------------------------------------------
+# عمداً *پس از* بازرسی اسرار و اعتبارسنجی ساختار: چیزی بسته‌بندی می‌شود که قبلاً
+# بررسی شده باشد، نه برعکس.
+#
+# آرشیو بیرون از پوشه‌ی بسته ساخته می‌شود تا SHA256SUMS.txt داخل آن معتبر بماند.
+$archivePath = Join-Path $ArtifactRoot ("{0}.zip" -f $ReleaseId)
+if (Test-Path $archivePath) { Remove-Item $archivePath -Force }
+
+Compress-Archive -Path (Join-Path $ReleaseDir '*') -DestinationPath $archivePath -CompressionLevel Optimal
+if (-not (Test-Path $archivePath)) { throw 'آرشیو ساخته نشد.' }
+
+$archiveHash = (Get-FileHash $archivePath -Algorithm SHA256).Hash
+$archiveSize = (Get-Item $archivePath).Length
+
+# هش خودِ آرشیو کنارش نوشته می‌شود تا گیرنده بتواند سالم بودنِ انتقال را بسنجد.
+"{0}  {1}" -f $archiveHash, (Split-Path $archivePath -Leaf) |
+    Set-Content "$archivePath.sha256" -Encoding UTF8
+
+# آرشیو باز و با فهرست هش‌های داخلی مقایسه می‌شود. بدون این، یک آرشیوِ ناقص تا
+# روی سرور کشف نمی‌شد.
+$verifyDir = Join-Path $env:TEMP ("hseq-verify-{0}" -f [Guid]::NewGuid().ToString('N'))
+try {
+    Expand-Archive -Path $archivePath -DestinationPath $verifyDir -Force
+    $expectedSums = Get-Content (Join-Path $ReleaseDir 'SHA256SUMS.txt')
+    $mismatch = @()
+    foreach ($line in $expectedSums) {
+        if ($line -notmatch '^([0-9A-Fa-f]{64})\s\s(.+)$') { continue }
+        $hash = $Matches[1]; $rel = $Matches[2]
+        $extracted = Join-Path $verifyDir $rel
+        if (-not (Test-Path $extracted)) { $mismatch += "غایب: $rel"; continue }
+        if ((Get-FileHash $extracted -Algorithm SHA256).Hash -ne $hash) { $mismatch += "هش متفاوت: $rel" }
+    }
+    if ($mismatch.Count -gt 0) {
+        foreach ($m in $mismatch | Select-Object -First 10) { Write-Warn $m }
+        throw "محتوای آرشیو با SHA256SUMS.txt جور در نمی‌آید ($($mismatch.Count) مورد)."
+    }
+    Write-Ok "$(($expectedSums | Where-Object { $_ -match '^[0-9A-Fa-f]{64}' }).Count) فایل داخل آرشیو تأیید شد"
+}
+finally {
+    if (Test-Path $verifyDir) { Remove-Item $verifyDir -Recurse -Force -ErrorAction SilentlyContinue }
+}
+
+Write-Ok ("{0} ({1:N1} MB)" -f (Split-Path $archivePath -Leaf), ($archiveSize / 1MB))
+Write-Ok "SHA-256: $archiveHash"
+
 Write-Host ''
 Write-Host '────────────────────────────────────────────────────────' -ForegroundColor DarkGray
 Write-Host "وضعیت : $releaseState" -ForegroundColor $(if ($gitDirty) { 'Yellow' } else { 'Green' })
 Write-Host "بسته  : $ReleaseDir" -ForegroundColor White
+Write-Host "آرشیو : $archivePath" -ForegroundColor White
+Write-Host "SHA256: $archiveHash" -ForegroundColor DarkGray
 Write-Host '────────────────────────────────────────────────────────' -ForegroundColor DarkGray
 Write-Host ''

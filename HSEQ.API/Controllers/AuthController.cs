@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace HSEQ.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {

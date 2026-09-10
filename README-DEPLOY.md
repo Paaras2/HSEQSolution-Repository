@@ -15,26 +15,55 @@ https://hseq.odcc.local/api/...     →  ASP.NET Core Web API     (Backend\)
 
 بک‌اند به‌صورت یک **Application** با مسیر `/api` زیر همان سایت ثبت می‌شود.
 
-> ### تکرار پیشوند `api` — حل شده
+> ### پیشوند `/api` دقیقاً یک مالک دارد: میزبان
 >
-> کنترلرها با `[Route("api/[controller]")]` نوشته شده‌اند و بک‌اند هم زیر مسیر
-> `/api` ثبت می‌شود. IIS آن پیشوند را به‌عنوان `PathBase` از مسیر برمی‌دارد، پس
-> درخواستِ `/api/Search` به مسیرِ `/Search` می‌رسید و با هیچ کنترلری جور در
-> نمی‌آمد — یعنی **همه‌ی فراخوان‌های کلاینت ۴۰۴ می‌گرفتند**.
+> قرارداد عمومی — همان چیزی که مرورگر صدا می‌زند — ثابت است:
 >
-> یک میان‌افزار در `Program.cs` همان پیشوند را به مسیر برمی‌گرداند، پس مسیریابی در
-> هر دو چیدمان یکسان رفتار می‌کند و در محیط توسعه (که `PathBase` خالی است) کاملاً
-> بی‌اثر است.
+> ```text
+> /api/Auth/login
+> ```
 >
-> با شبیه‌سازی همان شرایط روی ماشین توسعه آزمایش شد:
+> این پیشوند فقط به میزبان تعلق دارد. کنترلرها با `[Route("[controller]")]` نوشته
+> شده‌اند و **هیچ‌جای کد دوباره `api` نمی‌نویسد**.
 >
-> | مسیر | بدون PathBase | با `PathBase=/api` |
+> | چیدمان | چه کسی پیشوند را می‌گذارد | برنامه چه می‌بیند |
 > |---|---|---|
-> | `/api/Health` | ۲۰۰ | ۲۰۰ |
-> | `/api/MasterData/projects` | ۴۰۱ | ۴۰۱ |
+> | IIS، بک‌اند به‌عنوان Application با مسیر `/api` | خودِ IIS | `PathBase=/api` و `Path=/Auth/login` |
+> | Kestrel (توسعه، یا `dotnet HSEQ.API.dll`) | خودِ برنامه، با `UsePathBase` | همان |
 >
-> `Deploy-Production.ps1` همچنان هر دو نشانی را می‌آزماید تا اگر روزی این رفتار
-> برگشت، استقرار با پیام صریح متوقف شود.
+> برنامه فقط وقتی `UsePathBase` را اعمال می‌کند که میزبان `PathBase` نگذاشته باشد.
+> همین شرط باعث می‌شود مسیر دوتایی `/api/api/...` **۴۰۴** بگیرد و جزو API عمومی
+> نباشد. مقدار پیشوند از کلید `Api:PathBase` خوانده می‌شود (پیش‌فرض `/api`)، پس اگر
+> روزی Application با مسیر دیگری ثبت شود هیچ تغییری در کد لازم نیست.
+>
+> <details>
+> <summary>خرابی‌ای که این طراحی بست</summary>
+>
+> در نسخه‌ی قبل، پیشوند **دو مالک** داشت: هم IIS آن را برمی‌داشت و هم کنترلرها
+> دوباره در `[Route("api/[controller]")]` می‌نوشتندش. یک میان‌افزار این تناقض را در
+> زمان اجرا جبران می‌کرد و درست کار کردنش به این وابسته بود که آن میان‌افزار *پیش
+> از* انتخاب endpoint اجرا شود. وقتی آن ترتیب به‌هم خورد، روی سرور:
+>
+> | مسیر | نتیجه |
+> |---|---|
+> | `/api/Auth/login` (چیزی که کلاینت صدا می‌زند) | ۴۰۴ |
+> | `/api/api/Auth/login` | به برنامه می‌رسید |
+>
+> یعنی **هیچ کاربری نمی‌توانست وارد شود**. هیچ آزمونی جلویش را نگرفت چون هیچ
+> آزمونی وجود نداشت.
+> </details>
+>
+> **محافظ‌ها.** این قرارداد حالا در سه لایه آزموده می‌شود و هر سه در
+> `Publish-Production.ps1` اجرا می‌شوند — بسته با شکست هر کدام ساخته نمی‌شود:
+>
+> | لایه | کجا | چه چیزی را اثبات می‌کند |
+> |---|---|---|
+> | آزمون یکپارچه (۳۷ مورد) | `HSEQ.API.Tests` | همان `Program.cs` در هر سه چیدمان میزبانی، از جمله شبیه‌سازی دقیقِ کاری که ماژول ASP.NET Core در IIS با مسیر می‌کند |
+> | آزمون معماری | `RouteOwnershipTests` | هیچ `[Route]`ی دوباره `api` را اعلام نکرده |
+> | آزمون کلاینت (۸ مورد) | `hseq-client` (`npm test`) | نشانی‌ای که مرورگر می‌سازد دقیقاً `/api/Auth/login` است |
+>
+> `Deploy-Production.ps1` هم پس از استقرار سه چیز را می‌آزماید: `/api/Health` پاسخ
+> بدهد، `/api/api/Health` ندهد، و `/api/Auth/login` ۴۰۴ نگیرد.
 
 چرا هم‌مبدأ: کلاینت Vite است و آدرس API را در **زمان build** داخل فایل‌های خروجی
 می‌نویسد. با مسیر نسبی `/api`، خروجی build به هیچ دامنه‌ای گره نمی‌خورد؛ همان فایل‌ها
@@ -93,7 +122,31 @@ release.json  فراداده‌ی نسخه
 SHA256SUMS.txt
 ```
 
-اسکریپت fail-fast است: هر گام که شکست بخورد، کد خروجی غیرصفر می‌دهد.
+کنار آن، آرشیو انتقال و هشش:
+
+```
+artifacts\HSEQ_<yyyyMMdd-HHmmss>.zip
+artifacts\HSEQ_<yyyyMMdd-HHmmss>.zip.sha256
+```
+
+آرشیو **پس از** بازرسی اسرار ساخته می‌شود، بعد باز و با `SHA256SUMS.txt` مقایسه
+می‌شود؛ یک آرشیوِ ناقص همین‌جا گیر می‌افتد، نه روی سرور. سالم بودن انتقال:
+
+```powershell
+(Get-FileHash .\HSEQ_<...>.zip -Algorithm SHA256).Hash
+Get-Content .\HSEQ_<...>.zip.sha256
+```
+
+اسکریپت fail-fast است: هر گام که شکست بخورد، کد خروجی غیرصفر می‌دهد. گام‌هایی که
+پیش از بسته‌بندی اجرا می‌شوند:
+
+| گام | چه چیزی را می‌بندد |
+|---|---|
+| `dotnet test` روی `HSEQ.API.Tests` | قرارداد مسیر — از جمله اینکه `/api/Auth/login` به اکشن می‌رسد و `/api/api/Auth/login` نمی‌رسد |
+| `npm run lint` | خطاهای ایستا در کلاینت |
+| `npm test` | نشانی‌ای که کلاینت برای ورود می‌سازد |
+| `npm run build` (شامل `tsc -b`) | بررسی نوع و build عملیاتی |
+| بازرسی بسته | نشانی محلی، فایل تنظیمات توسعه، یا رمز داخل رشته‌ی اتصال |
 
 سوئیچ‌ها: `-SkipFrontend` (فقط بک‌اند)، `-SkipDatabase` (بدون اسکریپت مهاجرت).
 
@@ -110,7 +163,7 @@ SHA256SUMS.txt
 
 | کلید | توضیح |
 |---|---|
-| `ConnectionStrings:DefaultConnection` | ترجیحاً احراز هویت یکپارچه ویندوز تا رمز در فایل نباشد |
+| `ConnectionStrings:DefaultConnection` | رشته‌ی اتصال به `HSEQDb` — پایین را بخوانید |
 | `Jwt:Key` | **باید تازه ساخته شود** — پایین را بخوانید |
 | `Jwt:Issuer` / `Jwt:Audience` | `OdccPM` / `Audience` |
 | `Jwt:ExpiryInMinutes` | عدد صحیح مثبت (فعلاً ۶۰) |
@@ -122,8 +175,55 @@ SHA256SUMS.txt
 
 | کلید | پیش‌فرض | توضیح |
 |---|---|---|
+| `Api:PathBase` | `/api` | پیشوند عمومی API. فقط وقتی اعمال می‌شود که میزبان `PathBase` نگذاشته باشد؛ زیر IIS خودِ IIS آن را می‌گذارد. **عوضش نکنید مگر آنکه مسیر Application در IIS را هم عوض کنید.** |
+| `Https:RedirectToHttps` | `false` | هدایت HTTP به HTTPS. فقط وقتی `true` کنید که سایت واقعاً بایندینگ HTTPS داشته باشد. |
+| `Https:Port` | ۴۴۳ | پورت عمومی HTTPS برای هدایت بالا. اگر پورت غیراستاندارد است حتماً بدهید، وگرنه هدایت به پورت اشتباه می‌رود. |
 | `Database:MigrateOnStartup` | `false` بیرون از توسعه | مهاجرت هنگام بالا آمدن |
 | `Database:SeedOnStartup` | `true` | upsert داده‌ی پایه؛ اجرای دوباره بی‌خطر |
+
+> **چرا `Https:RedirectToHttps` پیش‌فرض خاموش است.** پیش از این، هر محیطی غیر از
+> Development این میان‌افزار را روشن می‌کرد. سایت روی بایندینگ HTTP سرو می‌شود، پس
+> میان‌افزار پورت HTTPS را پیدا نمی‌کرد، هیچ هدایتی هم انجام نمی‌داد و فقط
+> **به‌ازای هر درخواست** یک هشدار در لاگ می‌نوشت
+> (`Failed to determine the https port for redirect`) — تا جایی که هشدارهای واقعی
+> میانشان گم می‌شد. بدتر آنکه با اضافه شدن یک بایندینگ HTTPS، رفتار برنامه بدون
+> هیچ تغییری در کد یا تنظیمات به «هدایت اجباری» عوض می‌شد.
+
+### رشته‌ی اتصال
+
+نام کلید دقیقاً `ConnectionStrings:DefaultConnection` است و متغیر محیطیِ متناظرش
+`ConnectionStrings__DefaultConnection` (با **دو** زیرخط).
+
+احراز هویت یکپارچه‌ی ویندوز ترجیح داده می‌شود، چون هیچ رمزی در هیچ فایلی نمی‌ماند:
+
+```text
+Server=<SQL-HOST>;Database=HSEQDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+```
+
+اگر سیاست سازمان لاگین SQL می‌خواهد، همان شکل با کاربر و رمز — و آن‌وقت **حتماً**
+از راه متغیر محیطی، نه فایل:
+
+```text
+Server=<SQL-HOST>;Database=HSEQDb;User Id=<SQL-LOGIN>;Password=<SQL-PASSWORD>;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+```
+
+`<SQL-PASSWORD>` جای‌نگهدار است. مقدار واقعی‌اش نباید در گیت، در بسته، در لاگ یا در
+هیچ سندی نوشته شود.
+
+**دسترسی‌های لازم روی دیتابیس** — حداقلِ لازم، نه بیشتر. `sysadmin` یا `db_owner`
+ندهید:
+
+```sql
+USE HSEQDb;
+CREATE USER [<SQL-LOGIN>] FOR LOGIN [<SQL-LOGIN>];
+ALTER ROLE db_datareader ADD MEMBER [<SQL-LOGIN>];
+ALTER ROLE db_datawriter ADD MEMBER [<SQL-LOGIN>];
+-- شماره‌ی مدرک از یک SEQUENCE می‌آید؛ بدون این، ثبت مدرک شکست می‌خورد.
+GRANT UPDATE ON SCHEMA::dbo TO [<SQL-LOGIN>];
+```
+
+مهاجرت‌ها با یک لاگین جداگانه‌ی دارای دسترسی DDL اجرا می‌شوند (گام `-ApplySchema`
+در `Deploy-Production.ps1`)، نه با لاگینِ خودِ برنامه.
 
 ### جایگزین امن‌تر برای اسرار
 
@@ -133,6 +233,12 @@ SHA256SUMS.txt
 Jwt__Key
 ConnectionStrings__DefaultConnection
 ```
+
+در IIS Manager: انتخاب Application Pool ← **Advanced Settings** ←
+**Environment Variables**. پس از تغییر، app pool را Recycle کنید.
+
+این مسیر آزموده شده است: بسته‌ی نهایی در محیط `Production` فقط با همین متغیرها بالا
+آمد و به دیتابیس وصل شد — بدون هیچ `appsettings.Production.json`ی.
 
 ### ⚠ کلید JWT فعلی سوخته است
 
@@ -298,16 +404,44 @@ Seed خودکار داده‌ی پایه‌ی دامنه را می‌نویسد:
 
 ## ۸. بررسی‌های پس از استقرار
 
+`<BASE>` را با نشانی واقعی سایت جایگزین کنید — مثلاً `https://hseq.odcc.local` یا
+`http://172.17.0.254:2525`.
+
 | بررسی | انتظار |
 |---|---|
-| `https://hseq.odcc.local/` | صفحه‌ی ورود |
-| `https://hseq.odcc.local/api/Health` | ۲۰۰ با `{"status":"Healthy"}` — یعنی برنامه **و** اتصال دیتابیس سالم است |
-| `https://hseq.odcc.local/api/MasterData/projects` | ۴۰۱ (یعنی احراز هویت فعال است) |
-| `https://hseq.odcc.local/documents` با رفرش | صفحه بیاید، نه ۴۰۴ ← تأیید URL Rewrite |
-| `https://hseq.odcc.local/swagger` | ۴۰۴ ← مستندات در عملیاتی بسته است |
+| `<BASE>/` | صفحه‌ی ورود |
+| `<BASE>/api/Health` | ۲۰۰ با `{"status":"Healthy"}` — یعنی برنامه **و** اتصال دیتابیس سالم است |
+| **`<BASE>/api/api/Health`** | **۴۰۴** — اگر پاسخ بدهد، بسته‌ای قدیمی‌تر از اصلاحِ مالکیتِ پیشوند مستقر شده و ورود کار نخواهد کرد |
+| **`POST <BASE>/api/Auth/login`** (بدنه‌ی خالی) | **۴۰۰**، نه ۴۰۴ و نه ۵۰۰ — یعنی مسیر ورود به اکشن می‌رسد |
+| `<BASE>/api/MasterData/projects` | ۴۰۱ (یعنی احراز هویت فعال است) |
+| `<BASE>/documents` با رفرش | صفحه بیاید، نه ۴۰۴ ← تأیید URL Rewrite |
+| `<BASE>/swagger` و `<BASE>/api/swagger` | ۴۰۴ ← مستندات در عملیاتی بسته است |
+| `POST <BASE>/api/Auth/dev-login` | ۴۰۴ ← میان‌برِ توسعه در عملیاتی وجود ندارد |
 | ورود با کد پرسنلی واقعی | تأیید دسترسی به سرویس UM |
 | افزودن یک سند آزمایشی | تأیید دسترسی نوشتن روی `Documents\` |
 | دانلود همان سند | تأیید مسیر خواندن فایل |
+
+سه بررسی اولِ مربوط به مسیر را `Deploy-Production.ps1` خودش پس از استقرار انجام
+می‌دهد و در صورت شکست با کد خروجی غیرصفر می‌ایستد. دستی هم می‌شود:
+
+```powershell
+$base = 'http://172.17.0.254:2525'   # نشانی واقعی سایت
+
+# باید ۲۰۰ باشد
+(Invoke-WebRequest "$base/api/Health" -UseBasicParsing).StatusCode
+
+# باید ۴۰۴ باشد - یعنی پیشوند دو مالک ندارد
+try { (Invoke-WebRequest "$base/api/api/Health" -UseBasicParsing).StatusCode }
+catch { [int]$_.Exception.Response.StatusCode }
+
+# باید ۴۰۰ باشد (نه ۴۰۴): مسیر ورود به اکشن می‌رسد و اعتبارسنجی ورودی جواب می‌دهد
+try { (Invoke-WebRequest "$base/api/Auth/login" -Method POST -UseBasicParsing).StatusCode }
+catch { [int]$_.Exception.Response.StatusCode }
+```
+
+> در ابزار Network مرورگر هم مطمئن شوید درخواستِ ورود دقیقاً به
+> **`/api/Auth/login`** می‌رود. هر نشانی دیگری — به‌ویژه `/api/api/Auth/login` —
+> یعنی کلاینت و بک‌اند از یک انتشار نیستند؛ `RELEASE.txt` هر دو پوشه را مقایسه کنید.
 
 ---
 
@@ -322,9 +456,13 @@ Seed خودکار داده‌ی پایه‌ی دامنه را می‌نویسد:
 می‌خواند. یعنی آنچه آزمایش می‌شود جریان واقعی ورود است، نه یک میان‌بر.
 
 ```powershell
-# روی ماشین آزمایش:
-.\Start-UmSimulator.ps1
+# روی ماشین آزمایش - با pwsh، نه powershell.exe:
+pwsh -File .\Start-UmSimulator.ps1
 ```
+
+> این اسکریپت PowerShell 7 می‌خواهد (`#Requires -Version 7.0`). با
+> `powershell.exe` نسخه‌ی ۵.۱ — که پیش‌فرض ویندوز سرور است — اجرا نمی‌شود و
+> پیام صریح می‌دهد. بقیه‌ی اسکریپت‌های استقرار روی هر دو نسخه کار می‌کنند.
 
 سپس در `appsettings.Production.json` همان ماشین:
 
@@ -341,7 +479,7 @@ Seed خودکار داده‌ی پایه‌ی دامنه را می‌نویسد:
 ```
 ```powershell
 # نیازمند PowerShell با دسترسی Administrator (محدودیت HttpListener)
-.\Start-UmSimulator.ps1 -Hostname um-sim.local
+pwsh -File .\Start-UmSimulator.ps1 -Hostname um-sim.local
 ```
 
 کدهای پرسنلی مجاز پیش‌فرض `3256` و `3548` هستند — همان دو حسابی که در جدول

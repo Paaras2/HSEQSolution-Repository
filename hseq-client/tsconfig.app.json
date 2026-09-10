@@ -22,5 +22,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+
+  /* آزمون‌ها روی Node اجرا می‌شوند و در tsconfig.node.json بررسی می‌شوند؛
+     بیرون نگه داشتنشان یعنی کدِ مرورگر به سراسری‌های Node دسترسی پیدا نمی‌کند. */
+  "exclude": ["src/**/*.test.ts"]
 }

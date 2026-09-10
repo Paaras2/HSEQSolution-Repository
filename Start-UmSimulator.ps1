@@ -1,3 +1,7 @@
+﻿#Requires -Version 7.0
+# PowerShell 7 لازم است (اپراتور ?? در همین فایل استفاده شده). با
+# powershell.exe نسخه‌ی ۵.۱ فقط یک خطای پارس مبهم می‌دهد؛ با این خط،
+# پیام صریح می‌گیرید. اجرا با: pwsh -File .\Start-UmSimulator.ps1
 <#
 .SYNOPSIS
     شبیه‌ساز محلی سرویس User Management - فقط برای آزمایش، هرگز روی سرور عملیاتی.

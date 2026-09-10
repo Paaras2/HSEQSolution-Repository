@@ -28,4 +28,10 @@
     <ProjectReference Include="..\HSEQ.Shared\HSEQ.Shared.csproj" />
   </ItemGroup>
 
+  <!-- Program که از top-level statements ساخته می‌شود internal است؛ WebApplicationFactory
+       در پروژه‌ی آزمون باید بتواند به آن ارجاع بدهد. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HSEQ.API.Tests" />
+  </ItemGroup>
+
 </Project>

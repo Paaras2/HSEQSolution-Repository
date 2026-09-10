@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="HSEQ.API.Model/HSEQ.API.Model.csproj" Id="28aac6e9-fa0b-4bd6-96fd-f4ede0c66dc1" />
   <Project Path="HSEQ.API/HSEQ.API.csproj" />
+  <Project Path="HSEQ.API.Tests/HSEQ.API.Tests.csproj" />
   <Project Path="HSEQ.Common/HSEQ.Common.csproj" Id="7cdd22b1-6b5b-4ed7-8258-498529731ee9" />
   <Project Path="HSEQ.Domain/HSEQ.Domain.csproj" Id="0c7f8510-e401-455d-b909-d54bcb1cafd8" />
   <Project Path="HSEQ.Service/HSEQ.Service.csproj" Id="63319705-0fbd-460c-80a0-2b7d166bcbaf" />

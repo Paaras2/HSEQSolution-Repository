@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.StaticFiles;
 
 namespace HSEQ.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class DocumentController : ControllerBase

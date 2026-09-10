@@ -9,7 +9,7 @@ namespace HSEQ.API.Controllers
 {
     // جستجوی پیشرفته - فقط خواندنی، پس مثل بقیه‌ی مسیرهای خواندنی سند برای هر کاربر
     // احرازهویت‌شده باز است (نه فقط Admin/DocumentManager).
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class SearchController : ControllerBase

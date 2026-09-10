@@ -13,7 +13,7 @@ namespace HSEQ.API.Controllers
     //
     // عمداً بدون احراز هویت است: اسکریپت استقرار توکنی ندارد و پایشِ سرور هم نباید
     // حساب کاربری بخواهد.
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [AllowAnonymous]
     public class HealthController : ControllerBase

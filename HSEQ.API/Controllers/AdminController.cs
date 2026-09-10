@@ -12,7 +12,7 @@ namespace HSEQ.API.Controllers
     // Authorize در سطح کلاس، همان الگوی بقیه‌ی کنترلرهای پروژه. قبلاً هیچ [Authorize]ی
     // اینجا نبود و مسیر Get برای همه باز بود؛ گذاشتنش روی کلاس یعنی اندپوینت بعدی هم
     // به‌طور پیش‌فرض بسته است، نه اینکه یادمان برود روی متد بگذاریم.
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class AdminController : ControllerBase

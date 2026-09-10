@@ -524,9 +524,12 @@ Write-Step 'بررسی سلامت'
 # وضعیت پاسخ یک نشانی، بدون پرتاب استثنا. کد HTTP خودش داده است، نه خطا: ۴۰۱ روی
 # مسیر محافظت‌شده یعنی برنامه سالم بالا آمده.
 function Get-HttpStatus {
-    param([string]$Url)
+    param(
+        [string]$Url,
+        [string]$Method = 'GET'
+    )
     try {
-        $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+        $r = Invoke-WebRequest -Uri $Url -Method $Method -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
         return [int]$r.StatusCode
     } catch {
         if ($_.Exception.Response) { return [int]$_.Exception.Response.StatusCode }
@@ -545,38 +548,37 @@ $healthHost = if ($Hostname) { $Hostname } else { 'localhost' }
 $healthBase = if ($Port -eq 80) { "http://$healthHost" } else { "http://${healthHost}:$Port" }
 
 $clientApiHealth = "$healthBase/api/Health"
-# مسیری که اگر بک‌اند به‌عنوان Application زیر /api ثبت شده باشد پاسخ می‌دهد: IIS
-# پیشوند /api را به‌عنوان PathBase برمی‌دارد و مسیرِ خودِ کنترلر ("api/Health") بعد
-# از آن می‌آید، یعنی نشانی نهایی دوبار /api دارد.
-$pathBaseApiHealth = "$healthBase/api/api/Health"
+# مسیر دوتایی. پیشوند /api فقط یک مالک دارد - خودِ IIS، از راه Application زیر
+# همان مسیر - پس این نشانی باید ۴۰۴ بدهد. پاسخ دادنش یعنی کنترلرها دوباره «api»
+# را داخل [Route] خودشان دارند، یعنی بسته‌ای قدیمی‌تر از اصلاحِ مالکیتِ پیشوند در
+# حال استقرار است.
+$doubledApiHealth = "$healthBase/api/api/Health"
 
 $clientStatus = Get-HttpStatus $clientApiHealth
-$pathBaseStatus = Get-HttpStatus $pathBaseApiHealth
+$doubledStatus = Get-HttpStatus $doubledApiHealth
 
 if ($clientStatus -eq 200) {
     Write-Ok 'بررسی سلامت پاسخ داد (۲۰۰) - دیتابیس هم در دسترس است'
-    if ($pathBaseStatus -eq 200) {
-        Write-Warn 'هر دو نشانی /api/Health و /api/api/Health پاسخ می‌دهند - چیدمان را بازبینی کنید.'
-    }
 }
 elseif ($clientStatus -eq 503) {
     # برنامه بالا آمده ولی به دیتابیس نمی‌رسد. این دقیقاً همان خرابی‌ای است که با
     # بررسی قدیمی (۴۰۱ روی مسیر محافظت‌شده) دیده نمی‌شد.
     Write-Fail 'برنامه بالا آمد ولی به دیتابیس وصل نمی‌شود (۵۰۳). رشته‌ی اتصال و دسترسی هویت Application Pool به SQL را بررسی کنید.'
 }
-elseif ($pathBaseStatus -in 200, 503) {
-    # این حالت یعنی بک‌اند بالاست، ولی زیر مسیری نشسته که کلاینت آنجا را صدا نمی‌زند.
+elseif ($doubledStatus -in 200, 503) {
+    # بک‌اند بالاست، ولی زیر مسیری نشسته که کلاینت آنجا را صدا نمی‌زند. این همان
+    # خرابی‌ای است که یک‌بار روی سرور دیده شد و ورود هیچ کاربری ممکن نبود.
     Write-Fail @'
 ناسازگاری مسیر: بک‌اند فقط روی /api/api/... پاسخ می‌دهد، ولی کلاینت /api/... را صدا می‌زند.
-با این چیدمان همه‌ی فراخوان‌های کلاینت ۴۰۴ می‌گیرند.
+با این چیدمان همه‌ی فراخوان‌های کلاینت - از جمله /api/Auth/login - خطای ۴۰۴ می‌گیرند.
 
-این حالت باید با میان‌افزارِ PathBase در Program.cs پوشش داده شده باشد؛ دیدنش یعنی
-آن میان‌افزار برداشته شده یا بسته‌ای قدیمی‌تر از آن اصلاح در حال استقرار است.
-بسته‌ی به‌روز را منتشر و دوباره استقرار دهید.
+یعنی این بسته قدیمی‌تر از اصلاحِ مالکیتِ پیشوند است: در آن نسخه کنترلرها هنوز
+[Route("api/[controller]")] داشتند و پیشوند دو مالک داشت.
+بسته‌ی به‌روز را منتشر (Publish-Production.ps1) و دوباره استقرار دهید.
 '@
 }
-elseif ($clientStatus -eq 404 -and $pathBaseStatus -eq 404) {
-    Write-Fail 'هیچ‌کدام از نشانی‌های سلامت پاسخ ندادند (۴۰۴). بک‌اند بالا نیامده یا مسیر Application اشتباه است.'
+elseif ($clientStatus -eq 404) {
+    Write-Fail 'نشانی سلامت پاسخ نداد (۴۰۴). بک‌اند بالا نیامده یا مسیر Application اشتباه است.'
 }
 else {
     # بسته‌های قدیمی‌تر HealthController را ندارند؛ در آن حالت مسیر محافظت‌شده هنوز
@@ -587,6 +589,38 @@ else {
     } else {
         Write-Fail "بررسی سلامت ناموفق (کد $clientStatus روی $clientApiHealth)."
     }
+}
+
+if ($doubledStatus -notin 404, 0) {
+    Write-Fail "مسیر دوتایی /api/api/Health با کد $doubledStatus پاسخ داد؛ باید ۴۰۴ باشد. پیشوند /api دو مالک دارد."
+}
+else {
+    Write-Ok 'مسیر دوتایی /api/api/... پاسخ نمی‌دهد - پیشوند فقط یک مالک دارد'
+}
+
+# ---------------------------------------------------------------------------
+# خودِ مسیر ورود، نه فقط مسیر سلامت.
+#
+# چرا جداگانه: بررسی سلامت روی HealthController است و ممکن است سالم باشد در حالی
+# که مسیر ورود نباشد. خرابی‌ای که روی سرور دیده شد دقیقاً همین شکل بود - کاربر فقط
+# در لحظه‌ی ورود با ۴۰۴ روبه‌رو می‌شد.
+#
+# بدنه عمداً خالی فرستاده می‌شود: هیچ اعتبارنامه‌ای لازم نیست و هیچ تلاشِ ورودی هم
+# ثبت نمی‌شود. چیزی که اهمیت دارد این است که پاسخ ۴۰۴ *نباشد* - یعنی درخواست به
+# اکشن رسیده. اعتبارسنجی ورودی بعد از آن ۴۰۰ می‌دهد که همان پاسخ درست است.
+$loginStatus = Get-HttpStatus "$healthBase/api/Auth/login" -Method 'POST'
+
+if ($loginStatus -eq 404) {
+    Write-Fail 'مسیر ورود /api/Auth/login خطای ۴۰۴ می‌دهد - هیچ کاربری نمی‌تواند وارد شود.'
+}
+elseif ($loginStatus -ge 500) {
+    Write-Fail "مسیر ورود /api/Auth/login کد $loginStatus داد. لاگ stdout بک‌اند را ببینید."
+}
+elseif ($loginStatus -eq 0) {
+    Write-Fail 'مسیر ورود /api/Auth/login اصلاً پاسخ نداد.'
+}
+else {
+    Write-Ok "مسیر ورود /api/Auth/login پاسخ داد (کد $loginStatus) - به اکشن می‌رسد"
 }
 
 try {
