@@ -122,7 +122,16 @@ $null = New-Item -ItemType Directory -Path $handoffDir -Force
 $serverLayout = Join-Path $handoffDir '1-ServerFolders'
 & (Join-Path $RepoRoot 'New-ServerLayout.ps1') `
     -PackagePath $PackagePath -ConfigFile $ConfigFile -OutputPath $serverLayout | Out-Null
-if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw 'ساخت چیدمان سرور شکست خورد.' }
+
+# نتیجه بررسی می‌شود، نه کد خروجی: $LASTEXITCODE فقط برای برنامه‌های بومی مقدار
+# می‌گیرد و پس از فراخوانی یک اسکریپت PowerShell دست‌نخورده می‌ماند - زیر
+# Set-StrictMode خواندنش وقتی هرگز مقدار نگرفته باشد خودش خطا می‌دهد.
+# شکستِ خودِ آن اسکریپت با throw و $ErrorActionPreference='Stop' به اینجا می‌رسد.
+foreach ($expected in 'HSEQTest\index.html', 'HSEQTest-api\HSEQ.API.dll') {
+    if (-not (Test-Path (Join-Path $serverLayout $expected))) {
+        throw "چیدمان سرور ناقص است - $expected ساخته نشد."
+    }
+}
 Write-Ok "1-ServerFolders\ (HSEQTest\ و HSEQTest-api\)"
 
 # ---------------------------------------------------------------------------
