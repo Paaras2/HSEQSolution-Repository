@@ -1,4 +1,5 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 
 namespace HSEQ.API.ServiceConfiguration
@@ -42,8 +43,30 @@ namespace HSEQ.API.ServiceConfiguration
 
             foreach (var key in RequiredKeys)
             {
-                if (string.IsNullOrWhiteSpace(configuration[key]))
+                var value = configuration[key];
+
+                if (string.IsNullOrWhiteSpace(value))
+                {
                     errors.Add($"تنظیم اجباری '{key}' مقدار ندارد.");
+                    continue;
+                }
+
+                // قالبِ تنظیمات با جای‌نگهدارهایی مثل <SQL-SERVER-HOST> می‌آید و کسی
+                // باید پرشان کند. اگر پر نشوند، هیچ‌کدام از بررسی‌های دیگر جلویشان را
+                // نمی‌گرفت و نتیجه دو خرابیِ بد بود:
+                //
+                //   - Jwt:Key برابر «<NEW-BASE64-SIGNING-KEY-AT-LEAST-32-CHARS>» از هر
+                //     بررسی‌ای رد می‌شد (بلندتر از ۳۲ کاراکتر است و نشانه‌ی توسعه هم
+                //     ندارد). یعنی برنامه بالا می‌آمد و توکن‌ها را با رشته‌ای امضا می‌کرد
+                //     که داخل همین مخزن نوشته شده - هر کسی می‌توانست توکن جعلی بسازد.
+                //
+                //   - رشته‌ی اتصال با میزبانِ <SQL-SERVER-HOST> باعث می‌شد راه‌اندازی
+                //     دقیقه‌ها روی تلاش‌های ناموفق اتصال بماند، بدون هیچ پیامی که بگوید
+                //     علتش یک فایل تنظیماتِ پرنشده است.
+                //
+                // پس جای‌نگهدارِ باقی‌مانده همان اول و با پیام صریح رد می‌شود.
+                if (ContainsPlaceholder(value))
+                    errors.Add($"تنظیم '{key}' هنوز جای‌نگهدارِ قالب را دارد و پر نشده است.");
             }
 
             if (!int.TryParse(configuration["Jwt:ExpiryInMinutes"], out var expiry) || expiry <= 0)
@@ -98,5 +121,11 @@ namespace HSEQ.API.ServiceConfiguration
                     string.Join(Environment.NewLine, errors.Select(e => "  - " + e)));
             }
         }
+
+        // شکلِ جای‌نگهدار در قالب: <SQL-SERVER-HOST> ، <NEW-BASE64-SIGNING-KEY...> و مانند
+        // آن‌ها - حروف بزرگ، رقم، خط تیره و زیرخط داخل < >. عمداً تنگ گرفته شده تا با
+        // مقدارِ واقعی‌ای که تصادفاً < دارد اشتباه نشود.
+        private static bool ContainsPlaceholder(string value) =>
+            Regex.IsMatch(value, "<[A-Z0-9][A-Z0-9_-]*>");
     }
 }
