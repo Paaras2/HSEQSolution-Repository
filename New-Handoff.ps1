@@ -119,46 +119,69 @@ $handoffDir = Join-Path $OutputRoot $handoffName
 if (Test-Path $handoffDir) { Remove-Item $handoffDir -Recurse -Force }
 $null = New-Item -ItemType Directory -Path $handoffDir -Force
 
-$serverLayout = Join-Path $handoffDir '1-ServerFolders'
+# چیدمان تحویل به تفکیک نقش: Frontend\ ، Backend\ ، Deployment\
+#
+# New-ServerLayout.ps1 دو پوشه را با نامِ *مقصدِ روی سرور* می‌سازد (HSEQTest و
+# HSEQTest-api). آن نام‌ها همان‌جا هم می‌مانند، فقط یک لایه بالاتر زیر Frontend\ و
+# Backend\ می‌نشینند - تا هم نقش هر پوشه از نامش پیدا باشد و هم نامی که باید روی
+# دیسکِ سرور بنشیند گم نشود.
+$layoutTemp = Join-Path $handoffDir '.layout'
+# 6>$null و نه | Out-Null: آن اسکریپت با Write-Host می‌نویسد، و Write-Host به
+# جریان information می‌رود نه به خط لوله - پس Out-Null چیزی را پنهان نمی‌کرد.
+# پیام‌هایش هم اینجا گمراه‌کننده‌اند، چون مسیر موقتِ .layout را به‌عنوان «پوشه‌ای که
+# باید به سرور ببرید» اعلام می‌کنند.
 & (Join-Path $RepoRoot 'New-ServerLayout.ps1') `
-    -PackagePath $PackagePath -ConfigFile $ConfigFile -OutputPath $serverLayout | Out-Null
+    -PackagePath $PackagePath -ConfigFile $ConfigFile -OutputPath $layoutTemp 6>$null
 
 # نتیجه بررسی می‌شود، نه کد خروجی: $LASTEXITCODE فقط برای برنامه‌های بومی مقدار
 # می‌گیرد و پس از فراخوانی یک اسکریپت PowerShell دست‌نخورده می‌ماند - زیر
 # Set-StrictMode خواندنش وقتی هرگز مقدار نگرفته باشد خودش خطا می‌دهد.
 # شکستِ خودِ آن اسکریپت با throw و $ErrorActionPreference='Stop' به اینجا می‌رسد.
 foreach ($expected in 'HSEQTest\index.html', 'HSEQTest-api\HSEQ.API.dll') {
-    if (-not (Test-Path (Join-Path $serverLayout $expected))) {
+    if (-not (Test-Path (Join-Path $layoutTemp $expected))) {
         throw "چیدمان سرور ناقص است - $expected ساخته نشد."
     }
 }
-Write-Ok "1-ServerFolders\ (HSEQTest\ و HSEQTest-api\)"
+
+$frontendDir = Join-Path $handoffDir 'Frontend'
+$backendDir  = Join-Path $handoffDir 'Backend'
+$null = New-Item -ItemType Directory -Path $frontendDir -Force
+$null = New-Item -ItemType Directory -Path $backendDir -Force
+
+Move-Item (Join-Path $layoutTemp 'HSEQTest')     $frontendDir -Force
+Move-Item (Join-Path $layoutTemp 'HSEQTest-api') $backendDir  -Force
+Move-Item (Join-Path $layoutTemp 'راهنما.txt')   (Join-Path $handoffDir 'COPY-TO-SERVER.txt') -Force
+Remove-Item $layoutTemp -Recurse -Force
+
+Write-Ok 'Frontend\HSEQTest\      →  D:\HouzoriApps\HSEQTest'
+Write-Ok 'Backend\HSEQTest-api\   →  D:\HouzoriApps\HSEQTest-api'
 
 # ---------------------------------------------------------------------------
 Write-Step 'اسکریپت‌ها، دیتابیس و مستندات'
 # ---------------------------------------------------------------------------
-$scriptsDir = Join-Path $handoffDir '2-Scripts'
+$deployDir = Join-Path $handoffDir 'Deployment'
+$null = New-Item -ItemType Directory -Path $deployDir -Force
+
+$scriptsDir = Join-Path $deployDir 'Scripts'
 $null = New-Item -ItemType Directory -Path $scriptsDir -Force
 foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1', 'New-ServerLayout.ps1') {
     Copy-Item (Join-Path $RepoRoot $s) $scriptsDir -Force
 }
-Write-Ok '2-Scripts\ (استقرار، عیب‌یابی، چیدمان)'
+Write-Ok 'Deployment\Scripts\ (استقرار، عیب‌یابی، چیدمان)'
 
-$dbDir = Join-Path $handoffDir '3-Database'
-$null = New-Item -ItemType Directory -Path $dbDir -Force
 if (Test-Path (Join-Path $PackagePath 'Database\migrations.sql')) {
+    $dbDir = Join-Path $deployDir 'Database'
+    $null = New-Item -ItemType Directory -Path $dbDir -Force
     Copy-Item (Join-Path $PackagePath 'Database\migrations.sql') $dbDir -Force
-    Write-Ok '3-Database\migrations.sql (idempotent)'
+    Write-Ok 'Deployment\Database\migrations.sql (idempotent)'
 } else {
     Write-Warn 'بسته اسکریپت مهاجرت ندارد.'
 }
 
-$docsDir = Join-Path $handoffDir '4-Docs'
-$null = New-Item -ItemType Directory -Path $docsDir -Force
-Copy-Item (Join-Path $PackagePath 'README-DEPLOY.md') $docsDir -Force
-Copy-Item $ConfigFile (Join-Path $docsDir 'appsettings.Production.template.json') -Force
-Copy-Item (Join-Path $PackagePath 'release.json') $docsDir -Force
-Write-Ok '4-Docs\ (راهنمای استقرار، قالب تنظیمات، release.json)'
+Copy-Item (Join-Path $PackagePath 'README-DEPLOY.md') $deployDir -Force
+Copy-Item $ConfigFile (Join-Path $deployDir 'appsettings.Production.template.json') -Force
+Copy-Item (Join-Path $PackagePath 'release.json') $deployDir -Force
+Write-Ok 'Deployment\ (راهنمای استقرار، قالب تنظیمات، release.json)'
 
 # ---------------------------------------------------------------------------
 Write-Step 'بازرسی: هیچ اسراری در تحویل نباشد'
@@ -210,13 +233,16 @@ Node / npm  : $($release.node) / $($release.npm)
 ----------------------------------------------------------------
 محتویات
 
-  1-ServerFolders\HSEQTest\      →  D:\HouzoriApps\HSEQTest
-  1-ServerFolders\HSEQTest-api\  →  D:\HouzoriApps\HSEQTest-api
-  2-Scripts\                     اسکریپت استقرار، عیب‌یابی و چیدمان
-  3-Database\migrations.sql      اسکریپت idempotent مهاجرت
-  4-Docs\README-DEPLOY.md        راهنمای کامل استقرار
-  4-Docs\appsettings.Production.template.json   قالب تنظیمات (بدون هیچ مقدار واقعی)
-  SHA256SUMS.txt                 هش همه‌ی فایل‌های بالا
+  Frontend\HSEQTest\            →  D:\HouzoriApps\HSEQTest
+  Backend\HSEQTest-api\         →  D:\HouzoriApps\HSEQTest-api
+  Deployment\README-DEPLOY.md      راهنمای کامل استقرار
+  Deployment\Scripts\              اسکریپت استقرار، عیب‌یابی و چیدمان
+  Deployment\Database\             اسکریپت idempotent مهاجرت
+  Deployment\appsettings.Production.template.json
+                                   قالب تنظیمات (بدون هیچ مقدار واقعی)
+  Deployment\release.json          فراداده‌ی نسخه
+  COPY-TO-SERVER.txt               خلاصه‌ی گام‌های کپی روی سرور
+  SHA256SUMS.txt                   هش همه‌ی فایل‌های بالا
 
 ----------------------------------------------------------------
 قرارداد مسیر
@@ -251,7 +277,7 @@ Node / npm  : $($release.node) / $($release.npm)
     <BASE>/api/api/Health       →  404  (اگر پاسخ داد، بسته قدیمی است)
     POST <BASE>/api/Auth/login  →  400  (نه 404، نه 500)
 
-جزئیات کامل و رویه‌ی بازگشت به نسخه‌ی قبل در 4-Docs\README-DEPLOY.md
+جزئیات کامل و رویه‌ی بازگشت به نسخه‌ی قبل در Deployment\README-DEPLOY.md
 "@
 Set-Content -Path (Join-Path $handoffDir 'RELEASE-NOTES.txt') -Value $notes -Encoding UTF8
 Write-Ok 'RELEASE-NOTES.txt'

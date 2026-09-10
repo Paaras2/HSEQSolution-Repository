@@ -69,12 +69,22 @@
 param(
     [Parameter(Mandatory)][string]$PackagePath,
 
-    [string]$SiteName = 'HSEQ',
-    [string]$SitePath = 'C:\Applications\HSEQ\current\frontend',
-    [string]$ApiPath = 'C:\Applications\HSEQ\current\api',
+    # پیش‌فرض‌ها = چیدمانی که واقعاً روی سرور مستقر است.
+    #
+    # قبلاً پیش‌فرض‌ها سایتی به نام 'HSEQ' زیر C:\Applications\HSEQ\current\ روی پورت
+    # ۸۰ بود - جایی که اصلاً وجود ندارد. اجرای اسکریپت بدون پارامتر یک سایت *دوم*
+    # می‌ساخت، فایل‌ها را جای دیگری می‌ریخت، و سایت واقعی دست‌نخورده می‌ماند: استقرار
+    # «موفق» گزارش می‌شد در حالی که هیچ‌چیز عوض نشده بود.
+    #
+    # هر چهارتا همچنان پارامترند؛ برای سایت دیگری صریحاً مقدار بدهید.
+    [string]$SiteName = 'HSEQTest',
+    [string]$SitePath = 'D:\HouzoriApps\HSEQTest',
+    [string]$ApiPath = 'D:\HouzoriApps\HSEQTest-api',
     [string]$DataPath = 'C:\ApplicationData\HSEQ',
 
-    [ValidateRange(1, 65535)][int]$Port = 80,
+    # بایندینگ فعلیِ آزموده‌شده. پورت، نام میزبان و طرح (http/https) همگی پارامترند
+    # و هیچ‌جای کد به مقدار خاصی گره نخورده است.
+    [ValidateRange(1, 65535)][int]$Port = 2525,
     [string]$Hostname = '',
     [string]$HttpsCertThumbprint = '',
 

@@ -15,6 +15,21 @@ https://hseq.odcc.local/api/...     →  ASP.NET Core Web API     (Backend\)
 
 بک‌اند به‌صورت یک **Application** با مسیر `/api` زیر همان سایت ثبت می‌شود.
 
+**چیدمانی که واقعاً مستقر است** - هر نام و مسیر دقیقاً همین است:
+
+| مورد | مقدار |
+|---|---|
+| IIS Site | `HSEQTest` |
+| Application Pool | `HSEQTest` (برای سایت **و** Application، هر دو) |
+| مسیر فیزیکی سایت (کلاینت) | `D:\HouzoriApps\HSEQTest` |
+| مسیر Application بک‌اند | `/api` |
+| مسیر فیزیکی بک‌اند | `D:\HouzoriApps\HSEQTest-api` |
+| بایندینگ آزموده‌شده | `http://172.17.0.254:2525` |
+
+بایندینگ فقط مقدارِ *آزموده‌شده*ی امروز است، نه فرضِ کد: طرح، نام میزبان و پورت
+همگی پارامترِ `Deploy-Production.ps1` هستند (`-Port`، `-Hostname`،
+`-HttpsCertThumbprint`) و هیچ‌جای کد یا خروجی build به آن‌ها گره نخورده است.
+
 > ### پیشوند `/api` دقیقاً یک مالک دارد: میزبان
 >
 > قرارداد عمومی — همان چیزی که مرورگر صدا می‌زند — ثابت است:
@@ -225,6 +240,40 @@ GRANT UPDATE ON SCHEMA::dbo TO [<SQL-LOGIN>];
 مهاجرت‌ها با یک لاگین جداگانه‌ی دارای دسترسی DDL اجرا می‌شوند (گام `-ApplySchema`
 در `Deploy-Production.ps1`)، نه با لاگینِ خودِ برنامه.
 
+### ASPNETCORE_ENVIRONMENT
+
+برنامه باید در محیط **Production** اجرا شود. سه چیز به آن وابسته‌اند:
+
+| رفتار | در Production | در Development |
+|---|---|---|
+| اعتبارسنجی سخت‌گیرانه‌ی تنظیمات (کلید JWT، LocalDB، CORS) | فعال | خاموش |
+| `/api/swagger` | ۴۰۴ | سرو می‌شود |
+| `POST /api/Auth/login` با میان‌بر `dev-login` | ۴۰۴ | فعال |
+
+**هیچ کاری لازم نیست.** متغیر `ASPNETCORE_ENVIRONMENT` عمداً نه در `web.config`
+تنظیم می‌شود و نه در اسکریپت استقرار، چون ASP.NET Core وقتی این متغیر تنظیم نشده
+باشد خودش **Production** را فرض می‌کند. یعنی حالت پیش‌فرض همان حالت درست است.
+
+خطر در جهت عکس است: اگر کسی این متغیر را روی سرور روی `Development` بگذارد،
+اعتبارسنجی تنظیمات خاموش می‌شود، فهرست کامل اندپوینت‌ها در `/api/swagger` باز
+می‌شود و میان‌برِ `dev-login` — که بدون هیچ رمزی توکن می‌سازد — زنده می‌شود.
+پس اگر جایی تنظیم شده، **حذفش کنید**؛ مقدار درست «تنظیم‌نشده» است.
+
+بررسی مقدار مؤثر روی سرور:
+
+```powershell
+# متغیر در سطح Application Pool
+Get-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
+  -Filter "system.applicationHost/applicationPools/add[@name='HSEQTest']/environmentVariables/add[@name='ASPNETCORE_ENVIRONMENT']" `
+  -Name value
+
+# و در web.config بک‌اند
+Select-String -Path 'D:\HouzoriApps\HSEQTest-api\web.config' -Pattern 'ASPNETCORE_ENVIRONMENT'
+```
+
+خروجی خالی برای هر دو یعنی درست است. آزمون سریع از بیرون: `/api/swagger` باید
+۴۰۴ بدهد.
+
 ### جایگزین امن‌تر برای اسرار
 
 به‌جای نوشتن در فایل، متغیر محیطی روی Application Pool تعریف کنید (دو زیرخط):
@@ -264,18 +313,42 @@ $b = [byte[]]::new(48)
 بسته را به سرور منتقل کنید، سپس در PowerShell **با دسترسی Administrator**:
 
 ```powershell
-.\Deploy-Production.ps1 -PackagePath "C:\releases\HSEQ_20260823-180056" -DryRun
+.\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_<نسخه>" -DryRun
 ```
 
 `-DryRun` هیچ تغییری اعمال نمی‌کند و فقط پیش‌نیازها را بررسی می‌کند. **همیشه اول این.**
 
-پس از سبز شدن همه‌ی بررسی‌ها:
+پیش‌فرض‌ها همان چیدمان مستقر است (سایت `HSEQTest`، پورت `2525`،
+`D:\HouzoriApps\HSEQTest` و `D:\HouzoriApps\HSEQTest-api`)، پس برای همین سرور
+پارامتر اضافه‌ای لازم نیست. برای سایت دیگری صریح بدهید:
 
 ```powershell
-.\Deploy-Production.ps1 -PackagePath "C:\releases\HSEQ_20260823-180056" -ApplySchema -SqlServer "<SQL-HOST>"
+.\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_<نسخه>" `
+    -SiteName 'HSEQTest' -Port 2525 `
+    -SitePath 'D:\HouzoriApps\HSEQTest' -ApiPath 'D:\HouzoriApps\HSEQTest-api' -DryRun
 ```
 
-بدون `-ApplySchema` دیتابیس اصلاً دست نمی‌خورد.
+پس از سبز شدن همه‌ی بررسی‌ها، همان فرمان بدون `-DryRun`:
+
+```powershell
+.\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_<نسخه>"
+```
+
+اسکریپت پیش از هر تغییری از هر دو پوشه‌ی مقصد پشتیبان می‌گیرد
+(`C:\ApplicationData\HSEQ\rollback\<timestamp>\`)، فایل‌های تازه را می‌نشاند،
+Application با مسیر `/api` را می‌سازد یا به‌روز می‌کند، فقط app pool همین سایت را
+ری‌سایکل می‌کند و در پایان آزمون‌های دود را اجرا می‌کند.
+
+مهاجرت دیتابیس گام جداگانه و اختیاری است؛ بدون `-ApplySchema` دیتابیس اصلاً دست
+نمی‌خورد:
+
+```powershell
+.\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_<نسخه>" -ApplySchema -SqlServer "<SQL-HOST>"
+```
+
+> ⚠ `-ApplySchema` ساختار دیتابیس عملیاتی را تغییر می‌دهد. اسکریپت اول پشتیبان
+> می‌گیرد، ولی پیش از اجرا خودتان هم مطمئن شوید پشتیبان تازه‌ای دارید — بازگشتِ
+> مهاجرت خودکار نیست.
 
 ### نام میزبان و HTTPS
 
@@ -349,10 +422,12 @@ header داشته باشند هشدار می‌دهد — در آن حالت ص�
 
 ## ۶. مسیرها
 
+چیدمان مستقرِ فعلی - همین‌ها پیش‌فرضِ `Deploy-Production.ps1` هستند:
+
 | مسیر | محتوا |
 |---|---|
-| `C:\Applications\HSEQ\current\frontend\` | فایل‌های استاتیک کلاینت |
-| `C:\Applications\HSEQ\current\api\` | بک‌اند + `appsettings.Production.json` |
+| `D:\HouzoriApps\HSEQTest\` | فایل‌های استاتیک کلاینت (ریشه‌ی سایت) |
+| `D:\HouzoriApps\HSEQTest-api\` | بک‌اند + `appsettings.Production.json` |
 | `C:\ApplicationData\HSEQ\Documents\` | **فایل مدارک** |
 | `C:\ApplicationData\HSEQ\logs\` | لاگِ stdout ماژول ASP.NET Core |
 | `C:\ApplicationData\HSEQ\DbBackups\` | پشتیبان‌های پیش از مهاجرت |
@@ -360,7 +435,10 @@ header داشته باشند هشدار می‌دهد — در آن حالت ص�
 
 داده‌های ماندگار عمداً **بیرون از پوشه‌ی نسخه** هستند تا استقرار بعدی پاکشان نکند.
 
-فقط `Documents\` و `logs\` دسترسی نوشتن می‌گیرند (`Modify` برای `IIS AppPool\HSEQ`).
+فقط `Documents\` و `logs\` دسترسی نوشتن می‌گیرند (`Modify` برای `IIS AppPool\HSEQTest`).
+
+پوشه‌ی بک‌اند **خواهرِ** پوشه‌ی سایت است، نه زیرمجموعه‌اش. اگر زیرش برود،
+`appsettings.Production.json` از راه وب قابل دانلود می‌شود.
 
 > **پشتیبان‌گیری:** فایل مدارک داخل دیتابیس نیست. پشتیبان SQL به‌تنهایی کافی نیست —
 > `C:\ApplicationData\HSEQ\Documents\` هم باید در برنامه‌ی پشتیبان‌گیری باشد.
