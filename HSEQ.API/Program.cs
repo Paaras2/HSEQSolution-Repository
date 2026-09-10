@@ -156,8 +156,30 @@ await using (var scope = app.Services.CreateAsyncScope())
     // شماره‌های قدیمی) و همه‌جا upsert است، پس اجرای دوباره‌اش بی‌خطر است.
     if (seedOnStartup)
     {
-        var seedService = scope.ServiceProvider.GetRequiredService<ISeedDatabase>();
-        await seedService.Seed();
+        // خطای دیتابیس اینجا نباید برنامه را بکشد.
+        //
+        // پیش از این، یک خطای اتصال در seed یک استثنای مدیریت‌نشده در مسیر راه‌اندازی
+        // بود و کل برنامه بالا نمی‌آمد. نتیجه‌اش برای کسی که استقرار می‌دهد: IIS خطای
+        // ۵۰۰ خام می‌داد، /api/Health هم جواب نمی‌داد چون برنامه‌ای وجود نداشت، و هیچ
+        // چیزی نمی‌گفت مشکل از دیتابیس است - مگر آنکه لاگ stdout از قبل روشن بوده باشد،
+        // که پیش‌فرض نیست. یعنی دقیقاً همان تنها راهنمایی که لازم بود، در دسترس نبود.
+        //
+        // با مهار خطا، برنامه بالا می‌آید و /api/Health پاسخ Unhealthy می‌دهد - یعنی
+        // همان تشخیصی که برای رفع مشکل لازم است، بدون هیچ پیکربندی اضافه.
+        // seed خودش upsert است، پس اجرای دوباره‌اش پس از رفع مشکل بی‌خطر است.
+        var startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
+                                        .CreateLogger("Startup.Seed");
+        try
+        {
+            var seedService = scope.ServiceProvider.GetRequiredService<ISeedDatabase>();
+            await seedService.Seed();
+        }
+        catch (Exception ex)
+        {
+            startupLogger.LogError(ex,
+                "نوشتن داده‌ی پایه هنگام راه‌اندازی شکست خورد. برنامه بالا می‌آید ولی " +
+                "تا وقتی دیتابیس در دسترس نباشد ناسالم است - وضعیتش را از /api/Health ببینید.");
+        }
     }
 
     // ورود اسناد سامانه‌ی قدیمی - فقط وقتی صریحاً از خط فرمان خواسته شود:
