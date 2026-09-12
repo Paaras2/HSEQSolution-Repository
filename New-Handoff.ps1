@@ -34,7 +34,16 @@
 param(
     [string]$PackagePath = '',
     [string]$OutputRoot = '',
-    [string]$ConfigFile = ''
+    [string]$ConfigFile = '',
+
+    # اجازه‌ی قرار گرفتن تنظیماتِ پرشده - با رمز و کلید - داخل خودِ بسته.
+    #
+    # پیش‌فرض این نیست، و دلیلش روشن است: آرشیو دست‌به‌دست می‌شود و هر رونوشتش آن
+    # دو مقدار را با خود می‌برد. ولی جدا نگه داشتنِ فایل هم خطای خودش را دارد -
+    # یک‌بار بسته به سرور رفت و فایل تنظیمات همراهش نبود، پس قالبِ پرنشده سر جایش
+    # ماند و برنامه بالا نیامد. هر دو حالت خطر دارد؛ این سوئیچ انتخاب را صریح
+    # می‌کند به‌جای اینکه یکی را بی‌صدا تحمیل کند.
+    [switch]$IncludeSecrets
 )
 
 $ErrorActionPreference = 'Stop'
@@ -182,10 +191,21 @@ Write-Step 'بازرسی: هیچ اسراری در تحویل نباشد'
 # آخرین سد پیش از بسته‌بندی. یک کلید امضا یا رمزِ جامانده در پوشه‌ی تحویل، از
 # لحظه‌ای که فایل دست کسی برسد لو رفته است.
 $findings = @()
+$secretsCarried = $false
 foreach ($f in Get-ChildItem $handoffDir -Recurse -File -Include '*.json', '*.config', '*.ps1', '*.txt', '*.md') {
     $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
     if (-not $content) { continue }
     $rel = $f.FullName.Substring($handoffDir.Length + 1)
+
+    # تنظیماتِ عملیاتی، فقط وقتی که صریحاً خواسته شده باشد.
+    #
+    # استثنا عمداً به *یک مسیر مشخص* محدود است، نه به نوع فایل: رمزی که جای دیگری
+    # جا مانده باشد - در یک اسکریپت، یک یادداشت، یا نسخه‌ی دومی از تنظیمات - هنوز
+    # همین‌جا گیر می‌افتد.
+    if ($IncludeSecrets -and $rel -eq 'Siteppsettings.Production.json') {
+        $secretsCarried = $true
+        continue
+    }
 
     # رمز داخل رشته‌ی اتصال - جای‌نگهدارِ <...> استثناست.
     if ($content -match '(?i)(password|pwd)\s*=\s*(?!<)[^";\s]+') { $findings += "رمز عبور در $rel" }
@@ -206,7 +226,12 @@ if ($findings.Count -gt 0) {
     foreach ($f in $findings) { Write-Warn $f }
     throw "بازرسی $($findings.Count) مورد پیدا کرد. تحویل ساخته نشد."
 }
-Write-Ok 'نه رمزی، نه کلیدی، نه فایل تنظیمات توسعه‌ای'
+if ($secretsCarried) {
+    Write-Warn 'این بسته تنظیماتِ پرشده را با خود دارد: رمز دیتابیس و کلید امضای JWT.'
+    Write-Warn 'ایمیلش نکنید، در پوشه‌ی اشتراکی نگذارید، و پس از استقرار پاکش کنید.'
+} else {
+    Write-Ok 'نه رمزی، نه کلیدی، نه فایل تنظیمات توسعه‌ای'
+}
 
 # ---------------------------------------------------------------------------
 Write-Step 'یادداشت انتشار'
@@ -297,6 +322,31 @@ Node / npm  : $($release.node) / $($release.npm)
 Set-Content -Path (Join-Path $handoffDir 'RELEASE-NOTES.txt') -Value $notes -Encoding UTF8
 Write-Ok 'RELEASE-NOTES.txt'
 
+# متن بخش «تنظیمات» بسته به اینکه فایل پرشده داخل بسته باشد یا نه فرق می‌کند.
+# گفتنِ «فایل را جداگانه بیاورید» وقتی فایل همان‌جاست، خودش گمراه‌کننده است.
+$configNote = if ($secretsCarried) {
+@'
+appsettings.Production.json کنار HSEQ.API.dll از قبل با مقادیر واقعی این سرور
+پر شده است. کاری لازم نیست.
+
+⚠ یعنی همین بسته رمز دیتابیس و کلید امضای JWT را با خود دارد. ایمیلش نکنید،
+  در پوشه‌ی اشتراکی نگذارید، و پس از استقرار نسخه‌های اضافه‌اش را پاک کنید.
+
+نکته: این فایل با استقرارهای بعدی حفظ می‌شود - اسکریپت پیش از کپی کنارش
+می‌گذارد و بعد برش می‌گرداند.
+'@
+} else {
+@'
+appsettings.Production.json کنار HSEQ.API.dll جای‌نگهدار دارد و باید پر شود،
+یا مقادیر را روی Application Pool به‌صورت متغیر محیطی بگذارید:
+
+    ConnectionStrings__DefaultConnection
+    Jwt__Key
+
+تا پر نشوند برنامه عمداً بالا نمی‌آید و در لاگ می‌گوید کدام کلید مانده.
+'@
+}
+
 # برگه‌ی کوتاهِ کپی، برای کسی که سراغ اسکریپت نمی‌رود و دستی کپی می‌کند.
 $copyGuide = @"
 $handoffName
@@ -345,15 +395,9 @@ $handoffName
   4) app pool را Recycle کنید.
 
 
-پیش از هر دو راه
+تنظیمات
 ----------------------------------------------------------------
-appsettings.Production.json کنار HSEQ.API.dll جای‌نگهدار دارد و باید پر شود،
-یا مقادیر را روی Application Pool به‌صورت متغیر محیطی بگذارید:
-
-    ConnectionStrings__DefaultConnection
-    Jwt__Key
-
-تا پر نشوند برنامه عمداً بالا نمی‌آید و در لاگ می‌گوید کدام کلید مانده.
+$configNote
 
 
 آزمون پس از استقرار

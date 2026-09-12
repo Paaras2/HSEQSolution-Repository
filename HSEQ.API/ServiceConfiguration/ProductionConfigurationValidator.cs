@@ -69,6 +69,17 @@ namespace HSEQ.API.ServiceConfiguration
                     errors.Add($"تنظیم '{key}' هنوز جای‌نگهدارِ قالب را دارد و پر نشده است.");
             }
 
+            // وقتی مشکل «قالبِ پرنشده» است، خواننده‌ی این پیام یک اپراتور وسط استقرار
+            // است، نه یک برنامه‌نویس. گفتنِ «جای‌نگهدار دارد» مسئله را توصیف می‌کند ولی
+            // نمی‌گوید چه باید کرد - و همان فاصله یک‌بار باعث شد استقرار متوقف بماند.
+            if (errors.Any(e => e.Contains("جای‌نگهدار")))
+            {
+                errors.Add(
+                    "→ فایل 'appsettings.Production.json' کنار HSEQ.API.dll هنوز همان قالب است. " +
+                    "نسخه‌ای که مقادیر واقعی این سرور را دارد جایگزینش کنید، سپس Application Pool " +
+                    "را Recycle کنید.");
+            }
+
             if (!int.TryParse(configuration["Jwt:ExpiryInMinutes"], out var expiry) || expiry <= 0)
                 errors.Add("تنظیم 'Jwt:ExpiryInMinutes' باید یک عدد صحیح مثبت باشد.");
 
