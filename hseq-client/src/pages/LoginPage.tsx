@@ -245,7 +245,7 @@ export function LoginPage() {
 
           {/* امضای سازنده - همان عبارتی که در پای منوی برنامه هم می‌آید */}
           <p className="login-panel__credit">
-            <span>طراحی و توسعه، فناوری اطلاعات، ارتباطات و حکم رانی داده</span>
+            <span>طراحی و توسعه، فناوری اطلاعات، ارتباطات و حکمرانی داده</span>
             <span className="login-panel__credit-version">نسخه {toPersianDigits('1.0')}</span>
           </p>
         </div>
