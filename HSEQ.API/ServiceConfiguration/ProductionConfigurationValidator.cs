@@ -113,6 +113,26 @@ namespace HSEQ.API.ServiceConfiguration
                 // تفاوتش با نبودِ بررسی این است که «اتفاقی» نمی‌شود - کسی باید عمداً
                 // این کلید را بنویسد، و نوشتنش در فایل تنظیمات ثبت می‌ماند.
                 var umUrl = configuration["UserManagementAPI:Url"] ?? string.Empty;
+
+                // شکل خودِ نشانی، پیش از هر چیز دیگر.
+                //
+                // یک اسلشِ جاافتاده - «http:/host» به‌جای «http://host» - یک نشانیِ
+                // نامعتبر می‌سازد. آن خطا در زمان *اولین تلاش ورود* پرتاب می‌شود، نه
+                // هنگام راه‌اندازی، و چون UriFormatException است نه HttpRequestException،
+                // از دستِ مهارِ «سرویس در دسترس نیست» هم رد می‌شود و به‌صورت خطای ۵۰۰
+                // به کاربر می‌رسد. یعنی یک کاراکتر، ورود همه را می‌شکند و پیامش هم هیچ
+                // اشاره‌ای به علت ندارد.
+                //
+                // اینجا همان اشتباه، هنگام بالا آمدن و با پیام صریح گرفته می‌شود.
+                if (!string.IsNullOrWhiteSpace(umUrl) &&
+                    (!Uri.TryCreate(umUrl, UriKind.Absolute, out var parsedUmUrl) ||
+                     (parsedUmUrl.Scheme != Uri.UriSchemeHttp && parsedUmUrl.Scheme != Uri.UriSchemeHttps)))
+                {
+                    errors.Add(
+                        "نشانی سرویس مدیریت کاربران یک URL معتبر http/https نیست. " +
+                        "شکل درست: http://<میزبان>:<پورت>/api/ - دو اسلش پس از ':' و یک اسلش در انتها.");
+                }
+
                 var umIsLoopback = umUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
                                    umUrl.Contains("127.0.0.1", StringComparison.Ordinal);
 

@@ -141,4 +141,39 @@ public class UserManagementOutageTests
     {
         ProductionConfigurationValidator.Validate(ProductionConfiguration(), Production);
     }
+
+    // -----------------------------------------------------------------------
+    // شکل نشانی
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// یک اسلشِ جاافتاده («http:/host») نشانی را نامعتبر می‌کند. آن خطا
+    /// UriFormatException است، نه HttpRequestException - پس از مهارِ «سرویس در
+    /// دسترس نیست» رد می‌شود و در *اولین تلاش ورود* به‌صورت ۵۰۰ ظاهر می‌گردد.
+    /// باید همان هنگام راه‌اندازی گرفته شود.
+    /// </summary>
+    [Theory]
+    [InlineData("http:/172.17.0.86:8030/api/")]   // یک اسلش جا افتاده
+    [InlineData("172.17.0.86:8030/api/")]         // بدون طرح
+    [InlineData("ftp://um.internal:8030/api/")]   // طرح نامربوط
+    [InlineData("فقط یک متن")]
+    public void A_malformed_user_management_url_is_refused_at_startup(string url)
+    {
+        var configuration = ProductionConfiguration(("UserManagementAPI:Url", url));
+
+        var error = Assert.Throws<InvalidOperationException>(
+            () => ProductionConfigurationValidator.Validate(configuration, Production));
+
+        Assert.Contains("URL معتبر", error.Message);
+    }
+
+    [Theory]
+    [InlineData("http://app2-SRV:8030/api/")]
+    [InlineData("http://172.17.0.86:8030/api/")]
+    [InlineData("https://um.odcc.ir/api/")]
+    public void A_well_formed_user_management_url_is_accepted(string url)
+    {
+        ProductionConfigurationValidator.Validate(
+            ProductionConfiguration(("UserManagementAPI:Url", url)), Production);
+    }
 }
