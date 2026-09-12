@@ -167,10 +167,10 @@ $null = New-Item -ItemType Directory -Path $deployDir -Force
 
 $scriptsDir = Join-Path $deployDir 'Scripts'
 $null = New-Item -ItemType Directory -Path $scriptsDir -Force
-foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1') {
+foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1', 'Show-StartupFailure.ps1') {
     Copy-Item (Join-Path $RepoRoot $s) $scriptsDir -Force
 }
-Write-Ok 'Deployment\Scripts\ (استقرار و عیب‌یابی)'
+Write-Ok 'Deployment\Scripts\ (استقرار، عیب‌یابی، شکست راه‌اندازی)'
 
 Copy-Item (Join-Path $PackagePath 'README-DEPLOY.md') $deployDir -Force
 Copy-Item $ConfigFile (Join-Path $deployDir 'appsettings.Production.template.json') -Force
@@ -232,7 +232,7 @@ Node / npm  : $($release.node) / $($release.npm)
   Site\wwwroot\                    کلاینت، که همین برنامه سرو می‌کند
   Database\migrations.sql          اسکریپت idempotent مهاجرت
   Deployment\README-DEPLOY.md      راهنمای کامل استقرار
-  Deployment\Scripts\              اسکریپت استقرار و عیب‌یابی
+  Deployment\Scripts\              استقرار، عیب‌یابی، و Show-StartupFailure برای خطای 500.30
   Deployment\appsettings.Production.template.json
                                    قالب تنظیمات (بدون هیچ مقدار واقعی)
   COPY-TO-SERVER.txt               خلاصه‌ی گام‌های کپی روی سرور
@@ -413,6 +413,7 @@ $handoffExtras = @(
     'Deployment\README-DEPLOY.md',
     'Deployment\Scripts\Deploy-Production.ps1',
     'Deployment\Scripts\Diagnose-Deployment.ps1',
+    'Deployment\Scripts\Show-StartupFailure.ps1',
     'Deployment\appsettings.Production.template.json',
     'Database\migrations.sql',
     'COPY-TO-SERVER.txt',
