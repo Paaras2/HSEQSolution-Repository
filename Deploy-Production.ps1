@@ -16,8 +16,8 @@
 
         <ریشه>\release.json
         <ریشه>\SHA256SUMS.txt
-        <ریشه>\Backend\HSEQ.API.dll      (تخت، نه یک لایه پایین‌تر)
-        <ریشه>\Frontend\index.html       (تخت، نه یک لایه پایین‌تر)
+        <ریشه>\Site\HSEQ.API.dll         (تخت، نه یک لایه پایین‌تر)
+        <ریشه>\Site\wwwroot\index.html   (کلاینت، که همین برنامه سرو می‌کند)
         <ریشه>\Database\migrations.sql   (فقط برای -ApplySchema)
 
     هم خروجی Publish-Production.ps1 و هم بسته‌ی New-Handoff.ps1 همین شکل را دارند.
@@ -30,10 +30,12 @@
     نام سایت IIS. اگر نباشد ساخته می‌شود.
 
 .PARAMETER SitePath
-    مسیر فیزیکی فایل‌های کلاینت.
+    مسیر فیزیکی سایت. کل برنامه اینجا می‌نشیند: DLLها، web.config، تنظیمات، و
+    wwwroot که فایل‌های کلاینت داخلش است.
 
-.PARAMETER ApiPath
-    مسیر فیزیکی بک‌اند. به‌صورت Application با مسیر /api زیر همان سایت ثبت می‌شود.
+    چیدمان تک‌سایتی است: هیچ Applicationی زیر /api ثبت نمی‌شود. اگر از استقرار
+    قبلی چنین Applicationی مانده باشد، این اسکریپت برش می‌دارد - وگرنه IIS
+    درخواست‌های /api/... را به آن می‌داد، نه به سایتی که تازه مستقر شده.
 
 .PARAMETER DataPath
     مسیر داده‌های ماندگار: فایل مدارک و لاگ‌ها. بیرون از پوشه‌ی نسخه.
@@ -91,7 +93,6 @@ param(
     # هر چهارتا همچنان پارامترند؛ برای سایت دیگری صریحاً مقدار بدهید.
     [string]$SiteName = 'HSEQTest',
     [string]$SitePath = 'D:\HouzoriApps\HSEQTest',
-    [string]$ApiPath = 'D:\HouzoriApps\HSEQTest-api',
     [string]$DataPath = 'C:\ApplicationData\HSEQ',
 
     # بایندینگ فعلیِ آزموده‌شده. پورت، نام میزبان و طرح (http/https) همگی پارامترند
@@ -157,32 +158,29 @@ $PackagePath = (Resolve-Path $PackagePath).Path
 #
 #   <ریشه>\release.json          فراداده‌ی نسخه
 #   <ریشه>\SHA256SUMS.txt        هش فایل‌ها، نسبت به همین ریشه
-#   <ریشه>\Backend\              محتویاتش مستقیماً کنار HSEQ.API.dll می‌نشیند
-#   <ریشه>\Frontend\             محتویاتش مستقیماً در ریشه‌ی سایت می‌نشیند
+#   <ریشه>\Site\                 محتویاتش مستقیماً در مسیر فیزیکی سایت می‌نشیند
+#   <ریشه>\Site\wwwroot\         فایل‌های کلاینت، که همین برنامه سرو می‌کند
 #   <ریشه>\Database\migrations.sql   فقط وقتی -ApplySchema داده شود
 $structureErrors = @()
 
 if (-not (Test-Path (Join-Path $PackagePath 'release.json'))) {
     $structureErrors += 'release.json در ریشه‌ی بسته نیست.'
 }
-if (-not (Test-Path (Join-Path $PackagePath 'Backend'))) {
-    $structureErrors += 'پوشه‌ی Backend\ در ریشه‌ی بسته نیست.'
-}
-if (-not (Test-Path (Join-Path $PackagePath 'Frontend'))) {
-    $structureErrors += 'پوشه‌ی Frontend\ در ریشه‌ی بسته نیست.'
+if (-not (Test-Path (Join-Path $PackagePath 'Site'))) {
+    $structureErrors += 'پوشه‌ی Site\ در ریشه‌ی بسته نیست.'
 }
 
 # بررسی «تخت بودن» - مهم‌ترین بررسی این بخش.
 #
-# کپی با الگوی Backend\* محتویات را یک لایه بالا می‌آورد. اگر فایل‌ها یک پوشه
-# پایین‌تر باشند (مثلاً Frontend\HSEQTest\index.html)، کپی *موفق* می‌شود ولی نتیجه
-# D:\HouzoriApps\HSEQTest\HSEQTest\index.html است: IIS خطای 403.14 می‌دهد و هیچ‌چیز
-# در لاگ نمی‌گوید علتش یک لایه پوشه‌ی اضافه بوده.
+# کپی با الگوی Site\* محتویات را یک لایه بالا می‌آورد. اگر فایل‌ها یک پوشه پایین‌تر
+# باشند، کپی *موفق* می‌شود ولی مقصد یک لایه‌ی اضافه پیدا می‌کند: IIS خطای 403.14
+# می‌دهد و هیچ‌چیز در لاگ نمی‌گوید علتش یک پوشه‌ی اضافه بوده.
 #
-# پس نبودِ این دو فایل در جای درست، همین‌جا و با پیام صریح متوقف می‌شود.
+# wwwroot\index.html هم بررسی می‌شود: در چیدمان تک‌سایتی، نبودنش یعنی کلاینت اصلاً
+# در بسته نیست و ریشه‌ی سایت ۴۰۴ می‌دهد.
 $flatnessChecks = @(
-    @{ Folder = 'Backend';  File = 'HSEQ.API.dll'; Role = 'بک‌اند' }
-    @{ Folder = 'Frontend'; File = 'index.html';   Role = 'کلاینت' }
+    @{ Folder = 'Site';         File = 'HSEQ.API.dll'; Role = 'برنامه' }
+    @{ Folder = 'Site\wwwroot'; File = 'index.html';   Role = 'کلاینت' }
 )
 foreach ($check in $flatnessChecks) {
     $folder = Join-Path $PackagePath $check.Folder
@@ -211,7 +209,7 @@ if ($structureErrors.Count -gt 0) {
 $releaseJsonPath = Join-Path $PackagePath 'release.json'
 $release = Get-Content $releaseJsonPath -Raw | ConvertFrom-Json
 Write-Ok "نسخه $($release.releaseId) / کامیت $($release.gitCommit.Substring(0,8))"
-Write-Ok 'ساختار بسته درست است (release.json، Backend\ و Frontend\ هر دو تخت)'
+Write-Ok 'ساختار بسته درست است (release.json در ریشه، Site\ و Site\wwwroot\ سر جایشان)'
 
 if ($release.gitDirty) {
     Write-Warn 'این بسته از درخت کاری تمیز ساخته نشده (PRODUCTION_RELEASE_BLOCKED_DIRTY_WORKTREE).'
@@ -350,11 +348,11 @@ if (-not $Hostname -and -not $HttpsCertThumbprint) {
 Write-Step 'بررسی تنظیمات عملیاتی'
 # ---------------------------------------------------------------------------
 # فایل تنظیمات عمداً جزو بسته نیست - روی سرور می‌ماند و با هر استقرار جایگزین نمی‌شود.
-$prodConfig = Join-Path $ApiPath 'appsettings.Production.json'
+$prodConfig = Join-Path $SitePath 'appsettings.Production.json'
 if (Test-Path $prodConfig) {
     Write-Ok 'appsettings.Production.json روی سرور موجود است و حفظ می‌شود'
 } else {
-    Write-Warn "appsettings.Production.json در $ApiPath نیست."
+    Write-Warn "appsettings.Production.json در $SitePath نیست."
     Write-Warn 'از Config\appsettings.Production.template.json کپی بگیرید و مقادیرش را پر کنید.'
     Write-Warn 'بدون آن برنامه با پیام صریح بالا نمی‌آید (اعتبارسنجی تنظیمات).'
 }
@@ -458,7 +456,7 @@ if ($DryRun) {
     Write-Host "  - ساخت/تأیید مسیر داده‌های ماندگار: $DataPath"
     if ($ApplySchema) { Write-Host "  - پشتیبان‌گیری از $DatabaseName سپس اجرای migrations.sql" }
     Write-Host "  - نسخه‌برداری از استقرار فعلی"
-    Write-Host "  - کپی Backend به $ApiPath و Frontend به $SitePath"
+    Write-Host "  - کپی محتویات Site\ به $SitePath (شامل wwwroot)"
     Write-Host "  - تنظیم سایت '$SiteName' و Application با مسیر /api"
     if ($Hostname) { Write-Host "  - بایندینگ http روی پورت $Port با host header '$Hostname'" }
     else            { Write-Host "  - بایندینگ http روی پورت $Port بدون host header" }
@@ -506,19 +504,15 @@ if ($ApplySchema) {
 Write-Step 'نسخه‌برداری از استقرار فعلی'
 # استقرار قبلی پاک نمی‌شود؛ کنار گذاشته می‌شود تا بازگشت سریع ممکن باشد.
 $rollbackRoot = Join-Path $DataPath ("rollback\{0}" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-foreach ($pair in @(@{ Src = $ApiPath; Name = 'api' }, @{ Src = $SitePath; Name = 'frontend' })) {
-    if (Test-Path $pair.Src) {
-        $dest = Join-Path $rollbackRoot $pair.Name
-        $null = New-Item -ItemType Directory -Path $dest -Force
-        Copy-Item -Path (Join-Path $pair.Src '*') -Destination $dest -Recurse -Force -ErrorAction SilentlyContinue
-    }
+if (Test-Path $SitePath) {
+    $dest = Join-Path $rollbackRoot 'site'
+    $null = New-Item -ItemType Directory -Path $dest -Force
+    Copy-Item -Path (Join-Path $SitePath '*') -Destination $dest -Recurse -Force -ErrorAction SilentlyContinue
 }
 if (Test-Path $rollbackRoot) { Write-Ok "نسخه‌ی قابل بازگشت: $rollbackRoot" } else { Write-Warn 'استقرار قبلی وجود نداشت.' }
 
 Write-Step 'کپی فایل‌های برنامه'
-foreach ($dir in @($ApiPath, $SitePath)) {
-    if (-not (Test-Path $dir)) { $null = New-Item -ItemType Directory -Path $dir -Force }
-}
+if (-not (Test-Path $SitePath)) { $null = New-Item -ItemType Directory -Path $SitePath -Force }
 
 # appsettings.Production.json روی سرور می‌ماند و با فایل‌های بسته جایگزین نمی‌شود.
 $preserved = @()
@@ -528,10 +522,13 @@ if (Test-Path $prodConfig) {
     $preserved += @{ Temp = $tmp; Target = $prodConfig }
 }
 
-Copy-Item -Path (Join-Path $PackagePath 'Backend\*') -Destination $ApiPath -Recurse -Force
-if (Test-Path (Join-Path $PackagePath 'Frontend')) {
-    Copy-Item -Path (Join-Path $PackagePath 'Frontend\*') -Destination $SitePath -Recurse -Force
-}
+# wwwroot قدیمی اول پاک می‌شود. Copy-Item فایل‌ها را روی هم می‌نویسد ولی چیزی را
+# حذف نمی‌کند، و نام فایل‌های کلاینت هش دارد: بدون این، دارایی‌های هر انتشار قبلی
+# تا ابد در wwwroot می‌مانند و پوشه بی‌سروصدا بزرگ می‌شود.
+$existingWebRoot = Join-Path $SitePath 'wwwroot'
+if (Test-Path $existingWebRoot) { Remove-Item $existingWebRoot -Recurse -Force }
+
+Copy-Item -Path (Join-Path $PackagePath 'Site\*') -Destination $SitePath -Recurse -Force
 
 foreach ($p in $preserved) {
     Copy-Item $p.Temp $p.Target -Force
@@ -574,15 +571,19 @@ if (-not $existingSite) {
     Write-Ok "سایت '$SiteName' به‌روزرسانی شد"
 }
 
-# بک‌اند به‌عنوان Application با مسیر /api زیر همان سایت - همان چیزی که باعث می‌شود
-# کلاینت با آدرس نسبی /api کار کند و به دامنه گره نخورد.
-$apiApp = Get-WebApplication -Site $SiteName -Name 'api' -ErrorAction SilentlyContinue
-if (-not $apiApp) {
-    $null = New-WebApplication -Site $SiteName -Name 'api' -PhysicalPath $ApiPath -ApplicationPool $SiteName
-    Write-Ok "Application با مسیر /api ساخته شد"
+# چیدمان تک‌سایتی: Application جداگانه‌ای زیر /api وجود ندارد. خودِ برنامه هم API
+# را سرو می‌کند و هم فایل‌های کلاینت را از wwwroot.
+#
+# اگر از استقرار قبلی چنین Applicationی مانده باشد، *باید* برداشته شود. IIS مسیر
+# را به دقیق‌ترین تطابق می‌دهد، پس تا وقتی /api ثبت است همه‌ی درخواست‌های /api/... به
+# آن Applicationِ قدیمی می‌روند - نه به سایتی که همین حالا مستقر شد. نتیجه‌اش
+# ورودِ شکست‌خورده با یک بک‌اندِ قدیمی است، بدون هیچ نشانه‌ای که بگوید چرا.
+$staleApiApp = Get-WebApplication -Site $SiteName -Name 'api' -ErrorAction SilentlyContinue
+if ($staleApiApp) {
+    Remove-WebApplication -Site $SiteName -Name 'api'
+    Write-Ok 'Application قدیمیِ /api برداشته شد (در چیدمان تک‌سایتی لازم نیست)'
 } else {
-    Set-ItemProperty "IIS:\Sites\$SiteName\api" -Name physicalPath -Value $ApiPath
-    Write-Ok "Application با مسیر /api به‌روزرسانی شد"
+    Write-Ok 'Application جداگانه‌ای زیر /api نیست - همان چیدمان تک‌سایتی'
 }
 
 # بایندینگ HTTPS فقط وقتی که اثر انگشت داده شده باشد. بدون آن هیچ بایندینگی دست

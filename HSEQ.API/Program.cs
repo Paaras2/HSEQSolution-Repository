@@ -132,6 +132,87 @@ if (!string.IsNullOrEmpty(apiPathBase))
     apiPathBase = apiPathBase.TrimEnd('/');
 }
 
+// ---------------------------------------------------------------------------
+// کلاینت و API روی یک سایت
+// ---------------------------------------------------------------------------
+// اگر فایل‌های build شده‌ی React در wwwroot باشند، همین برنامه آن‌ها را هم سرو
+// می‌کند. یعنی در IIS فقط *یک* سایت لازم است و دیگر خبری از Application جداگانه
+// زیر /api نیست.
+//
+// چرا این چیدمان بهتر است: پیشوند /api دیگر بین IIS و برنامه دست‌به‌دست نمی‌شود.
+// همه‌ی خرابی‌هایی که از همان تقسیم می‌آمدند - ۴۰۴ روی /api/Auth/login، جواب دادنِ
+// /api/api/...، فایل‌های کلاینت که یک لایه پایین‌تر می‌افتادند - در این حالت اصلاً
+// موضوعیت ندارند. CORS هم لازم نیست، چون مبدأ یکی است.
+//
+// تشخیص خودکار است: بودنِ wwwroot/index.html یعنی بسته کلاینت را با خود دارد.
+// همان باینری بدون آن فایل، دقیقاً مثل قبل فقط API است و می‌تواند زیر /api به‌عنوان
+// Application بنشیند. هیچ سوئیچی لازم نیست و هر دو چیدمان از یک بسته درمی‌آیند.
+var clientIndexPath = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "index.html");
+var servesClient = !string.IsNullOrEmpty(app.Environment.WebRootPath) && File.Exists(clientIndexPath);
+
+if (servesClient)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = context =>
+        {
+            // index.html هرگز کش نمی‌شود. نام فایل‌های دیگر هش دارد و با هر build
+            // عوض می‌شود، ولی نامِ index.html ثابت است - اگر مرورگر نسخه‌ی کش‌شده را
+            // نگه دارد، پس از استقرار همچنان به فایل‌های قدیمی ارجاع می‌دهد که دیگر
+            // وجود ندارند. نتیجه‌اش صفحه‌ی سفید است، برای کاربری که هیچ کاری نکرده.
+            var name = context.File.Name;
+            context.Context.Response.Headers.CacheControl =
+                name.Equals("index.html", StringComparison.OrdinalIgnoreCase)
+                    ? "no-cache, no-store, must-revalidate"
+                    : "public, max-age=31536000, immutable";
+        }
+    });
+
+    // بازگشتِ مسیرهای سمت کلاینت.
+    //
+    // مسیرهای React Router (/documents، /admin، /documents/42/revisions) روی دیسک
+    // فایلی ندارند. بدون این، رفرش کردن یا باز کردن مستقیمِ لینک ۴۰۴ می‌گرفت.
+    //
+    // سه شرط - همان سه شرطی که در چیدمان دو-سایتی داخل web.config بودند:
+    //
+    //   ۱) زیر پیشوند API نباشد. مسیر ناموجودِ API باید ۴۰۴ بماند، نه اینکه صفحه‌ی
+    //      HTML بگیرد؛ وگرنه کلاینتی که منتظر JSON است متن index.html را پارس
+    //      می‌کند و خطایی می‌دهد که هیچ ربطی به علت واقعی ندارد.
+    //   ۲) فقط GET. یک POST به مسیر اشتباه باید ۴۰۴ بگیرد، نه صفحه.
+    //   ۳) پسوند نداشته باشد. «/assets/index-abc123.js» که پیدا نشده یعنی فایل
+    //      واقعاً غایب است - آن هم باید ۴۰۴ بگیرد تا خرابی دیده شود، نه اینکه
+    //      بی‌سروصدا HTML تحویل بدهد.
+    //
+    // جای این میان‌افزار عمدی است: *بعد* از فایل‌های استاتیک، پس فایل واقعی همیشه
+    // برنده است؛ و *پیش* از UsePathBase، پس مسیر را دست‌نخورده و با پیشوند می‌بیند.
+    app.Use(async (context, next) =>
+    {
+        var path = context.Request.Path;
+        var isApiPath = !string.IsNullOrEmpty(apiPathBase) && path.StartsWithSegments(apiPathBase);
+
+        if (!isApiPath
+            && HttpMethods.IsGet(context.Request.Method)
+            && !Path.HasExtension(path.Value))
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+            await context.Response.SendFileAsync(clientIndexPath);
+            return;
+        }
+
+        await next(context);
+    });
+}
+
+// در لاگ راه‌اندازی صریح گفته می‌شود کدام چیدمان فعال است. بدون این، تشخیص اینکه
+// «چرا ریشه‌ی سایت ۴۰۴ می‌دهد» به حدس زدن ختم می‌شد.
+app.Logger.LogInformation(
+    servesClient
+        ? "چیدمان تک‌سایتی: کلاینت از wwwroot سرو می‌شود و API زیر {PathBase}."
+        : "چیدمان فقط-API: wwwroot/index.html نیست، پس کلاینت جای دیگری سرو می‌شود. API زیر {PathBase}.",
+    string.IsNullOrEmpty(apiPathBase) ? "/" : apiPathBase);
+
 if (!string.IsNullOrEmpty(apiPathBase))
 {
     app.UseWhen(

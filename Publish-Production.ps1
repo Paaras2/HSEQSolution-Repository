@@ -138,7 +138,7 @@ Write-Step 'پاک‌سازی پوشه‌ی نسخه'
 # فقط پوشه‌ی همین نسخه - نسخه‌های قبلی دست نمی‌خورند و هیچ wildcard‌ای اینجا نیست.
 if (Test-Path $ReleaseDir) { Remove-Item $ReleaseDir -Recurse -Force }
 $null = New-Item -ItemType Directory -Path $ReleaseDir -Force
-foreach ($sub in 'Backend', 'Frontend', 'Database', 'Scripts', 'Config') {
+foreach ($sub in 'Site', 'Database', 'Scripts', 'Config') {
     $null = New-Item -ItemType Directory -Path (Join-Path $ReleaseDir $sub) -Force
 }
 Write-Ok $ReleaseDir
@@ -169,17 +169,20 @@ if ($testProjects.Count -eq 0) {
 # ---------------------------------------------------------------------------
 Write-Step 'publish بک‌اند (Release)'
 # ---------------------------------------------------------------------------
-$backendOut = Join-Path $ReleaseDir 'Backend'
+# یک پوشه برای کل سایت: برنامه‌ی ASP.NET Core که فایل‌های کلاینت را هم از wwwroot
+# سرو می‌کند. در IIS همین یک پوشه می‌شود مسیر فیزیکی سایت و دیگر Application
+# جداگانه‌ای زیر /api لازم نیست.
+$siteOut = Join-Path $ReleaseDir 'Site'
 Invoke-Checked -Command 'dotnet' -Arguments @(
     'publish', $ApiProject,
     '-c', 'Release',
-    '-o', $backendOut,
+    '-o', $siteOut,
     '--nologo'
 ) -What 'dotnet publish'
 
 # appsettings.Development.json نباید داخل بسته برود: تنظیمات محلی است و رشته‌ی اتصال
 # ماشین توسعه‌دهنده را همراه خودش می‌برد.
-Get-ChildItem -Path $backendOut -Filter 'appsettings.Development.json' -ErrorAction SilentlyContinue |
+Get-ChildItem -Path $siteOut -Filter 'appsettings.Development.json' -ErrorAction SilentlyContinue |
     Remove-Item -Force
 
 # appsettings.json پایه همیشه همراه برنامه منتشر می‌شود و مقادیر توسعه‌ی داخلش
@@ -191,7 +194,7 @@ Get-ChildItem -Path $backendOut -Filter 'appsettings.Development.json' -ErrorAct
 #
 # جایگزینی روی متن خام انجام می‌شود نه با تبدیل JSON، چون این فایل کامنت دارد و
 # رفت‌وبرگشت JSON کامنت‌ها و قالب‌بندی‌اش را از بین می‌برد.
-$packagedSettings = Join-Path $backendOut 'appsettings.json'
+$packagedSettings = Join-Path $siteOut 'appsettings.json'
 if (Test-Path $packagedSettings) {
     $raw = Get-Content $packagedSettings -Raw
     $before = $raw
@@ -205,7 +208,7 @@ if (Test-Path $packagedSettings) {
     }
 }
 
-Write-Ok "بک‌اند در Backend\ ($((Get-ChildItem $backendOut -Recurse -File).Count) فایل)"
+Write-Ok "بک‌اند در Site\ ($((Get-ChildItem $siteOut -Recurse -File).Count) فایل)"
 
 # ---------------------------------------------------------------------------
 Write-Step 'build کلاینت'
@@ -234,8 +237,20 @@ if ($SkipFrontend) {
     $distDir = Join-Path $ClientDir 'dist'
     if (-not (Test-Path $distDir)) { throw 'build کلاینت خروجی dist نساخت.' }
 
-    Copy-Item -Path (Join-Path $distDir '*') -Destination (Join-Path $ReleaseDir 'Frontend') -Recurse -Force
-    Write-Ok "کلاینت در Frontend\ ($((Get-ChildItem (Join-Path $ReleaseDir 'Frontend') -Recurse -File).Count) فایل)"
+    # کلاینت داخل wwwroot می‌نشیند، یعنی همان برنامه سرو‌اش می‌کند. wwwroot تنها
+    # پوشه‌ای است که از راه وب خوانده می‌شود؛ DLLها و appsettings کنارش می‌مانند و
+    # بیرون از دسترس وب.
+    $webRoot = Join-Path $siteOut 'wwwroot'
+    if (Test-Path $webRoot) { Remove-Item $webRoot -Recurse -Force }
+    $null = New-Item -ItemType Directory -Path $webRoot -Force
+
+    # web.config مخصوصِ چیدمان دو-سایتیِ قبلی است (بازنویسی SPA و سند پیش‌فرض). در
+    # چیدمان تک‌سایتی همه‌ی آن کارها را خودِ برنامه انجام می‌دهد، و ماندنش داخل
+    # wwwroot فقط یک فایل گیج‌کننده‌ی قابل دانلود است.
+    Copy-Item -Path (Join-Path $distDir '*') -Destination $webRoot -Recurse -Force
+    Remove-Item (Join-Path $webRoot 'web.config') -Force -ErrorAction SilentlyContinue
+
+    Write-Ok "کلاینت در Site\wwwroot\ ($((Get-ChildItem $webRoot -Recurse -File).Count) فایل)"
 }
 
 # ---------------------------------------------------------------------------
@@ -292,7 +307,7 @@ Write-Step 'بازرسی بسته از نظر نشانی محلی و اسرار'
 $leakFindings = @()
 
 # نشانی‌های توسعه داخل خروجی build کلاینت
-$frontendDir = Join-Path $ReleaseDir 'Frontend'
+$frontendDir = Join-Path $siteOut 'wwwroot'
 if (Test-Path $frontendDir) {
     $hits = @(Get-ChildItem $frontendDir -Recurse -File -Include '*.js', '*.css', '*.html' |
         Select-String -Pattern 'localhost:\d+', '127\.0\.0\.1' -ErrorAction SilentlyContinue)
@@ -300,7 +315,7 @@ if (Test-Path $frontendDir) {
 }
 
 # تنظیمات توسعه یا کلید لو رفته داخل بسته‌ی بک‌اند
-$backendSettings = @(Get-ChildItem $backendOut -Filter 'appsettings*.json' -ErrorAction SilentlyContinue)
+$backendSettings = @(Get-ChildItem $siteOut -Filter 'appsettings*.json' -ErrorAction SilentlyContinue)
 foreach ($f in $backendSettings) {
     if ($f.Name -like '*Development*') { $leakFindings += "فایل تنظیمات توسعه در بسته: $($f.Name)" }
 
@@ -330,8 +345,8 @@ Write-Ok 'نشانی محلی یا فایل تنظیمات توسعه‌ای د�
 # ---------------------------------------------------------------------------
 Write-Step 'تولید release.json'
 # ---------------------------------------------------------------------------
-$components = @('Backend')
-if (-not $SkipFrontend) { $components += 'Frontend' }
+$components = @('Site')
+if (-not $SkipFrontend) { $components += 'Site\wwwroot' }
 if (-not $SkipDatabase) { $components += 'Database' }
 $components += 'Scripts'
 
@@ -374,12 +389,12 @@ Write-Ok "$($lines.Count) فایل هش شد"
 Write-Step 'اعتبارسنجی ساختار بسته'
 # ---------------------------------------------------------------------------
 $expected = @(
-    'Backend\HSEQ.API.dll',
-    'Backend\web.config',
+    'Site\HSEQ.API.dll',
+    'Site\web.config',
     'release.json',
     'SHA256SUMS.txt'
 )
-if (-not $SkipFrontend) { $expected += 'Frontend\index.html' }
+if (-not $SkipFrontend) { $expected += 'Site\wwwroot\index.html' }
 if (-not $SkipDatabase) { $expected += 'Database\migrations.sql' }
 
 $missing = @()

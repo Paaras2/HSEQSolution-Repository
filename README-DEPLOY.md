@@ -6,25 +6,37 @@
 
 ## ۱. چیدمان
 
-سامانه از دو بخش تشکیل شده که روی **یک سایت IIS و یک مبدأ** سرو می‌شوند:
+سامانه روی **یک سایت IIS، یک پوشه و یک مبدأ** سرو می‌شود:
 
 ```
-https://hseq.odcc.local/            →  فایل‌های استاتیک React   (Frontend\)
-https://hseq.odcc.local/api/...     →  ASP.NET Core Web API     (Backend\)
+http://<HOST>:<PORT>/            →  فایل‌های استاتیک React   (wwwroot\)
+http://<HOST>:<PORT>/api/...     →  ASP.NET Core Web API
 ```
 
-بک‌اند به‌صورت یک **Application** با مسیر `/api` زیر همان سایت ثبت می‌شود.
+هر دو را **یک برنامه‌ی ASP.NET Core** سرو می‌کند. فایل‌های build شده‌ی React داخل
+`wwwroot\` همان برنامه می‌نشینند. **هیچ Applicationی زیر `/api` ثبت نمی‌شود.**
 
 **چیدمانی که واقعاً مستقر است** - هر نام و مسیر دقیقاً همین است:
 
 | مورد | مقدار |
 |---|---|
 | IIS Site | `HSEQTest` |
-| Application Pool | `HSEQTest` (برای سایت **و** Application، هر دو) |
-| مسیر فیزیکی سایت (کلاینت) | `D:\HouzoriApps\HSEQTest` |
-| مسیر Application بک‌اند | `/api` |
-| مسیر فیزیکی بک‌اند | `D:\HouzoriApps\HSEQTest-api` |
+| Application Pool | `HSEQTest` — .NET CLR Version = **No Managed Code** |
+| مسیر فیزیکی سایت | `D:\HouzoriApps\HSEQTest` |
+| کلاینت | `D:\HouzoriApps\HSEQTest\wwwroot\` |
+| Application زیر `/api` | **ندارد** |
 | بایندینگ آزموده‌شده | `http://172.17.0.254:2525` |
+
+> ### اگر از چیدمان دو-پوشه‌ای مهاجرت می‌کنید
+>
+> اگر سایت از قبل یک Application با مسیر `/api` دارد (اشاره به
+> `D:\HouzoriApps\HSEQTest-api`)، **باید برداشته شود**. IIS مسیر را به دقیق‌ترین
+> تطابق می‌دهد، پس تا وقتی `/api` ثبت است همه‌ی درخواست‌های `/api/...` به آن
+> Applicationِ قدیمی می‌روند — نه به سایتی که تازه مستقر شده. نتیجه‌اش ورودِ
+> شکست‌خورده با یک بک‌اند قدیمی است، بدون هیچ نشانه‌ای که بگوید چرا.
+>
+> `Deploy-Production.ps1` خودش این کار را می‌کند و در `-DryRun` هم اعلامش می‌کند.
+> پوشه‌ی `D:\HouzoriApps\HSEQTest-api` دست‌نخورده می‌ماند و می‌توانید بعداً پاکش کنید.
 
 بایندینگ فقط مقدارِ *آزموده‌شده*ی امروز است، نه فرضِ کد: طرح، نام میزبان و پورت
 همگی پارامترِ `Deploy-Production.ps1` هستند (`-Port`، `-Hostname`،
@@ -43,8 +55,12 @@ https://hseq.odcc.local/api/...     →  ASP.NET Core Web API     (Backend\)
 >
 > | چیدمان | چه کسی پیشوند را می‌گذارد | برنامه چه می‌بیند |
 > |---|---|---|
-> | IIS، بک‌اند به‌عنوان Application با مسیر `/api` | خودِ IIS | `PathBase=/api` و `Path=/Auth/login` |
-> | Kestrel (توسعه، یا `dotnet HSEQ.API.dll`) | خودِ برنامه، با `UsePathBase` | همان |
+> | **تک‌سایتی (فعلی)** | خودِ برنامه، با `UsePathBase` | `PathBase=/api` و `Path=/Auth/login` |
+> | Application با مسیر `/api` (چیدمان قدیمی) | خودِ IIS | همان |
+>
+> در چیدمان تک‌سایتی، IIS اصلاً پیشوند را نمی‌بیند و برنامه خودش آن را برمی‌دارد.
+> همین باعث می‌شود کل دسته‌ی خرابی‌هایی که از تقسیم این مسئولیت می‌آمد، موضوعیت
+> نداشته باشد.
 >
 > برنامه فقط وقتی `UsePathBase` را اعمال می‌کند که میزبان `PathBase` نگذاشته باشد.
 > همین شرط باعث می‌شود مسیر دوتایی `/api/api/...` **۴۰۴** بگیرد و جزو API عمومی
@@ -105,7 +121,7 @@ https://hseq.odcc.local/api/...     →  ASP.NET Core Web API     (Backend\)
 |---|---|
 | IIS | با نقش Web Server |
 | **ASP.NET Core 10 Hosting Bundle** | ماژول `AspNetCoreModuleV2` را نصب می‌کند |
-| **URL Rewrite Module** | بدون آن رفرش روی `/documents` خطای ۴۰۴ می‌دهد |
+| ~~URL Rewrite Module~~ | **دیگر لازم نیست.** در چیدمان تک‌سایتی، بازگشتِ مسیرهای کلاینت را خودِ برنامه انجام می‌دهد. |
 | SQL Server | دسترسی از سرور IIS روی پورت ۱۴۳۳ |
 | دسترسی به سرویس UM | پورت خروجی ۸۰۳۰ به `172.17.0.254` |
 
@@ -128,8 +144,8 @@ https://hseq.odcc.local/api/...     →  ASP.NET Core Web API     (Backend\)
 خروجی: `artifacts\HSEQ_<yyyyMMdd-HHmmss>\`
 
 ```
-Backend\      خروجی dotnet publish (Release) + web.config
-Frontend\     فایل‌های استاتیک کلاینت + web.config مخصوص مسیریابی SPA
+Site\         خروجی dotnet publish (Release) + web.config
+Site\wwwroot\ فایل‌های build شده‌ی کلاینت
 Database\     migrations.sql — اسکریپت idempotent
 Scripts\      Deploy-Production.ps1
 Config\       appsettings.Production.template.json
@@ -146,20 +162,20 @@ SHA256SUMS.txt
 HSEQ_IIS_Release_<yyyyMMdd_HHmmss>\
 ├── release.json          ← ریشه. Deploy-Production.ps1 اینجا دنبالش می‌گردد.
 ├── SHA256SUMS.txt        ← ریشه. مسیرها نسبت به همین ریشه.
-├── Backend\              ← تخت: HSEQ.API.dll مستقیماً اینجاست
-├── Frontend\             ← تخت: index.html مستقیماً اینجاست
+├── Site\                 ← کل سایت: HSEQ.API.dll، web.config، تنظیمات
+│   └── wwwroot\          ← کلاینت، که همین برنامه سرو می‌کند
 ├── Database\migrations.sql
 ├── Deployment\
-│   ├── Scripts\          Deploy / Diagnose / New-ServerLayout
+│   ├── Scripts\          Deploy-Production / Diagnose-Deployment
 │   ├── README-DEPLOY.md
 │   └── appsettings.Production.template.json
 ├── COPY-TO-SERVER.txt
 └── RELEASE-NOTES.txt
 ```
 
-> ### چرا «تخت» بودنِ `Backend\` و `Frontend\` مهم است
+> ### چرا «تخت» بودنِ `Site\` مهم است
 >
-> اسکریپت استقرار با الگوی `Backend\*` کپی می‌کند، یعنی *محتویات* را یک لایه بالا
+> اسکریپت استقرار با الگوی `Site\*` کپی می‌کند، یعنی *محتویات* را یک لایه بالا
 > می‌آورد. اگر فایل‌ها یک پوشه پایین‌تر باشند (مثلاً `Frontend\HSEQTest\index.html`)،
 > کپی **موفق می‌شود** ولی مقصد `D:\HouzoriApps\HSEQTest\HSEQTest\index.html` می‌شود:
 > IIS خطای **403.14** می‌دهد و هیچ‌چیز در لاگ نمی‌گوید علتش یک لایه پوشه‌ی اضافه بوده.
@@ -314,7 +330,7 @@ Get-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
   -Name value
 
 # و در web.config بک‌اند
-Select-String -Path 'D:\HouzoriApps\HSEQTest-api\web.config' -Pattern 'ASPNETCORE_ENVIRONMENT'
+Select-String -Path 'D:\HouzoriApps\HSEQTest\web.config' -Pattern 'ASPNETCORE_ENVIRONMENT'
 ```
 
 خروجی خالی برای هر دو یعنی درست است. آزمون سریع از بیرون: `/api/swagger` باید
@@ -365,13 +381,13 @@ $b = [byte[]]::new(48)
 `-DryRun` هیچ تغییری اعمال نمی‌کند و فقط پیش‌نیازها را بررسی می‌کند. **همیشه اول این.**
 
 پیش‌فرض‌ها همان چیدمان مستقر است (سایت `HSEQTest`، پورت `2525`،
-`D:\HouzoriApps\HSEQTest` و `D:\HouzoriApps\HSEQTest-api`)، پس برای همین سرور
-پارامتر اضافه‌ای لازم نیست. برای سایت دیگری صریح بدهید:
+`D:\HouzoriApps\HSEQTest`)، پس برای همین سرور پارامتر اضافه‌ای لازم نیست. برای
+سایت دیگری صریح بدهید:
 
 ```powershell
 .\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_<نسخه>" `
     -SiteName 'HSEQTest' -Port 2525 `
-    -SitePath 'D:\HouzoriApps\HSEQTest' -ApiPath 'D:\HouzoriApps\HSEQTest-api' -DryRun
+    -SitePath 'D:\HouzoriApps\HSEQTest' -DryRun
 ```
 
 پس از سبز شدن همه‌ی بررسی‌ها، همان فرمان بدون `-DryRun`:
@@ -380,10 +396,10 @@ $b = [byte[]]::new(48)
 .\Deploy-Production.ps1 -PackagePath "D:\releases\HSEQ_<نسخه>"
 ```
 
-اسکریپت پیش از هر تغییری از هر دو پوشه‌ی مقصد پشتیبان می‌گیرد
-(`C:\ApplicationData\HSEQ\rollback\<timestamp>\`)، فایل‌های تازه را می‌نشاند،
-Application با مسیر `/api` را می‌سازد یا به‌روز می‌کند، فقط app pool همین سایت را
-ری‌سایکل می‌کند و در پایان آزمون‌های دود را اجرا می‌کند.
+اسکریپت پیش از هر تغییری از پوشه‌ی مقصد پشتیبان می‌گیرد
+(`C:\ApplicationData\HSEQ\rollback\<timestamp>\`)، `wwwroot\` قدیمی را پاک و
+فایل‌های تازه را می‌نشاند، Applicationِ قدیمیِ `/api` را در صورت وجود برمی‌دارد،
+فقط app pool همین سایت را ری‌سایکل می‌کند و در پایان آزمون‌های دود را اجرا می‌کند.
 
 مهاجرت دیتابیس گام جداگانه و اختیاری است؛ بدون `-ApplySchema` دیتابیس اصلاً دست
 نمی‌خورد:
@@ -432,7 +448,7 @@ Get-ChildItem Cert:\LocalMachine\My | Format-List Subject, Thumbprint, NotAfter
 ```powershell
 .\Deploy-Production.ps1 -PackagePath "C:\releases\HSEQ_20260908-090337" `
     -SiteName "HSEQTest" -Port 2525 `
-    -SitePath "D:\HouzoriApps\HSEQTest" -ApiPath "D:\HouzoriApps\HSEQTest-api" -DryRun
+    -SitePath "D:\HouzoriApps\HSEQTest" -DryRun
 ```
 
 اگر سایت موجود باشد ولی هیچ بایندینگی روی آن پورت نداشته باشد، اسکریپت بایندینگ‌های
@@ -472,8 +488,8 @@ header داشته باشند هشدار می‌دهد — در آن حالت ص�
 
 | مسیر | محتوا |
 |---|---|
-| `D:\HouzoriApps\HSEQTest\` | فایل‌های استاتیک کلاینت (ریشه‌ی سایت) |
-| `D:\HouzoriApps\HSEQTest-api\` | بک‌اند + `appsettings.Production.json` |
+| `D:\HouzoriApps\HSEQTest\` | کل برنامه: DLLها، `web.config`، `appsettings.Production.json` |
+| `D:\HouzoriApps\HSEQTest\wwwroot\` | فایل‌های کلاینت — **تنها پوشه‌ای که از راه وب خوانده می‌شود** |
 | `C:\ApplicationData\HSEQ\Documents\` | **فایل مدارک** |
 | `C:\ApplicationData\HSEQ\logs\` | لاگِ stdout ماژول ASP.NET Core |
 | `C:\ApplicationData\HSEQ\DbBackups\` | پشتیبان‌های پیش از مهاجرت |
@@ -483,8 +499,9 @@ header داشته باشند هشدار می‌دهد — در آن حالت ص�
 
 فقط `Documents\` و `logs\` دسترسی نوشتن می‌گیرند (`Modify` برای `IIS AppPool\HSEQTest`).
 
-پوشه‌ی بک‌اند **خواهرِ** پوشه‌ی سایت است، نه زیرمجموعه‌اش. اگر زیرش برود،
-`appsettings.Production.json` از راه وب قابل دانلود می‌شود.
+`appsettings.Production.json` بیرون از `wwwroot\` است، پس از راه وب قابل دانلود
+نیست: ماژول ASP.NET Core همه‌ی درخواست‌ها را به برنامه می‌دهد و برنامه فقط
+`wwwroot\` را سرو می‌کند. این با آزمون بسته شده (`SingleSiteHostingTests`).
 
 > **پشتیبان‌گیری:** فایل مدارک داخل دیتابیس نیست. پشتیبان SQL به‌تنهایی کافی نیست —
 > `C:\ApplicationData\HSEQ\Documents\` هم باید در برنامه‌ی پشتیبان‌گیری باشد.
@@ -495,8 +512,48 @@ header داشته باشند هشدار می‌دهد — در آن حالت ص�
 تنظیم می‌کند — عمداً بیرون از پوشه‌ی برنامه، چون لاگِ عیب‌یابی دقیقاً بعد از یک
 استقرارِ خراب لازم می‌شود و نباید با استقرار بعدی پاک شود.
 
-پیش‌فرض `stdoutLogEnabled="false"` است: این لاگ چرخش ندارد و روشن ماندنش دیسک را پر
-می‌کند. برای عیب‌یابی موقتاً `true` کنید، مشکل را پیدا کنید و دوباره `false` کنید.
+**در این انتشار `stdoutLogEnabled="true"` است** — عمداً، برای عیب‌یابی استقرار.
+
+> ⚠ **این را پس از تثبیت خاموش کنید.** لاگ stdout چرخش (rotation) ندارد: هر بار
+> که برنامه بالا می‌آید یک فایل تازه ساخته می‌شود و هیچ‌کدام هرگز پاک نمی‌شوند. روی
+> سروری که ماه‌ها بالا می‌ماند این یعنی پر شدن تدریجی دیسک — و پر شدن دیسک خودش
+> کل سایت را می‌خواباند.
+>
+> برای خاموش کردن، در `D:\HouzoriApps\HSEQTest\web.config`:
+>
+> ```xml
+> stdoutLogEnabled="false"
+> ```
+>
+> سپس app pool را Recycle کنید و فایل‌های قدیمی `C:\ApplicationData\HSEQ\logs\`
+> را پاک کنید.
+
+سطح لاگِ خودِ برنامه از `Logging:LogLevel` در `appsettings.Production.json` کنترل
+می‌شود. در این انتشار روی `Information` است تا مسیر درخواست‌ها دیده شود؛ پس از
+تثبیت به `Warning` برگردانید:
+
+```json
+"Logging": { "LogLevel": { "Default": "Warning", "Microsoft.AspNetCore": "Warning" } }
+```
+
+`Microsoft.EntityFrameworkCore.Database.Command` عمداً روی `Warning` مانده: در سطح
+`Information` متنِ کامل هر کوئری SQL را در لاگ می‌نویسد.
+
+**خواندن لاگ روی سرور:**
+
+```powershell
+Get-ChildItem C:\ApplicationData\HSEQ\logs\ | Sort-Object LastWriteTime -Descending | Select-Object -First 5
+Get-Content C:\ApplicationData\HSEQ\logs\stdout_*.log -Tail 100
+```
+
+خطِ اول لاگ می‌گوید کدام چیدمان فعال است:
+
+```
+چیدمان تک‌سایتی: کلاینت از wwwroot سرو می‌شود و API زیر /api.
+```
+
+اگر به‌جایش «چیدمان فقط-API» نوشته شده بود، یعنی `wwwroot\index.html` در پوشه‌ی
+سایت نیست و ریشه‌ی سایت چیزی برای نمایش ندارد.
 
 خطاهای مدیریت‌نشده‌ی سرور (۵۰۰) از طریق `ILogger` ثبت می‌شوند؛ به کاربر فقط پیام
 عمومی برمی‌گردد و جزئیات بیرون نمی‌رود.
@@ -538,7 +595,8 @@ Seed خودکار داده‌ی پایه‌ی دامنه را می‌نویسد:
 | **`<BASE>/api/api/Health`** | **۴۰۴** — اگر پاسخ بدهد، بسته‌ای قدیمی‌تر از اصلاحِ مالکیتِ پیشوند مستقر شده و ورود کار نخواهد کرد |
 | **`POST <BASE>/api/Auth/login`** (بدنه‌ی خالی) | **۴۰۰**، نه ۴۰۴ و نه ۵۰۰ — یعنی مسیر ورود به اکشن می‌رسد |
 | `<BASE>/api/MasterData/projects` | ۴۰۱ (یعنی احراز هویت فعال است) |
-| `<BASE>/documents` با رفرش | صفحه بیاید، نه ۴۰۴ ← تأیید URL Rewrite |
+| `<BASE>/documents` با رفرش | صفحه بیاید، نه ۴۰۴ ← تأیید بازگشتِ مسیرهای کلاینت |
+| `<BASE>/appsettings.Production.json` | ۴۰۴ ← فایل تنظیمات از راه وب خوانده نمی‌شود |
 | `<BASE>/swagger` و `<BASE>/api/swagger` | ۴۰۴ ← مستندات در عملیاتی بسته است |
 | `POST <BASE>/api/Auth/dev-login` | ۴۰۴ ← میان‌برِ توسعه در عملیاتی وجود ندارد |
 | ورود با کد پرسنلی واقعی | تأیید دسترسی به سرویس UM |

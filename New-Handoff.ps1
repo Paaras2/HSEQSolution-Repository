@@ -3,8 +3,7 @@
     ساخت پوشه‌ی تحویل از یک بسته‌ی انتشارِ ساخته‌شده - بیرون از artifacts\.
 
 .DESCRIPTION
-    Publish-Production.ps1 بسته را می‌سازد و New-ServerLayout.ps1 آن را به شکلی که
-    روی سرور روی دیسک می‌نشیند می‌چیند. این اسکریپت گام آخر است: هر دو خروجی را
+    Publish-Production.ps1 بسته را می‌سازد. این اسکریپت گام آخر است: همان خروجی را
     کنار مستندات، اسکریپت‌ها و قالب تنظیمات در یک پوشه‌ی تاریخ‌دار جمع می‌کند و یک
     آرشیو انتقال از آن می‌سازد.
 
@@ -121,33 +120,20 @@ $null = New-Item -ItemType Directory -Path $handoffDir -Force
 
 # ساختار بسته - همان شکلی که Deploy-Production.ps1 مصرف می‌کند.
 #
-# این نکته یک‌بار به‌سختی آموخته شد: بسته‌ی تحویل قبلاً شکل دیگری داشت
-# (Frontend\HSEQTest\ و Backend\HSEQTest-api\، با release.json زیر Deployment\).
-# آن شکل برای «کپیِ دستی روی دیسک» ساخته شده بود، ولی همان بسته اسکریپت استقرار را
-# هم با خودش می‌برد - اسکریپتی که شکل دیگری انتظار داشت. اجرای
-# «Deploy-Production.ps1 -PackagePath <ریشه‌ی بسته>» روی آن شکست می‌خورد.
-#
-# بدتر از پیام خطا، چیزی بود که پشتش پنهان می‌ماند: حتی با جابه‌جا کردن release.json
-# هم «Copy-Item Frontend\*» پوشه‌ی HSEQTest را دست‌نخورده منتقل می‌کرد و مقصد
-# D:\HouzoriApps\HSEQTest\HSEQTest\index.html می‌شد - یعنی خطای 403.14 روی سایت،
-# بدون هیچ نشانه‌ای در لاگ.
-#
-# حالا یک شکل بیشتر وجود ندارد: Backend\ و Frontend\ تخت‌اند و release.json در
-# ریشه است. هم اسکریپت استقرار مستقیم رویش کار می‌کند و هم کپیِ دستی.
-$frontendDir = Join-Path $handoffDir 'Frontend'
-$backendDir  = Join-Path $handoffDir 'Backend'
-$null = New-Item -ItemType Directory -Path $frontendDir -Force
-$null = New-Item -ItemType Directory -Path $backendDir -Force
-
-Copy-Item -Path (Join-Path $PackagePath 'Backend\*')  -Destination $backendDir  -Recurse -Force
-Copy-Item -Path (Join-Path $PackagePath 'Frontend\*') -Destination $frontendDir -Recurse -Force
+# یک پوشه برای کل سایت: برنامه‌ی ASP.NET Core که فایل‌های کلاینت را هم از wwwroot
+# سرو می‌کند. در IIS فقط یک سایت لازم است و Application جداگانه‌ای زیر /api نیست -
+# پس پیشوند /api دیگر بین IIS و برنامه دست‌به‌دست نمی‌شود و کل دسته خرابی‌هایی که
+# از همان تقسیم می‌آمد اصلاً موضوعیت ندارد.
+$siteDir = Join-Path $handoffDir 'Site'
+$null = New-Item -ItemType Directory -Path $siteDir -Force
+Copy-Item -Path (Join-Path $PackagePath 'Site\*') -Destination $siteDir -Recurse -Force
 
 # فراداده‌ی نسخه در ریشه - جایی که Deploy-Production.ps1 دنبالش می‌گردد.
 Copy-Item (Join-Path $PackagePath 'release.json') $handoffDir -Force
 
 # قالب تنظیمات کنار HSEQ.API.dll می‌نشیند تا اپراتور دنبالش نگردد. جای‌نگهدار دارد
 # و برنامه تا پر نشدنش عمداً بالا نمی‌آید.
-Copy-Item $ConfigFile (Join-Path $backendDir 'appsettings.Production.json') -Force
+Copy-Item $ConfigFile (Join-Path $siteDir 'appsettings.Production.json') -Force
 
 if (Test-Path (Join-Path $PackagePath 'Database\migrations.sql')) {
     $dbDir = Join-Path $handoffDir 'Database'
@@ -155,28 +141,22 @@ if (Test-Path (Join-Path $PackagePath 'Database\migrations.sql')) {
     Copy-Item (Join-Path $PackagePath 'Database\migrations.sql') $dbDir -Force
 }
 
-# نشانه‌ی نسخه در هر دو پوشه. بدون این، روی سرور هیچ راهی نیست که بفهمید کدام نسخه
-# کجا نشسته - و کلاینتِ جدید کنار بک‌اندِ قدیمی به شکل‌هایی خراب می‌شود که علتشان
-# پیدا نیست.
+# نشانه‌ی نسخه، تا روی سرور معلوم باشد کدام انتشار نشسته است.
 $stamp = @"
 $($release.releaseId)
 کامیت : $($release.gitCommit.Substring(0,8))
 شاخه  : $($release.gitBranch)
 ساخت  : $($release.buildTimestampLocal)
-
-اگر عدد بالا در پوشه‌ی کلاینت و پوشه‌ی بک‌اند یکی نباشد، آن دو از یک انتشار نیستند.
 "@
-foreach ($target in @($frontendDir, $backendDir)) {
-    Set-Content -Path (Join-Path $target 'RELEASE.txt') -Value $stamp -Encoding UTF8
-}
+Set-Content -Path (Join-Path $siteDir 'RELEASE.txt') -Value $stamp -Encoding UTF8
 
-foreach ($expected in 'Frontend\index.html', 'Backend\HSEQ.API.dll', 'release.json') {
+foreach ($expected in 'Site\HSEQ.API.dll', 'Site\wwwroot\index.html', 'release.json') {
     if (-not (Test-Path (Join-Path $handoffDir $expected))) {
         throw "بسته ناقص است - $expected ساخته نشد."
     }
 }
-Write-Ok 'Frontend\  (تخت: index.html در ریشه‌اش)'
-Write-Ok 'Backend\   (تخت: HSEQ.API.dll در ریشه‌اش)'
+Write-Ok 'Site\           (برنامه: HSEQ.API.dll، web.config، تنظیمات)'
+Write-Ok 'Site\wwwroot\   (کلاینت، که همین برنامه سرو می‌کند)'
 Write-Ok 'release.json در ریشه‌ی بسته'
 
 # ---------------------------------------------------------------------------
@@ -187,10 +167,10 @@ $null = New-Item -ItemType Directory -Path $deployDir -Force
 
 $scriptsDir = Join-Path $deployDir 'Scripts'
 $null = New-Item -ItemType Directory -Path $scriptsDir -Force
-foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1', 'New-ServerLayout.ps1') {
+foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1') {
     Copy-Item (Join-Path $RepoRoot $s) $scriptsDir -Force
 }
-Write-Ok 'Deployment\Scripts\ (استقرار، عیب‌یابی، چیدمان)'
+Write-Ok 'Deployment\Scripts\ (استقرار و عیب‌یابی)'
 
 Copy-Item (Join-Path $PackagePath 'README-DEPLOY.md') $deployDir -Force
 Copy-Item $ConfigFile (Join-Path $deployDir 'appsettings.Production.template.json') -Force
@@ -248,18 +228,20 @@ Node / npm  : $($release.node) / $($release.npm)
 
   release.json                     فراداده‌ی نسخه (ریشه - اسکریپت استقرار اینجا می‌گردد)
   SHA256SUMS.txt                   هش همه‌ی فایل‌ها، نسبت به همین ریشه
-  Backend\                         محتویاتش →  D:\HouzoriApps\HSEQTest-api
-  Frontend\                        محتویاتش →  D:\HouzoriApps\HSEQTest
+  Site\                            محتویاتش →  D:\HouzoriApps\HSEQTest
+  Site\wwwroot\                    کلاینت، که همین برنامه سرو می‌کند
   Database\migrations.sql          اسکریپت idempotent مهاجرت
   Deployment\README-DEPLOY.md      راهنمای کامل استقرار
-  Deployment\Scripts\              اسکریپت استقرار، عیب‌یابی و چیدمان
+  Deployment\Scripts\              اسکریپت استقرار و عیب‌یابی
   Deployment\appsettings.Production.template.json
                                    قالب تنظیمات (بدون هیچ مقدار واقعی)
   COPY-TO-SERVER.txt               خلاصه‌ی گام‌های کپی روی سرور
 
-توجه: Backend\ و Frontend\ «تخت» هستند - HSEQ.API.dll و index.html مستقیماً در
-ریشه‌ی خودشان‌اند. *محتویات* هر پوشه را کپی کنید، نه خودِ پوشه را؛ وگرنه مقصد یک
-لایه اضافه پیدا می‌کند و IIS خطای 403.14 می‌دهد.
+چیدمان تک‌سایتی: فقط *یک* سایت در IIS، بدون Application جداگانه زیر /api. همان
+برنامه هم API را سرو می‌کند و هم فایل‌های کلاینت را از wwwroot.
+
+*محتویات* Site\ را کپی کنید، نه خودِ پوشه را؛ وگرنه مقصد یک لایه اضافه پیدا
+می‌کند و IIS خطای 403.14 می‌دهد.
 
 ----------------------------------------------------------------
 استقرار خودکار (توصیه‌شده)
@@ -287,9 +269,11 @@ Node / npm  : $($release.node) / $($release.npm)
 
 چیدمان لازم در IIS:
 
-  Site        : HSEQTest         →  D:\HouzoriApps\HSEQTest
-  Application : /api             →  D:\HouzoriApps\HSEQTest-api
-  App pool    : HSEQTest (No Managed Code) - برای هر دو
+  Site     : HSEQTest   →  D:\HouzoriApps\HSEQTest
+  App pool : HSEQTest (No Managed Code)
+
+  هیچ Applicationی زیر /api ثبت نمی‌شود. اگر از استقرار قبلی مانده باشد، اسکریپت
+  استقرار برش می‌دارد - وگرنه IIS درخواست‌های /api/... را به آن قدیمی می‌داد.
 
 ----------------------------------------------------------------
 پیش از استقرار
@@ -335,17 +319,16 @@ $handoffName
 ----------------------------------------------------------------
 *محتویات* هر پوشه را کپی کنید، نه خودِ پوشه را:
 
-  محتویات Frontend\   →  D:\HouzoriApps\HSEQTest
-  محتویات Backend\    →  D:\HouzoriApps\HSEQTest-api
+  محتویات Site\   →  D:\HouzoriApps\HSEQTest
 
-درست:  D:\HouzoriApps\HSEQTest\index.html
-غلط :  D:\HouzoriApps\HSEQTest\Frontend\index.html   ← خطای 403.14
+درست:  D:\HouzoriApps\HSEQTest\HSEQ.API.dll
+       D:\HouzoriApps\HSEQTest\wwwroot\index.html
+غلط :  D:\HouzoriApps\HSEQTest\Site\HSEQ.API.dll   ← خطای 403.14
 
 سپس:
 
   1) دسترسی خواندن برای IIS:
-     icacls "D:\HouzoriApps\HSEQTest"     /grant "IIS_IUSRS:(OI)(CI)RX" /T
-     icacls "D:\HouzoriApps\HSEQTest-api" /grant "IIS_IUSRS:(OI)(CI)RX" /T
+     icacls "D:\HouzoriApps\HSEQTest" /grant "IIS_IUSRS:(OI)(CI)RX" /T
 
   2) مسیر مدارک و لاگ، با دسترسی نوشتن برای app pool:
      mkdir C:\ApplicationData\HSEQ\Documents
@@ -355,11 +338,9 @@ $handoffName
 
   3) در IIS Manager:
      - مسیر فیزیکی سایت HSEQTest  →  D:\HouzoriApps\HSEQTest
-     - راست‌کلیک روی سایت → Add Application
-         Alias           : api
-         Physical path   : D:\HouzoriApps\HSEQTest-api
-         Application pool: HSEQTest
      - app pool → Basic Settings → .NET CLR Version = No Managed Code
+     - اگر Applicationی با نام api زیر سایت هست، حذفش کنید. در این چیدمان
+       لازم نیست و درخواست‌های /api/... را از سایت می‌دزدد.
 
   4) app pool را Recycle کنید.
 
