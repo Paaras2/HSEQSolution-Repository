@@ -30,7 +30,37 @@ builder.Services.AddControllers();
 builder.Services.AddApplicationLayerServices()
                 .AddServiceLayerServices()
                 .AddDomainLayerServices(configuration);
-builder.Services.AddScoped<IUMService, UmService>();
+// ---------------------------------------------------------------------------
+// از کجا اعتبار کاربر سنجیده شود
+// ---------------------------------------------------------------------------
+//   "Api"       سرویس HTTP سامانه‌ی مدیریت کاربران - پیش‌فرض، و همان چیزی که
+//               منطق احراز هویت را در یک جا نگه می‌دارد.
+//   "Database"  خواندن مستقیم از دیتابیس UM روی همان SQL Server، با همان
+//               اعتبارنامه‌ی دیتابیس اصلی.
+//
+// حالت Database برای وقتی است که سرویس HTTP از سرور برنامه در دسترس نباشد.
+// عمداً پیش‌فرض نیست: منطق راستی‌آزمایی رمز آن‌وقت در دو جا وجود دارد و هر قاعده‌ای
+// که سامانه‌ی UM بعداً اضافه کند (قفل حساب، انقضای رمز، OTP) در این مسیر نیست.
+var umSource = configuration.GetValue("UserManagement:Source", "Api");
+
+builder.Services.AddScoped<UmPasswordVerifier>();
+
+if (string.Equals(umSource, "Database", StringComparison.OrdinalIgnoreCase))
+{
+    var umConnectionString = UmConnectionString.Build(
+        configuration["ConnectionStrings:DefaultConnection"],
+        configuration.GetValue("UserManagement:Database", "UserManagement"),
+        configuration["ConnectionStrings:UserManagement"]);
+
+    builder.Services.AddScoped<IUMService>(provider => new UmDatabaseService(
+        umConnectionString,
+        provider.GetRequiredService<UmPasswordVerifier>(),
+        provider.GetRequiredService<ILogger<UmDatabaseService>>()));
+}
+else
+{
+    builder.Services.AddScoped<IUMService, UmService>();
+}
 
 // مهلتِ تماس با سرویس مدیریت کاربران.
 //
@@ -42,7 +72,12 @@ builder.Services.AddScoped<IUMService, UmService>();
 // واقعاً کند است، از همین کلید بالا ببرید.
 var umTimeout = TimeSpan.FromSeconds(configuration.GetValue("UserManagementAPI:TimeoutSeconds", 10));
 
-builder.Services.AddHttpClient<IUMService, UmService>(client => client.Timeout = umTimeout);
+// فقط در حالت Api. در حالت Database این ثبت، IUMService را دوباره به UmService
+// برمی‌گرداند (آخرین ثبت برنده است) و تنظیمات را بی‌سروصدا بی‌اثر می‌کند.
+if (!string.Equals(umSource, "Database", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<IUMService, UmService>(client => client.Timeout = umTimeout);
+}
 
 // تنظیمات Authentication
 builder.Services.AddAuthentication(options =>
