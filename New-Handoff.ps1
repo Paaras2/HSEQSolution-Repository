@@ -182,7 +182,11 @@ foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1', 'Show-Startup
 Write-Ok 'Deployment\Scripts\ (استقرار، عیب‌یابی، شکست راه‌اندازی)'
 
 Copy-Item (Join-Path $PackagePath 'README-DEPLOY.md') $deployDir -Force
-Copy-Item $ConfigFile (Join-Path $deployDir 'appsettings.Production.template.json') -Force
+# همیشه از قالبِ داخل بسته، نه از $ConfigFile: وقتی $ConfigFile مقادیر واقعی
+# دارد، کپی کردنش زیر نام «template» یک نسخه‌ی دومِ رمز می‌سازد - جایی که
+# هیچ‌کس دنبال رمز نمی‌گردد.
+Copy-Item (Join-Path $PackagePath 'Config\appsettings.Production.template.json') `
+          (Join-Path $deployDir 'appsettings.Production.template.json') -Force
 Write-Ok 'Deployment\ (راهنمای استقرار، قالب تنظیمات)'
 
 # ---------------------------------------------------------------------------
@@ -202,7 +206,7 @@ foreach ($f in Get-ChildItem $handoffDir -Recurse -File -Include '*.json', '*.co
     # استثنا عمداً به *یک مسیر مشخص* محدود است، نه به نوع فایل: رمزی که جای دیگری
     # جا مانده باشد - در یک اسکریپت، یک یادداشت، یا نسخه‌ی دومی از تنظیمات - هنوز
     # همین‌جا گیر می‌افتد.
-    if ($IncludeSecrets -and $rel -eq 'Siteppsettings.Production.json') {
+    if ($IncludeSecrets -and $rel -eq (Join-Path 'Site' 'appsettings.Production.json')) {
         $secretsCarried = $true
         continue
     }
