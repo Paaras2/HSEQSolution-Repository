@@ -91,11 +91,13 @@ if ($iisOk) {
         Write-Fail 'AspNetCoreModuleV2 نیست - بک‌اند اصلاً بالا نمی‌آید.' `
                    'ASP.NET Core 10 Hosting Bundle را نصب کنید، سپس IIS را ری‌استارت کنید (iisreset).'
     }
+    # در چیدمان تک‌سایتی، بازگشتِ مسیرهای کلاینت را خودِ برنامه انجام می‌دهد، پس
+    # URL Rewrite دیگر پیش‌نیاز نیست. اعلامش به‌عنوان خطا، اپراتور را دنبال نصب
+    # ماژولی می‌فرستاد که هیچ نقشی ندارد.
     if ($globalModules | Where-Object { $_.Name -eq 'RewriteModule' }) {
-        Write-Ok 'URL Rewrite نصب است'
+        Write-Info 'URL Rewrite نصب است (در چیدمان تک‌سایتی لازم نیست، ولی ضرری هم ندارد)'
     } else {
-        Write-Fail 'URL Rewrite نیست - رفرش روی مسیرهای داخلی برنامه ۴۰۴ می‌دهد.' `
-                   'URL Rewrite Module را نصب کنید.'
+        Write-Info 'URL Rewrite نصب نیست - در چیدمان تک‌سایتی لازم هم نیست.'
     }
 }
 
@@ -157,29 +159,39 @@ if ($site) {
         Write-Fail "مسیر فیزیکی سایت وجود ندارد: $sitePath" `
                    "پوشه را بسازید و محتویات Frontend\ بسته را داخلش بریزید."
     } else {
-        $indexPath = Join-Path $sitePath 'index.html'
-        if (Test-Path $indexPath) {
-            Write-Ok 'index.html موجود است'
+        # چیدمان تک‌سایتی: برنامه در ریشه، کلاینت داخل wwwroot. نبودِ wwwroot یعنی
+        # فقط بخشی از بسته کپی شده و ریشه‌ی سایت چیزی برای نمایش ندارد.
+        if (Test-Path (Join-Path $sitePath 'HSEQ.API.dll')) {
+            Write-Ok 'HSEQ.API.dll در ریشه‌ی سایت است'
         } else {
-            Write-Fail 'index.html در مسیر سایت نیست - همین باعث خطای 403.14 می‌شود.' `
-                       "محتویات (نه خودِ پوشه) Frontend\ بسته را در $sitePath کپی کنید."
+            Write-Fail 'HSEQ.API.dll در مسیر سایت نیست.' `
+                       "محتویات (نه خودِ پوشه) Site\ بسته را در $sitePath کپی کنید."
+        }
+
+        $indexPath = Join-Path $sitePath 'wwwroot\index.html'
+        if (Test-Path $indexPath) {
+            Write-Ok 'wwwroot\index.html موجود است'
+        } else {
+            Write-Fail 'wwwroot\index.html نیست - ریشه‌ی سایت چیزی برای نمایش ندارد.' `
+                       "پوشه‌ی wwwroot را هم از Site\ بسته کپی کنید؛ کلاینت داخل آن است."
         }
 
         $webConfigPath = Join-Path $sitePath 'web.config'
         if (Test-Path $webConfigPath) {
             $wc = Get-Content $webConfigPath -Raw
-            if ($wc -match 'rewrite') {
-                Write-Ok 'web.config با قوانین rewrite موجود است'
+            if ($wc -match 'aspNetCore') {
+                Write-Ok 'web.config با تنظیمات ASP.NET Core موجود است'
             } else {
-                Write-Warn 'web.config هست ولی قانون rewrite ندارد - رفرش روی مسیرهای داخلی ۴۰۴ می‌دهد.'
+                Write-Fail 'web.config هست ولی بخش aspNetCore ندارد.' `
+                           'web.config درست را از Site\ بسته کپی کنید.'
             }
         } else {
-            Write-Fail 'web.config در مسیر سایت نیست.' `
-                       "web.config را هم از Frontend\ بسته کپی کنید (مسیریابی SPA به آن وابسته است)."
+            Write-Fail 'web.config در مسیر سایت نیست - IIS نمی‌داند برنامه را چطور اجرا کند.' `
+                       "web.config را هم از Site\ بسته کپی کنید."
         }
 
-        if (Test-Path (Join-Path $sitePath 'assets')) { Write-Ok 'پوشه‌ی assets موجود است' }
-        else { Write-Warn 'پوشه‌ی assets نیست - صفحه بدون CSS و JS بالا می‌آید.' }
+        if (Test-Path (Join-Path $sitePath 'wwwrootssets')) { Write-Ok 'wwwrootssets موجود است' }
+        else { Write-Warn 'wwwrootssets نیست - صفحه بدون CSS و JS بالا می‌آید.' }
 
         # فایل‌های بک‌اند نباید داخل پوشه‌ی کلاینت باشند: از راه وب قابل دانلودند.
         if (Test-Path (Join-Path $sitePath 'HSEQ.API.dll')) {
@@ -190,28 +202,23 @@ if ($site) {
 }
 
 # ---------------------------------------------------------------------------
-Write-Step 'Application با مسیر /api'
+Write-Step 'Application زیر مسیر /api - نباید وجود داشته باشد'
 # ---------------------------------------------------------------------------
-$apiPath = ''
+# چیدمان تک‌سایتی: همان یک برنامه هم API را سرو می‌کند و هم کلاینت را از wwwroot.
+# Applicationی زیر /api لازم نیست، و اگر از استقرار قبلی مانده باشد *مضر* است:
+# IIS مسیر را به دقیق‌ترین تطابق می‌دهد، پس همه‌ی درخواست‌های /api/... به آن
+# Applicationِ قدیمی می‌روند - نه به سایتی که تازه مستقر شده. نتیجه‌اش ورودِ
+# شکست‌خورده با یک بک‌اند قدیمی است، بدون هیچ نشانه‌ای که بگوید چرا.
 $apiApp = $null
 if ($site) {
     $apiApp = Get-WebApplication -Site $SiteName | Where-Object { $_.path -eq '/api' }
-    if (-not $apiApp) {
-        Write-Fail 'Application با مسیر /api ثبت نشده - همه‌ی فراخوان‌های کلاینت ۴۰۴ می‌گیرند.' `
-                   "New-WebApplication -Site '$SiteName' -Name 'api' -PhysicalPath '<مسیر بک‌اند>' -ApplicationPool '<app pool>'"
+    if ($apiApp) {
+        $stalePath = $apiApp.PhysicalPath -replace '%SystemDrive%', $env:SystemDrive
+        Write-Fail "Applicationی با مسیر /api هنوز ثبت است (→ $stalePath) - درخواست‌های API را از سایت می‌دزدد." `
+                   "Remove-WebApplication -Site '$SiteName' -Name 'api'   سپس app pool را Recycle کنید."
+        Write-Info 'این مانده‌ی چیدمان دو-پوشه‌ای قبلی است. پوشه‌اش دست‌نخورده می‌ماند.'
     } else {
-        $apiPath = $apiApp.PhysicalPath -replace '%SystemDrive%', $env:SystemDrive
-        Write-Ok "ثبت شده - مسیر: $apiPath"
-
-        if (-not (Test-Path $apiPath)) {
-            Write-Fail "مسیر بک‌اند وجود ندارد: $apiPath" "محتویات Backend\ بسته را در این مسیر کپی کنید."
-        } else {
-            if (Test-Path (Join-Path $apiPath 'HSEQ.API.dll')) { Write-Ok 'HSEQ.API.dll موجود است' }
-            else { Write-Fail 'HSEQ.API.dll در مسیر بک‌اند نیست.' "محتویات Backend\ بسته را در $apiPath کپی کنید." }
-
-            if (Test-Path (Join-Path $apiPath 'web.config')) { Write-Ok 'web.config بک‌اند موجود است' }
-            else { Write-Fail 'web.config بک‌اند نیست - بدون آن AspNetCoreModule برنامه را اجرا نمی‌کند.' "web.config را از Backend\ بسته کپی کنید." }
-        }
+        Write-Ok 'Applicationی زیر /api نیست - همان چیدمان تک‌سایتیِ درست'
     }
 }
 
@@ -253,11 +260,11 @@ Write-Step 'فایل تنظیمات عملیاتی'
 # ---------------------------------------------------------------------------
 $config = $null
 $connectionString = ''
-if ($apiPath -and (Test-Path $apiPath)) {
-    $cfgPath = Join-Path $apiPath 'appsettings.Production.json'
+if ($sitePath -and (Test-Path $sitePath)) {
+    $cfgPath = Join-Path $sitePath 'appsettings.Production.json'
     if (-not (Test-Path $cfgPath)) {
         Write-Fail "appsettings.Production.json کنار HSEQ.API.dll نیست - برنامه بالا نمی‌آید." `
-                   "فایل تنظیمات را در $apiPath بگذارید."
+                   "فایل تنظیمات را در $sitePath بگذارید (کنار HSEQ.API.dll)."
     } else {
         Write-Ok 'فایل موجود است'
         try {
@@ -461,15 +468,62 @@ if ($config -and $config.PSObject.Properties.Name -contains 'UserManagementAPI')
     if ($umUrl -match '<[^>]+>') {
         Write-Warn 'نشانی UM هنوز جای‌نگهدار دارد.'
     } else {
+        # سه لایه، جدا از هم. «نمی‌رسیم» به‌تنهایی کافی نیست: نامی که حل نمی‌شود،
+        # پورتی که بسته است، و سرویسی که بالا نیامده سه کار کاملاً متفاوت لازم
+        # دارند، و تشخیصشان از روی یک پیامِ واحد ممکن نیست.
         try {
             $uri = [Uri]$umUrl
             $umPort = if ($uri.Port -gt 0) { $uri.Port } else { 80 }
-            $tcp = Test-NetConnection -ComputerName $uri.Host -Port $umPort -WarningAction SilentlyContinue
-            if ($tcp.TcpTestSucceeded) {
-                Write-Ok "سرویس UM در دسترس است ($($uri.Host):$umPort)"
+
+            # ۱) نام
+            $addresses = @()
+            if ($uri.HostNameType -eq [UriHostNameType]::Dns) {
+                try {
+                    $addresses = @([System.Net.Dns]::GetHostAddresses($uri.Host) |
+                                   Where-Object { $_.AddressFamily -eq 'InterNetwork' } |
+                                   ForEach-Object { $_.IPAddressToString })
+                    if ($addresses.Count -gt 0) {
+                        Write-Ok "نام '$($uri.Host)' حل شد → $($addresses -join ', ')"
+                    } else {
+                        Write-Fail "نام '$($uri.Host)' به هیچ نشانی IPv4 حل نشد." `
+                                   'رکورد DNS یا فایل hosts سرور را بررسی کنید.'
+                    }
+                } catch {
+                    Write-Fail "نام '$($uri.Host)' حل نشد - سرویس اصلاً پیدا نمی‌شود." `
+                               "DNS سرور، یا یک سطر در C:\Windows\System32\drivers\etc\hosts."
+                }
             } else {
-                Write-Fail "به سرویس UM نمی‌رسیم ($($uri.Host):$umPort) - هیچ کاربری نمی‌تواند وارد شود." `
-                           'قوانین فایروال خروجی و در دسترس بودن سرویس UM را بررسی کنید.'
+                $addresses = @($uri.Host)
+                Write-Info "نشانی مستقیم IP: $($uri.Host) (بدون نیاز به DNS)"
+            }
+
+            # ۲) اتصال TCP
+            if ($addresses.Count -gt 0) {
+                $tcp = Test-NetConnection -ComputerName $uri.Host -Port $umPort -WarningAction SilentlyContinue
+                if ($tcp.TcpTestSucceeded) {
+                    Write-Ok "پورت $umPort روی $($uri.Host) باز است"
+
+                    # ۳) خودِ سرویس - پورت باز بودن یعنی چیزی گوش می‌دهد، نه اینکه
+                    # همان چیزی است که انتظار داریم.
+                    try {
+                        $probe = Invoke-WebRequest -Uri ($umUrl.TrimEnd('/') + '/Auth/checkCredential') `
+                                    -Method POST -ContentType 'application/json' -Body '{}' `
+                                    -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+                        Write-Ok "سرویس UM پاسخ داد (کد $([int]$probe.StatusCode))"
+                    } catch {
+                        if ($_.Exception.PSObject.Properties.Name -contains 'Response' -and $_.Exception.Response) {
+                            # هر کد وضعیتی یعنی سرویس زنده است و حرف می‌زند.
+                            Write-Ok "سرویس UM پاسخ داد (کد $([int]$_.Exception.Response.StatusCode)) - زنده است"
+                        } else {
+                            Write-Fail "پورت باز است ولی سرویس UM پاسخ HTTP نداد." `
+                                       'شاید سرویس دیگری روی این پورت گوش می‌دهد.'
+                        }
+                    }
+                } else {
+                    Write-Fail "پورت $umPort روی $($uri.Host) بسته است - هیچ کاربری نمی‌تواند وارد شود." `
+                               "روی $($uri.Host): سرویس UM بالا باشد و روی همه‌ی رابط‌ها گوش بدهد (نه فقط 127.0.0.1)، و فایروالِ ورودیِ پورت $umPort باز باشد."
+                    Write-Info 'نام حل شد ولی اتصال برقرار نشد - یعنی مشکل شبکه است، نه تنظیمات برنامه.'
+                }
             }
         } catch {
             Write-Warn "بررسی UM ممکن نشد: $($_.Exception.Message)"
@@ -515,7 +569,7 @@ if ($testUrls.Count -eq 0) {
         switch ($healthStatus) {
             200     { Write-Ok   "  /api/Health  →  ۲۰۰ - برنامه و دیتابیس هر دو سالم" }
             503     { Write-Fail "  /api/Health  →  ۵۰۳ - برنامه بالاست ولی به دیتابیس نمی‌رسد." 'رشته‌ی اتصال و دسترسی هویت Application Pool به SQL را بررسی کنید.' }
-            404     { Write-Fail "  /api/Health  →  ۴۰۴ - Application با مسیر /api ثبت نشده یا بک‌اند بالا نیامده." "Application با مسیر /api را بسازید و فایل‌های Backend\ را در مسیرش بگذارید." }
+            404     { Write-Fail "  /api/Health  →  ۴۰۴ - برنامه بالا نیامده یا فایل‌هایش کامل کپی نشده." "محتویات Site\ بسته را در مسیر سایت بگذارید و app pool را Recycle کنید." }
             500     { Write-Fail "  /api/Health  →  ۵۰۰ - برنامه بالا نیامد (به احتمال زیاد تنظیمات)." 'لاگ stdout را روشن کنید - پایین توضیح داده شده.' }
             0       { Write-Fail "  /api/Health  →  اتصال برقرار نشد." }
             default { Write-Warn "  /api/Health  →  $healthStatus" }
@@ -549,12 +603,12 @@ if ($testUrls.Count -eq 0) {
 # ---------------------------------------------------------------------------
 Write-Step 'لاگ عیب‌یابی'
 # ---------------------------------------------------------------------------
-if ($apiPath -and (Test-Path (Join-Path $apiPath 'web.config'))) {
-    $wcRaw = Get-Content (Join-Path $apiPath 'web.config') -Raw
+if ($sitePath -and (Test-Path (Join-Path $sitePath 'web.config'))) {
+    $wcRaw = Get-Content (Join-Path $sitePath 'web.config') -Raw
     if ($wcRaw -match 'stdoutLogFile="([^"]+)"') {
         $logTarget = $Matches[1]
         Write-Info "مسیر لاگ stdout: $logTarget"
-        $logDir = Split-Path ($logTarget -replace '^\.\\', "$apiPath\") -Parent
+        $logDir = Split-Path ($logTarget -replace '^\.\\', "$sitePath\") -Parent
         if (Test-Path $logDir) {
             $recent = Get-ChildItem $logDir -Filter 'stdout*' -ErrorAction SilentlyContinue |
                       Sort-Object LastWriteTime | Select-Object -Last 1
