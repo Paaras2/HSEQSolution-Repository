@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Net.Sockets;
 using System.Text;
 
@@ -33,21 +34,81 @@ namespace HSEQ.Shared.Services.Services
                 what, AppSettingFactory.AppSetting.UMUrl + "Auth/checkCredential");
         }
 
+        private static T TryDeserialize<T>(string body) where T : class
+        {
+            if (string.IsNullOrWhiteSpace(body)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<T>(body,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        // فقط وقتی صدا زده می‌شود که بدنه JSON نبوده - یعنی یک صفحه‌ی خطا، نه داده‌ی
+        // کاربر. پس بریده‌ای از خودِ متن لاگ می‌شود، چون همان چیزی است که می‌گوید چه
+        // کسی واقعاً جواب داده: صفحه‌ی خطای IIS، هدایت پروکسی، یا چیز دیگر.
+        private void LogUnexpectedBody(HttpResponseMessage response, string body, string url)
+        {
+            // بریده‌ای کوتاه از بدنه. خط‌های جدیدش دست‌نخورده می‌مانند - این یک
+            // سطرِ لاگ است، نه یک شناسه، و خواندنِ چند سطری‌اش مشکلی ندارد.
+            var preview = string.IsNullOrWhiteSpace(body)
+                ? "<empty>"
+                : body.Substring(0, Math.Min(200, body.Length));
+
+            _logger.LogError(
+                "پاسخ سرویس مدیریت کاربران JSON نبود. کد {Status}، نوع {ContentType}، طول {Length}. " +
+                "نشانی: {Url}. آغاز بدنه: {Preview}",
+                (int)response.StatusCode,
+                response.Content.Headers.ContentType?.ToString() ?? "<بدون نوع>",
+                body?.Length ?? 0,
+                url,
+                preview);
+        }
+
         public async Task<CheckCredentialDto> CheckUserAndPassword(LoginRequestModel request)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync(AppSettingFactory.AppSetting.UMUrl + "Auth/checkCredential", request);
+                var url = AppSettingFactory.AppSetting.UMUrl + "Auth/checkCredential";
+                var response = await _httpClient.PostAsJsonAsync(url, request);
+
+                // بدنه یک‌بار به‌صورت متن خوانده می‌شود، نه مستقیم به JSON.
+                //
+                // ReadFromJsonAsync اگر بدنه JSON نباشد JsonException می‌دهد، و آن نه
+                // HttpRequestException است نه TaskCanceledException - یعنی از هر دو
+                // مهارِ پایین رد می‌شد و به‌صورت «Internal server error» و کد ۵۰۰ به
+                // کاربر می‌رسید. سرویسی که پشت یک پروکسی نشسته باشد به‌راحتی یک صفحه‌ی
+                // HTML برمی‌گرداند - صفحه‌ی خطا، هدایت به ورود، یا چالش احراز هویتِ
+                // خودِ پروکسی - و آن‌وقت ورود با خطایی شکست می‌خورد که هیچ ربطی به
+                // علتش ندارد.
+                var body = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadFromJsonAsync<CheckCredentialDto>();
+                    var credential = TryDeserialize<CheckCredentialDto>(body);
+                    if (credential is null)
+                    {
+                        LogUnexpectedBody(response, body, url);
+                        throw new ExternalAuthException(UnavailableMessage, 502);
+                    }
+                    return credential;
                 }
-                else
+
+                // پاسخِ خطا هم ممکن است JSON نباشد؛ آن‌وقت کد وضعیتِ خودِ HTTP
+                // گویاترین چیزی است که داریم.
+                var error = TryDeserialize<ErrorDto>(body);
+                if (error is null)
                 {
-                    var error = await response.Content.ReadFromJsonAsync<ErrorDto>();
-                    throw new ExternalAuthException(error?.Message ?? "خطایی رخ داده است", error?.Code ?? 400);
+                    LogUnexpectedBody(response, body, url);
+                    throw new ExternalAuthException(UnavailableMessage, (int)response.StatusCode);
                 }
+
+                throw new ExternalAuthException(error.Message ?? "خطایی رخ داده است",
+                                                error.Code != 0 ? error.Code : (int)response.StatusCode);
             }
             catch (ExternalAuthException)
             {

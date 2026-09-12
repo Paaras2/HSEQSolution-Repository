@@ -167,6 +167,34 @@ public class UserManagementOutageTests
         Assert.Contains("URL معتبر", error.Message);
     }
 
+    /// <summary>
+    /// سرویسی که پشت پروکسی نشسته باشد به‌راحتی صفحه‌ی HTML برمی‌گرداند - صفحه‌ی
+    /// خطا، هدایت به ورود، یا چالش احراز هویتِ خودِ پروکسی. آن پاسخ JSON نیست و
+    /// پیش از این JsonException می‌داد که از مهارهای شبکه رد می‌شد و به‌صورت
+    /// «Internal server error» با کد ۵۰۰ به کاربر می‌رسید.
+    /// </summary>
+    [Fact]
+    public async Task A_non_json_response_is_a_client_error_not_a_500()
+    {
+        using var factory = new HseqApiFactory(HostingModel.KestrelAtRoot, Environments.Production);
+        using var client = factory.CreateClient();
+
+        var body = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Username"] = StubUmService.ValidUsername,
+            ["Password"] = StubUmService.PasswordThatReturnsHtml,
+        });
+
+        var response = await client.PostAsync("/api/Auth/login", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var message = payload.GetProperty("message").GetString() ?? string.Empty;
+        Assert.DoesNotContain("Internal server error", message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<", message);
+    }
+
     [Theory]
     [InlineData("http://app2-SRV:8030/api/")]
     [InlineData("http://172.17.0.86:8030/api/")]

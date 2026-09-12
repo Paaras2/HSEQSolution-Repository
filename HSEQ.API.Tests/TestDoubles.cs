@@ -22,10 +22,20 @@ public sealed class StubUmService : IUMService
     /// <summary>رمزی که سرویس UM را به خطای «سرویس در دسترس نیست» می‌اندازد.</summary>
     public const string PasswordThatBreaksUpstream = "trigger-upstream-outage";
 
+    /// <summary>
+    /// رمزی که پاسخِ غیر-JSON را شبیه‌سازی می‌کند - مثل صفحه‌ی HTMLِ یک پروکسی.
+    /// UmService واقعی این را به ExternalAuthException تبدیل می‌کند، نه استثنای
+    /// مدیریت‌نشده.
+    /// </summary>
+    public const string PasswordThatReturnsHtml = "trigger-html-response";
+
     public Task<CheckCredentialDto> CheckUserAndPassword(LoginRequestModel request)
     {
         if (request?.Password == PasswordThatBreaksUpstream)
-            throw new ExternalAuthException("Cannot connect to authentication service. Please try again later.", 503);
+            throw new ExternalAuthException("ارتباط با سرویس احراز هویت برقرار نشد. لطفاً چند لحظه بعد دوباره تلاش کنید.", 503);
+
+        if (request?.Password == PasswordThatReturnsHtml)
+            throw new ExternalAuthException("ارتباط با سرویس احراز هویت برقرار نشد. لطفاً چند لحظه بعد دوباره تلاش کنید.", 502);
 
         if (request?.Username != ValidUsername || request.Password != ValidPassword)
         {
