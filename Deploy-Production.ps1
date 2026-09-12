@@ -12,7 +12,19 @@
     با -DryRun هیچ تغییری اعمال نمی‌شود و فقط گزارش می‌دهد چه کارهایی انجام می‌شد.
 
 .PARAMETER PackagePath
-    مسیر پوشه‌ی بسته (همان پوشه‌ای که release.json داخلش است).
+    مسیر ریشه‌ی بسته. ساختار مورد انتظار:
+
+        <ریشه>\release.json
+        <ریشه>\SHA256SUMS.txt
+        <ریشه>\Backend\HSEQ.API.dll      (تخت، نه یک لایه پایین‌تر)
+        <ریشه>\Frontend\index.html       (تخت، نه یک لایه پایین‌تر)
+        <ریشه>\Database\migrations.sql   (فقط برای -ApplySchema)
+
+    هم خروجی Publish-Production.ps1 و هم بسته‌ی New-Handoff.ps1 همین شکل را دارند.
+
+.PARAMETER ValidatePackageOnly
+    فقط ساختار و هش‌های بسته را بررسی کن و بیرون بیا. نه IIS، نه دیتابیس، نه کپی -
+    و نیازی به دسترسی مدیر هم ندارد. کد خروجی صفر یعنی بسته سالم است.
 
 .PARAMETER SiteName
     نام سایت IIS. اگر نباشد ساخته می‌شود.
@@ -93,7 +105,15 @@ param(
     [string]$DatabaseName = 'HSEQDb',
     [string]$BackupPath = 'C:\ApplicationData\HSEQ\DbBackups',
 
-    [switch]$DryRun
+    [switch]$DryRun,
+
+    # فقط ساختار و صحت بسته را بررسی کن و بیرون بیا - نه IIS، نه دیتابیس، نه کپی.
+    #
+    # اسکریپت‌های ساختِ بسته همین را روی خروجی خودشان اجرا می‌کنند. یعنی «بسته درست
+    # است» را *مصرف‌کننده* می‌سنجد، نه یک فهرست موازی در جای دیگر. بدون این، شکلِ
+    # بسته و انتظارِ این اسکریپت می‌توانستند از هم جدا بیفتند و کسی تا لحظه‌ی استقرار
+    # روی سرور متوجه نشود - که دقیقاً یک‌بار اتفاق افتاد.
+    [switch]$ValidatePackageOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -120,8 +140,8 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIde
            ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($isAdmin) {
     Write-Ok 'با دسترسی مدیر اجرا شده'
-} elseif ($DryRun) {
-    Write-Warn 'بدون دسترسی مدیر - برای DryRun کافی است، برای استقرار واقعی نه.'
+} elseif ($DryRun -or $ValidatePackageOnly) {
+    Write-Warn 'بدون دسترسی مدیر - برای بررسی بسته کافی است، برای استقرار واقعی نه.'
 } else {
     Write-Fail 'استقرار واقعی به PowerShell با دسترسی Administrator نیاز دارد.'
 }
@@ -132,10 +152,66 @@ Write-Step 'اعتبارسنجی بسته'
 if (-not (Test-Path $PackagePath)) { throw "مسیر بسته پیدا نشد: $PackagePath" }
 $PackagePath = (Resolve-Path $PackagePath).Path
 
+# ساختاری که این اسکریپت واقعاً به آن تکیه می‌کند. همین فهرست، قراردادِ بسته است:
+# هر چیزی که اینجا نیست، جای دیگری هم نباید فرض شود.
+#
+#   <ریشه>\release.json          فراداده‌ی نسخه
+#   <ریشه>\SHA256SUMS.txt        هش فایل‌ها، نسبت به همین ریشه
+#   <ریشه>\Backend\              محتویاتش مستقیماً کنار HSEQ.API.dll می‌نشیند
+#   <ریشه>\Frontend\             محتویاتش مستقیماً در ریشه‌ی سایت می‌نشیند
+#   <ریشه>\Database\migrations.sql   فقط وقتی -ApplySchema داده شود
+$structureErrors = @()
+
+if (-not (Test-Path (Join-Path $PackagePath 'release.json'))) {
+    $structureErrors += 'release.json در ریشه‌ی بسته نیست.'
+}
+if (-not (Test-Path (Join-Path $PackagePath 'Backend'))) {
+    $structureErrors += 'پوشه‌ی Backend\ در ریشه‌ی بسته نیست.'
+}
+if (-not (Test-Path (Join-Path $PackagePath 'Frontend'))) {
+    $structureErrors += 'پوشه‌ی Frontend\ در ریشه‌ی بسته نیست.'
+}
+
+# بررسی «تخت بودن» - مهم‌ترین بررسی این بخش.
+#
+# کپی با الگوی Backend\* محتویات را یک لایه بالا می‌آورد. اگر فایل‌ها یک پوشه
+# پایین‌تر باشند (مثلاً Frontend\HSEQTest\index.html)، کپی *موفق* می‌شود ولی نتیجه
+# D:\HouzoriApps\HSEQTest\HSEQTest\index.html است: IIS خطای 403.14 می‌دهد و هیچ‌چیز
+# در لاگ نمی‌گوید علتش یک لایه پوشه‌ی اضافه بوده.
+#
+# پس نبودِ این دو فایل در جای درست، همین‌جا و با پیام صریح متوقف می‌شود.
+$flatnessChecks = @(
+    @{ Folder = 'Backend';  File = 'HSEQ.API.dll'; Role = 'بک‌اند' }
+    @{ Folder = 'Frontend'; File = 'index.html';   Role = 'کلاینت' }
+)
+foreach ($check in $flatnessChecks) {
+    $folder = Join-Path $PackagePath $check.Folder
+    if (-not (Test-Path $folder)) { continue }
+    if (Test-Path (Join-Path $folder $check.File)) { continue }
+
+    $nested = @(Get-ChildItem $folder -Directory -ErrorAction SilentlyContinue |
+                Where-Object { Test-Path (Join-Path $_.FullName $check.File) })
+    if ($nested.Count -gt 0) {
+        $structureErrors += (
+            "$($check.File) یک لایه پایین‌تر است: $($check.Folder)\$($nested[0].Name)\$($check.File). " +
+            "کپی با $($check.Folder)\* آن پوشه را دست‌نخورده منتقل می‌کند و مقصد یک لایه اضافه پیدا می‌کند " +
+            '(روی سایت یعنی خطای 403.14). بسته را با New-Handoff.ps1 از نو بسازید.')
+    } else {
+        $structureErrors += "$($check.File) در $($check.Folder)\ پیدا نشد - بسته‌ی $($check.Role) ناقص است."
+    }
+}
+
+if ($structureErrors.Count -gt 0) {
+    throw (
+        "ساختار بسته با چیزی که این اسکریپت انتظار دارد جور در نمی‌آید:" + [Environment]::NewLine +
+        ($structureErrors | ForEach-Object { "  - $_" }) -join [Environment]::NewLine + [Environment]::NewLine +
+        "مسیر بسته: $PackagePath")
+}
+
 $releaseJsonPath = Join-Path $PackagePath 'release.json'
-if (-not (Test-Path $releaseJsonPath)) { throw "release.json در بسته نیست: $PackagePath" }
 $release = Get-Content $releaseJsonPath -Raw | ConvertFrom-Json
 Write-Ok "نسخه $($release.releaseId) / کامیت $($release.gitCommit.Substring(0,8))"
+Write-Ok 'ساختار بسته درست است (release.json، Backend\ و Frontend\ هر دو تخت)'
 
 if ($release.gitDirty) {
     Write-Warn 'این بسته از درخت کاری تمیز ساخته نشده (PRODUCTION_RELEASE_BLOCKED_DIRTY_WORKTREE).'
@@ -158,6 +234,25 @@ if (-not (Test-Path $sumsPath)) {
         $checked++
     }
     if ($bad -eq 0) { Write-Ok "$checked فایل بررسی شد، همه سالم" }
+}
+
+# ---------------------------------------------------------------------------
+# پایانِ کار در حالت بررسیِ بسته
+# ---------------------------------------------------------------------------
+# عمداً همین‌جا، پیش از هر نگاهی به IIS: اسکریپت‌های ساخت بسته این حالت را روی
+# ماشین توسعه اجرا می‌کنند، جایی که نه IIS هست و نه دسترسی مدیر.
+if ($ValidatePackageOnly) {
+    Write-Host ''
+    Write-Host '────────────────────────────────────────────────────────' -ForegroundColor DarkGray
+    if ($script:Failures.Count -eq 0) {
+        Write-Host 'بسته معتبر است.' -ForegroundColor Green
+        Write-Host "  $PackagePath"
+        Write-Host '────────────────────────────────────────────────────────' -ForegroundColor DarkGray
+        exit 0
+    }
+    Write-Host "بسته $($script:Failures.Count) ایراد دارد." -ForegroundColor Red
+    Write-Host '────────────────────────────────────────────────────────' -ForegroundColor DarkGray
+    exit 1
 }
 
 # ---------------------------------------------------------------------------

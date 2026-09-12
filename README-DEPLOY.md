@@ -137,7 +137,53 @@ release.json  فراداده‌ی نسخه
 SHA256SUMS.txt
 ```
 
-کنار آن، آرشیو انتقال و هشش:
+### ساختار بسته - یک شکل، برای هر دو مصرف
+
+`New-Handoff.ps1` بسته‌ی تحویل را می‌سازد: **همان شکل**، به‌اضافه‌ی مستندات و
+اسکریپت‌ها. جایی بیرون از `artifacts\` تا با انتشار بعدی پاک نشود.
+
+```
+HSEQ_IIS_Release_<yyyyMMdd_HHmmss>\
+├── release.json          ← ریشه. Deploy-Production.ps1 اینجا دنبالش می‌گردد.
+├── SHA256SUMS.txt        ← ریشه. مسیرها نسبت به همین ریشه.
+├── Backend\              ← تخت: HSEQ.API.dll مستقیماً اینجاست
+├── Frontend\             ← تخت: index.html مستقیماً اینجاست
+├── Database\migrations.sql
+├── Deployment\
+│   ├── Scripts\          Deploy / Diagnose / New-ServerLayout
+│   ├── README-DEPLOY.md
+│   └── appsettings.Production.template.json
+├── COPY-TO-SERVER.txt
+└── RELEASE-NOTES.txt
+```
+
+> ### چرا «تخت» بودنِ `Backend\` و `Frontend\` مهم است
+>
+> اسکریپت استقرار با الگوی `Backend\*` کپی می‌کند، یعنی *محتویات* را یک لایه بالا
+> می‌آورد. اگر فایل‌ها یک پوشه پایین‌تر باشند (مثلاً `Frontend\HSEQTest\index.html`)،
+> کپی **موفق می‌شود** ولی مقصد `D:\HouzoriApps\HSEQTest\HSEQTest\index.html` می‌شود:
+> IIS خطای **403.14** می‌دهد و هیچ‌چیز در لاگ نمی‌گوید علتش یک لایه پوشه‌ی اضافه بوده.
+>
+> یک‌بار دقیقاً همین شد: بسته‌ی تحویل شکل دیگری داشت (`Frontend\HSEQTest\` و
+> `release.json` زیر `Deployment\`) ولی همان بسته اسکریپت استقرار را هم با خودش
+> می‌برد. `Deploy-Production.ps1 -PackagePath <ریشه>` با پیام «release.json در بسته
+> نیست» می‌ایستاد — که خوش‌شانسی بود، چون درست پیش از کپیِ خرابْ متوقف می‌شد.
+>
+> حالا هر دو ساز و کار جلویش را می‌گیرند:
+> `Deploy-Production.ps1` خودش «تخت بودن» را می‌سنجد و با پیام صریح می‌ایستد، و
+> **هر دو اسکریپتِ ساخت، بسته‌ی خروجی خودشان را به همان `Deploy-Production.ps1`
+> می‌دهند تا تأییدش کند** — پس شکلِ بسته و انتظارِ مصرف‌کننده دیگر نمی‌توانند از هم
+> جدا بیفتند.
+
+بررسی سلامت یک بسته، بدون هیچ تغییری و بدون نیاز به دسترسی مدیر:
+
+```powershell
+.\Deploy-Production.ps1 -PackagePath "<مسیر بسته>" -ValidatePackageOnly
+```
+
+کد خروجی صفر یعنی بسته سالم است.
+
+کنار پوشه، آرشیو انتقال و هشش:
 
 ```
 artifacts\HSEQ_<yyyyMMdd-HHmmss>.zip

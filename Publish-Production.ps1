@@ -389,6 +389,24 @@ foreach ($rel in $expected) {
 if ($missing.Count -gt 0) { throw "بسته ناقص است. موارد غایب: $($missing -join ', ')" }
 Write-Ok 'همه‌ی اجزای مورد انتظار موجودند'
 
+# و حالا همان اسکریپتی که روی سرور این بسته را مصرف می‌کند، خودش قضاوت کند.
+#
+# فهرست بالا چیزی است که *این* اسکریپت لازم می‌داند؛ چیزی که واقعاً اهمیت دارد این
+# است که Deploy-Production.ps1 بتواند بسته را بخواند. آن دو یک‌بار از هم جدا افتادند
+# و نتیجه‌اش بسته‌ای بود که تا روی سرور سالم به نظر می‌رسید.
+$deployScriptPath = Join-Path $RepoRoot 'Deploy-Production.ps1'
+if (Test-Path $deployScriptPath) {
+    $validation = & pwsh -NoProfile -ExecutionPolicy Bypass -File $deployScriptPath `
+        -PackagePath $ReleaseDir -ValidatePackageOnly 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $validation | ForEach-Object { Write-Warn $_ }
+        throw "Deploy-Production.ps1 این بسته را نپذیرفت (کد خروجی $LASTEXITCODE)."
+    }
+    Write-Ok 'Deploy-Production.ps1 -ValidatePackageOnly سبز شد'
+} else {
+    Write-Warn 'Deploy-Production.ps1 پیدا نشد - اعتبارسنجی با مصرف‌کننده انجام نشد.'
+}
+
 # ---------------------------------------------------------------------------
 Write-Step 'ساخت آرشیو انتقال'
 # ---------------------------------------------------------------------------
