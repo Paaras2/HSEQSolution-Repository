@@ -31,7 +31,18 @@ builder.Services.AddApplicationLayerServices()
                 .AddServiceLayerServices()
                 .AddDomainLayerServices(configuration);
 builder.Services.AddScoped<IUMService, UmService>();
-builder.Services.AddHttpClient<IUMService, UmService>();
+
+// مهلتِ تماس با سرویس مدیریت کاربران.
+//
+// بدون این، مقدار پیش‌فرض HttpClient اعمال می‌شد: ۱۰۰ ثانیه. وقتی فایروال بسته‌ها را
+// بی‌صدا دور می‌ریزد (نه رد می‌کند)، کاربر یک دقیقه و نیم روی دکمه‌ی «ورود» منتظر
+// می‌ماند و بعد پیام خطا می‌گیرد - و در آن فاصله معمولاً چند بار دیگر هم کلیک می‌کند.
+//
+// ۱۰ ثانیه برای یک فراخوانِ احراز هویت در شبکه‌ی داخلی زیاد هم هست. اگر سرویس UM
+// واقعاً کند است، از همین کلید بالا ببرید.
+var umTimeout = TimeSpan.FromSeconds(configuration.GetValue("UserManagementAPI:TimeoutSeconds", 10));
+
+builder.Services.AddHttpClient<IUMService, UmService>(client => client.Timeout = umTimeout);
 
 // تنظیمات Authentication
 builder.Services.AddAuthentication(options =>

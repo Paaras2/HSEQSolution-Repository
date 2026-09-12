@@ -98,13 +98,30 @@ namespace HSEQ.API.ServiceConfiguration
                 if (connection.Contains("(localdb)", StringComparison.OrdinalIgnoreCase))
                     errors.Add("رشته‌ی اتصال هنوز به LocalDB اشاره می‌کند که موتوری فقط برای توسعه است.");
 
-                // برخلاف دیتابیس، سرویس مدیریت کاربران همیشه روی میزبان دیگری است؛
-                // نشانی محلی اینجا یعنی تنظیمات جابه‌جا شده.
+                // نشانی محلیِ سرویس مدیریت کاربران.
+                //
+                // چیزی که این بررسی واقعاً از آن محافظت می‌کند، Start-UmSimulator.ps1
+                // است: شبیه‌سازی که *هر رمزی* را می‌پذیرد و روی loopback گوش می‌دهد.
+                // اشاره‌ی تنظیمات عملیاتی به آن، یعنی احراز هویت سامانه عملاً دور زده
+                // شده - بی‌آنکه چیزی خراب به نظر برسد.
+                //
+                // ولی «همیشه روی میزبان دیگری است» فرض غلطی بود: نصب UM روی همان سرور
+                // IIS کاملاً متعارف است، و در آن حالت loopback حتی بهتر است، چون
+                // ترافیک از ماشین بیرون نمی‌رود و به قواعد فایروال هم گره نمی‌خورد.
+                //
+                // پس رد کردن می‌ماند، اما با یک درِ صریح: باید آگاهانه بازش کنید.
+                // تفاوتش با نبودِ بررسی این است که «اتفاقی» نمی‌شود - کسی باید عمداً
+                // این کلید را بنویسد، و نوشتنش در فایل تنظیمات ثبت می‌ماند.
                 var umUrl = configuration["UserManagementAPI:Url"] ?? string.Empty;
-                if (umUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
-                    umUrl.Contains("127.0.0.1", StringComparison.Ordinal))
+                var umIsLoopback = umUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
+                                   umUrl.Contains("127.0.0.1", StringComparison.Ordinal);
+
+                if (umIsLoopback && !configuration.GetValue("UserManagementAPI:AllowLoopback", false))
                 {
-                    errors.Add("نشانی سرویس مدیریت کاربران به میزبان محلی اشاره می‌کند.");
+                    errors.Add(
+                        "نشانی سرویس مدیریت کاربران به میزبان محلی اشاره می‌کند. اگر سرویس UM " +
+                        "واقعاً روی همین سرور است، 'UserManagementAPI:AllowLoopback' را true کنید. " +
+                        "هرگز این را برای اشاره به شبیه‌ساز UM استفاده نکنید: آن هر رمزی را می‌پذیرد.");
                 }
 
                 var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];

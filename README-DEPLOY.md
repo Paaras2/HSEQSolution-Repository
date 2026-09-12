@@ -255,6 +255,8 @@ Get-Content .\HSEQ_<...>.zip.sha256
 | `Api:PathBase` | `/api` | پیشوند عمومی API. فقط وقتی اعمال می‌شود که میزبان `PathBase` نگذاشته باشد؛ زیر IIS خودِ IIS آن را می‌گذارد. **عوضش نکنید مگر آنکه مسیر Application در IIS را هم عوض کنید.** |
 | `Https:RedirectToHttps` | `false` | هدایت HTTP به HTTPS. فقط وقتی `true` کنید که سایت واقعاً بایندینگ HTTPS داشته باشد. |
 | `Https:Port` | ۴۴۳ | پورت عمومی HTTPS برای هدایت بالا. اگر پورت غیراستاندارد است حتماً بدهید، وگرنه هدایت به پورت اشتباه می‌رود. |
+| `UserManagementAPI:TimeoutSeconds` | ۱۰ | مهلت تماس با سرویس UM. پیش‌فرض `HttpClient` صد ثانیه است؛ وقتی فایروال بسته‌ها را بی‌صدا دور می‌ریزد، کاربر همان‌قدر پای اسپینر می‌ماند. |
+| `UserManagementAPI:AllowLoopback` | `false` | اجازه‌ی نشانی `localhost`/`127.0.0.1` برای UM. فقط وقتی UM روی همین سرور است. **هرگز برای شبیه‌ساز UM** — آن هر رمزی را می‌پذیرد. |
 | `Database:MigrateOnStartup` | `false` بیرون از توسعه | مهاجرت هنگام بالا آمدن |
 | `Database:SeedOnStartup` | `true` | upsert داده‌ی پایه؛ اجرای دوباره بی‌خطر |
 
