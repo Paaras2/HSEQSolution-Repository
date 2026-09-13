@@ -176,10 +176,10 @@ $null = New-Item -ItemType Directory -Path $deployDir -Force
 
 $scriptsDir = Join-Path $deployDir 'Scripts'
 $null = New-Item -ItemType Directory -Path $scriptsDir -Force
-foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1', 'Show-StartupFailure.ps1') {
+foreach ($s in 'Deploy-Production.ps1', 'Diagnose-Deployment.ps1', 'Show-StartupFailure.ps1', 'Test-UmLogin.ps1') {
     Copy-Item (Join-Path $RepoRoot $s) $scriptsDir -Force
 }
-Write-Ok 'Deployment\Scripts\ (استقرار، عیب‌یابی، شکست راه‌اندازی)'
+Write-Ok 'Deployment\Scripts\ (استقرار، عیب‌یابی، شکست راه‌اندازی، سنجش ورود)'
 
 Copy-Item (Join-Path $PackagePath 'README-DEPLOY.md') $deployDir -Force
 # همیشه از قالبِ داخل بسته، نه از $ConfigFile: وقتی $ConfigFile مقادیر واقعی
@@ -409,6 +409,28 @@ $configNote
     <BASE>/api/Health           →  200
     <BASE>/api/api/Health       →  404   (اگر جواب داد، بسته‌ی قدیمی مستقر شده)
     POST <BASE>/api/Auth/login  →  400   (نه ۴۰۴)
+
+
+اول از همه: ورود را بسنجید
+----------------------------------------------------------------
+احراز هویت از دیتابیس UserManagement خوانده می‌شود، نه از سرویس HTTP آن. پیش از
+آنکه سراغ مرورگر بروید، همین‌جا بسنجیدش - از مرورگر هر خرابی فقط یک پیام خطاست و
+نمی‌شود فهمید مقصر IIS است یا دسترسی دیتابیس یا قالبِ رمز:
+
+  .\Deployment\Scripts\Test-UmLogin.ps1
+  .\Deployment\Scripts\Test-UmLogin.ps1 -Username <کد پرسنلی خودتان>
+
+رمز روی صفحه echo نمی‌شود و هیچ‌جا ذخیره نمی‌شود.
+
+محتمل‌ترین خرابی این است که لاگین SQL روی HSEQDb مجاز باشد ولی روی UserManagement
+نگاشت نداشته باشد. اگر پیامش همین را گفت، روی SQL Server:
+
+  USE [UserManagement];
+  CREATE USER [DBHSEQ] FOR LOGIN [DBHSEQ];
+  ALTER ROLE db_datareader ADD MEMBER [DBHSEQ];
+
+اگر پیام گفت قالبِ رمز شناخته نشد، در appsettings.Production.json موقتاً
+"UserManagement": { "Source": "Api" } بگذارید تا از سرویس HTTP وارد شوید.
 "@
 Set-Content -Path (Join-Path $handoffDir 'COPY-TO-SERVER.txt') -Value $copyGuide -Encoding UTF8
 Write-Ok 'COPY-TO-SERVER.txt'
@@ -462,6 +484,7 @@ $handoffExtras = @(
     'Deployment\Scripts\Deploy-Production.ps1',
     'Deployment\Scripts\Diagnose-Deployment.ps1',
     'Deployment\Scripts\Show-StartupFailure.ps1',
+    'Deployment\Scripts\Test-UmLogin.ps1',
     'Deployment\appsettings.Production.template.json',
     'Database\migrations.sql',
     'COPY-TO-SERVER.txt',

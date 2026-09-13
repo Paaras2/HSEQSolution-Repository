@@ -45,9 +45,12 @@ var umSource = configuration.GetValue("UserManagement:Source", "Api");
 
 builder.Services.AddScoped<UmPasswordVerifier>();
 
+// بیرون از شرط نگه داشته می‌شود چون وارسیِ هنگام راه‌اندازی، پایین‌تر، به آن نیاز دارد.
+string umConnectionString = null;
+
 if (string.Equals(umSource, "Database", StringComparison.OrdinalIgnoreCase))
 {
-    var umConnectionString = UmConnectionString.Build(
+    umConnectionString = UmConnectionString.Build(
         configuration["ConnectionStrings:DefaultConnection"],
         configuration.GetValue("UserManagement:Database", "UserManagement"),
         configuration["ConnectionStrings:UserManagement"]);
@@ -138,6 +141,87 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// ---------------------------------------------------------------------------
+// سنجشِ ورود، از خط فرمان - بدون بالا آمدن وب‌سرور
+// ---------------------------------------------------------------------------
+//   HSEQ.API.exe --check-um                 فقط وارسی دیتابیس UM
+//   HSEQ.API.exe --check-um-login <کاربر>   ورود یک حساب واقعی را می‌سنجد
+//
+// چرا اینجا و نه در یک اسکریپت جدا: اسکریپت ناچار بود منطق راستی‌آزمایی رمز را
+// دوباره بنویسد، و آن وقت چیزی را می‌سنجید که شبیهِ کد واقعی است نه خودش. از اینجا
+// همان IUMService و همان UmPasswordVerifier اجرا می‌شوند که هنگام ورودِ واقعی
+// اجرا می‌شوند، با همان تنظیمات و همان رشته‌ی اتصال.
+//
+// رمز از ورودی خوانده می‌شود و روی صفحه echo نمی‌شود؛ هیچ‌جا لاگ یا چاپ نمی‌شود.
+if (args.Contains("--check-um") || args.Contains("--check-um-login"))
+{
+    var checkLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Check.UserManagement");
+
+    if (umConnectionString is null)
+    {
+        Console.Error.WriteLine("این بررسی فقط در حالت «UserManagement:Source = Database» معنی دارد.");
+        Console.Error.WriteLine("تنظیمات فعلی: " + configuration.GetValue("UserManagement:Source", "Api"));
+        return 2;
+    }
+
+    await UmDatabaseProbe.RunAsync(umConnectionString, checkLogger);
+
+    var loginIndex = Array.IndexOf(args, "--check-um-login");
+    if (loginIndex < 0) return 0;
+
+    var user = loginIndex + 1 < args.Length ? args[loginIndex + 1] : null;
+    if (string.IsNullOrWhiteSpace(user))
+    {
+        Console.Error.WriteLine("استفاده: --check-um-login <کد پرسنلی>");
+        return 1;
+    }
+
+    Console.Write($"رمز عبور {user}: ");
+    var password = ReadPasswordWithoutEcho();
+    Console.WriteLine();
+
+    using var checkScope = app.Services.CreateScope();
+    var um = checkScope.ServiceProvider.GetRequiredService<IUMService>();
+    try
+    {
+        var who = await um.CheckUserAndPassword(new HSEQ.API.Model.RequestModels.LoginRequestModel { Username = user, Password = password });
+        Console.WriteLine();
+        Console.WriteLine("=== ورود پذیرفته شد ===");
+        Console.WriteLine($"  کد پرسنلی : {who.PCode}");
+        Console.WriteLine($"  نام       : {who.FirstName} {who.LastName}");
+        Console.WriteLine($"  فعال      : {(who.IsActive ? "بله" : "خیر")}");
+        Console.WriteLine($"  اولین ورود: {(who.IsFirstLogin ? "بله" : "خیر")}");
+        return 0;
+    }
+    catch (ExternalAuthException ex)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== ورود پذیرفته نشد ===");
+        Console.WriteLine($"  کد {ex.Code}: {ex.Message}");
+        Console.WriteLine(ex.Code == 503
+            ? "  کد ۵۰۳ یعنی ایراد از سمت ماست نه از رمز - خط‌های بالا می‌گویند کدام."
+            : "  کد ۴۰۱ یعنی این نام کاربری و رمز با هم جور نیستند.");
+        return 1;
+    }
+}
+
+static string ReadPasswordWithoutEcho()
+{
+    var typed = new System.Text.StringBuilder();
+    while (true)
+    {
+        var pressed = Console.ReadKey(intercept: true);
+        if (pressed.Key == ConsoleKey.Enter) break;
+        if (pressed.Key == ConsoleKey.Backspace)
+        {
+            if (typed.Length > 0) typed.Length--;
+            continue;
+        }
+        if (!char.IsControl(pressed.KeyChar)) typed.Append(pressed.KeyChar);
+    }
+    return typed.ToString();
+}
 
 // ---------------------------------------------------------------------------
 // مالکِ پیشوند /api
@@ -425,6 +509,22 @@ await using (var scope = app.Services.CreateAsyncScope())
 
         return indexResult.Failed == 0 ? 0 : 2;
     }
+}
+
+// وارسی دیتابیس سامانه‌ی مدیریت کاربران، پیش از پذیرفتن اولین درخواست.
+//
+// در حالت Database، هر خرابیِ این مسیر - دسترسی نداشتن لاگین SQL به این دیتابیس،
+// نبودن جدول، ستونی که نامش عوض شده - تا لحظه‌ی اولین ورودِ یک کاربر واقعی پنهان
+// می‌ماند و آن وقت هم فقط به شکل «۵۰۳» دیده می‌شود. این وارسی همان خرابی را به
+// لحظه‌ی بالا آمدن می‌آورد و صریح در لاگ می‌نویسد چه باید کرد.
+//
+// نتیجه‌اش هرگز جلوی بالا آمدن برنامه را نمی‌گیرد: خرابیِ ورود نباید سرو شدن خودِ
+// سامانه را هم از کار بیندازد.
+if (umConnectionString is not null)
+{
+    await UmDatabaseProbe.RunAsync(
+        umConnectionString,
+        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup.UserManagement"));
 }
 
 app.Run();

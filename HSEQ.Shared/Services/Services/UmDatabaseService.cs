@@ -31,6 +31,8 @@ namespace HSEQ.Shared.Services.Services
         private readonly string _connectionString;
         private readonly UmPasswordVerifier _passwordVerifier;
         private readonly ILogger<UmDatabaseService> _logger;
+        private readonly string _database;
+        private readonly string _server;
 
         // ورودیِ فرم «کد پرسنلی» است و کلاینت آن را در فیلد Username می‌فرستد -
         // همان قراردادی که سرویس HTTP هم داشت. پس تطبیق روی ستون Username است.
@@ -48,6 +50,20 @@ WHERE Username = @username";
             _connectionString = connectionString;
             _passwordVerifier = passwordVerifier;
             _logger = logger;
+
+            // نام سرور و دیتابیس برای پیام خطا جدا نگه داشته می‌شود تا هنگام خرابی
+            // لازم نباشد رشته‌ی اتصال - که رمز داخلش است - جایی باز شود.
+            try
+            {
+                var parsed = new SqlConnectionStringBuilder(connectionString);
+                _database = parsed.InitialCatalog;
+                _server = parsed.DataSource;
+            }
+            catch (ArgumentException)
+            {
+                _database = "?";
+                _server = "?";
+            }
         }
 
         public async Task<CheckCredentialDto> CheckUserAndPassword(LoginRequestModel request)
@@ -91,9 +107,13 @@ WHERE Username = @username";
                 {
                     // ایرادِ ماست، نه کاربر. باید در لاگ دیده شود، ولی به مرورگر
                     // چیزی از آن نمی‌رود.
+                    //
+                    // سه قالبِ شناخته‌شده پوشش داده شده‌اند؛ رسیدن به اینجا یعنی
+                    // سامانه‌ی UM قالب چهارمی نوشته است. طولِ مقدار تنها چیزی است که
+                    // لاگ می‌شود - خودِ مقدار ماده‌ی اعتبارنامه است.
                     _logger.LogError(
                         "رمز این کاربر با قالبی ذخیره شده که این مسیر نمی‌شناسد (طول {Length}). " +
-                        "الگوریتم قالب قدیمی هنوز پیاده نشده؛ تا آن زمان این کاربر فقط از راه سرویس HTTP وارد می‌شود.",
+                        "برای این کاربر باید موقتاً به حالت «UserManagement:Source = Api» برگشت.",
                         stored?.Length ?? 0);
                     throw new ExternalAuthException(Unavailable, 503);
                 }
@@ -110,7 +130,9 @@ WHERE Username = @username";
             catch (SqlException ex)
             {
                 // خرابیِ دیتابیس UM نباید خطای ۵۰۰ بدهد - همان رفتار مسیر HTTP.
-                _logger.LogError(ex, "اتصال به دیتابیس سامانه‌ی مدیریت کاربران ممکن نشد.");
+                // پیام دقیقاً می‌گوید کدام خرابی است، وگرنه «اتصال ممکن نشد» برای
+                // چهار مشکلِ کاملاً متفاوت یکسان نوشته می‌شد.
+                _logger.LogError(ex, "{Reason}", UmSqlFailure.Describe(ex, _database, _server));
                 throw new ExternalAuthException(Unavailable, 503);
             }
         }
