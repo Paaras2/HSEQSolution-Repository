@@ -208,6 +208,11 @@ if (args.Contains("--check-um") || args.Contains("--check-um-login"))
 
 static string ReadPasswordWithoutEcho()
 {
+    // وقتی ورودی هدایت شده باشد (لوله، فایل، یا اجرای غیرتعاملی) اصلاً کنسولی
+    // نیست که کلید بخواند و Console.ReadKey استثنا می‌دهد. آن‌جا echo هم موضوعیت
+    // ندارد، چون چیزی روی صفحه نمی‌رود.
+    if (Console.IsInputRedirected) return Console.ReadLine() ?? string.Empty;
+
     var typed = new System.Text.StringBuilder();
     while (true)
     {
