@@ -34,6 +34,42 @@ namespace HSEQ.Shared.Services.Services
                 what, AppSettingFactory.AppSetting.UMUrl + "Auth/checkCredential");
         }
 
+        /// <summary>
+        /// «اتصال برقرار نشد» برای سه خرابیِ کاملاً متفاوت یکسان نوشته می‌شد، و هر سه
+        /// روی ماشین‌های واقعیِ این استقرار دیده شده‌اند:
+        ///
+        ///   نام حل نمی‌شود       ماشینی که DNS داخلی را نمی‌شناسد - مثلاً عضو دامنه نیست.
+        ///   اتصال برقرار نمی‌شود  مسیر یا فایروال؛ یک VPN تمام‌تونل روی همان ماشین هم
+        ///                         ترافیکِ شبکه‌ی داخلی را به اینترنت می‌فرستد.
+        ///   دست‌دهی TLS           گواهی با نامی که صدا زده شده جور نیست - مثلاً صدا زدن
+        ///                         با IP، وقتی گواهی برای *.odcc.ir است.
+        ///
+        /// هر کدام کار دیگری لازم دارد، پس لاگ باید بگوید کدام است.
+        /// </summary>
+        private static string DescribeTransportFailure(HttpRequestException ex)
+        {
+            Uri.TryCreate(AppSettingFactory.AppSetting.UMUrl, UriKind.Absolute, out var uri);
+            var host = uri?.Host ?? "?";
+            var port = uri?.Port ?? 0;
+
+            return ex.HttpRequestError switch
+            {
+                HttpRequestError.NameResolutionError =>
+                    $"نام «{host}» روی این ماشین حل نشد. DNS این ماشین آن را نمی‌شناسد؛ " +
+                    "رکورد DNS داخلی را بدهید یا یک سطر در C:\\Windows\\System32\\drivers\\etc\\hosts بگذارید",
+
+                HttpRequestError.ConnectionError =>
+                    $"به {host}:{port} وصل نشد. مسیر شبکه یا فایروال است؛ اگر روی این ماشین VPN " +
+                    "تمام‌تونل فعال است، ترافیک شبکه‌ی داخلی را هم به بیرون می‌فرستد",
+
+                HttpRequestError.SecureConnectionError =>
+                    $"دست‌دهی TLS با «{host}» شکست خورد. گواهی با این نام جور نیست یا ریشه‌اش برای " +
+                    "این ماشین معتبر نیست؛ با نام میزبانِ روی گواهی صدا بزنید، نه با IP",
+
+                _ => "اتصال برقرار نشد",
+            };
+        }
+
         private static T TryDeserialize<T>(string body) where T : class
         {
             if (string.IsNullOrWhiteSpace(body)) return null;
@@ -60,11 +96,12 @@ namespace HSEQ.Shared.Services.Services
                 : body.Substring(0, Math.Min(200, body.Length));
 
             _logger.LogError(
-                "پاسخ سرویس مدیریت کاربران JSON نبود. کد {Status}، نوع {ContentType}، طول {Length}. " +
-                "نشانی: {Url}. آغاز بدنه: {Preview}",
+                "پاسخ سرویس مدیریت کاربران JSON نبود. کد {Status}، نوع {ContentType}، طول {Length}، " +
+                "WWW-Authenticate {Challenge}. نشانی: {Url}. آغاز بدنه: {Preview}",
                 (int)response.StatusCode,
                 response.Content.Headers.ContentType?.ToString() ?? "<بدون نوع>",
                 body?.Length ?? 0,
+                response.Headers.WwwAuthenticate.Count > 0 ? response.Headers.WwwAuthenticate.ToString() : "<ندارد>",
                 url,
                 preview);
         }
@@ -75,6 +112,25 @@ namespace HSEQ.Shared.Services.Services
             {
                 var url = AppSettingFactory.AppSetting.UMUrl + "Auth/checkCredential";
                 var response = await _httpClient.PostAsJsonAsync(url, request);
+
+                // هدایت دنبال نمی‌شود (HttpClient این سرویس با AllowAutoRedirect=false
+                // ساخته می‌شود) و اینجا به‌صورت خطای صریح گزارش می‌شود.
+                //
+                // دنبال کردنش دو ایراد داشت. یکی امنیتی: بدنه‌ی این درخواست رمز کاربر است،
+                // و هدایتِ ۳۰۷/۳۰۸ آن را به هر مقصدی که پاسخ بگوید می‌فرستد. دیگری همان
+                // چیزی که روی سرویس واقعی دیده شد: پورت ۸۰۳۰ به ‎https://<IP>‎ هدایت می‌کند
+                // و گواهی برای نام دامنه است، پس ورود با خطای TLS شکست می‌خورد که هیچ ربطی
+                // به علتش - نشانیِ اشتباه در تنظیمات - ندارد.
+                if ((int)response.StatusCode is >= 300 and < 400)
+                {
+                    _logger.LogError(
+                        "سرویس مدیریت کاربران به «{Location}» هدایت کرد (کد {Status}) و این برنامه دنبالش نمی‌رود. " +
+                        "UserManagementAPI:Url را مستقیم روی نشانیِ نهایی بگذارید - معمولاً https و با نام میزبان. نشانی فعلی: {Url}",
+                        response.Headers.Location?.ToString() ?? "<بدون Location>",
+                        (int)response.StatusCode,
+                        url);
+                    throw new ExternalAuthException(UnavailableMessage, 503);
+                }
 
                 // بدنه یک‌بار به‌صورت متن خوانده می‌شود، نه مستقیم به JSON.
                 //
@@ -123,22 +179,17 @@ namespace HSEQ.Shared.Services.Services
             {
                 // علت واقعی *فقط* در لاگ سرور می‌نشیند، نه در پاسخ.
                 //
-                // پیش از این، استثنا گرفته و دور ریخته می‌شد: اپراتور «Cannot connect»
-                // می‌دید و هیچ راهی نداشت بفهمد اتصال رد شده، نام حل نشده، یا فایروال
-                // بسته‌ها را دور ریخته - در حالی که خودِ برنامه دقیقاً می‌دانست.
-                // نتیجه‌اش کاوشِ دستی شبکه بود برای چیزی که همان لحظه معلوم بود.
-                //
                 // نشانیِ سرویس لاگ می‌شود، ولی هرگز خودِ request: آن شیء رمز کاربر را
                 // دارد.
-                LogUnreachable(ex, "اتصال برقرار نشد");
+                LogUnreachable(ex, DescribeTransportFailure(ex));
                 throw new ExternalAuthException(UnavailableMessage, 503);
             }
             catch (TaskCanceledException ex)
             {
                 // مهلت تمام شد. این حالت با «اتصال رد شد» فرق دارد و معمولاً یعنی
-                // بسته‌ها بی‌صدا دور ریخته می‌شوند - امضای یک قاعده‌ی فایروال، نه
-                // سرویسی که بالا نیست.
-                LogUnreachable(ex, $"مهلت {_httpClient.Timeout.TotalSeconds:0} ثانیه‌ای تمام شد (بسته‌ها احتمالاً دور ریخته می‌شوند - فایروال)");
+                // بسته‌ها بی‌صدا دور ریخته می‌شوند - امضای یک قاعده‌ی فایروال، یا VPN
+                // تمام‌تونلی روی همین ماشین که ترافیک داخلی را به بیرون می‌فرستد.
+                LogUnreachable(ex, $"مهلت {_httpClient.Timeout.TotalSeconds:0} ثانیه‌ای تمام شد (بسته‌ها احتمالاً دور ریخته می‌شوند - فایروال، یا VPN تمام‌تونل روی همین ماشین)");
                 throw new ExternalAuthException(UnavailableMessage, 503);
             }
         }

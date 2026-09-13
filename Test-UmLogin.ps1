@@ -80,8 +80,8 @@ switch ($code) {
         Write-Host 'ورود پذیرفته نشد. خط‌های بالا می‌گویند چرا.' -ForegroundColor Yellow
     }
     2 {
-        Write-Host 'این بررسی اجرا نشد - تنظیمات روی حالت Database نیست.' -ForegroundColor Yellow
-        Write-Host 'در appsettings.Production.json باید باشد:  "UserManagement": { "Source": "Database" }' -ForegroundColor Yellow
+        Write-Host 'بدون ‎-Username‎ فقط دیتابیس UM وارسی می‌شود، و تنظیمات روی حالت Database نیست.' -ForegroundColor Yellow
+        Write-Host 'در حالت Api ورود یک حساب را بسنجید:  .\Test-UmLogin.ps1 -Username <کد پرسنلی>' -ForegroundColor Yellow
     }
     default {
         Write-Host "برنامه با کد $code خارج شد." -ForegroundColor Red

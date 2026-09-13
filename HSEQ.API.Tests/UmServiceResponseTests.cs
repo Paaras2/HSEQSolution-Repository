@@ -24,25 +24,32 @@ public class UmServiceResponseTests
     /// <summary>هر پاسخی که بخواهیم، بدون نیاز به شبکه.</summary>
     private sealed class CannedResponseHandler : HttpMessageHandler
     {
-        private readonly HttpStatusCode _status;
-        private readonly string _body;
-        private readonly string _contentType;
+        private readonly Func<HttpResponseMessage> _respond;
 
-        public CannedResponseHandler(HttpStatusCode status, string body, string contentType)
-        {
-            _status = status;
-            _body = body;
-            _contentType = contentType;
-        }
+        public CannedResponseHandler(Func<HttpResponseMessage> respond) => _respond = respond;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(new HttpResponseMessage(_status)
-            {
-                Content = new StringContent(_body, Encoding.UTF8, _contentType)
-            });
+            => Task.FromResult(_respond());
+    }
+
+    /// <summary>خرابیِ انتقال، همان‌طور که SocketsHttpHandler گزارشش می‌کند.</summary>
+    private sealed class FailingHandler : HttpMessageHandler
+    {
+        private readonly HttpRequestError _error;
+
+        public FailingHandler(HttpRequestError error) => _error = error;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => throw new HttpRequestException(_error, "simulated transport failure");
     }
 
     private static UmService CreateService(HttpStatusCode status, string body, string contentType = "application/json")
+        => CreateService(new CannedResponseHandler(() => new HttpResponseMessage(status)
+        {
+            Content = new StringContent(body, Encoding.UTF8, contentType)
+        }));
+
+    private static UmService CreateService(HttpMessageHandler handler)
     {
         // UMUrl از یک وضعیت ایستا خوانده می‌شود؛ اینجا صریح مقداردهی می‌شود تا آزمون
         // به ترتیب اجرا وابسته نباشد.
@@ -53,8 +60,7 @@ public class UmServiceResponseTests
                 ["Jwt:ExpiryInMinutes"] = "60",
             }).Build());
 
-        var client = new HttpClient(new CannedResponseHandler(status, body, contentType));
-        return new UmService(client, NullLogger<UmService>.Instance);
+        return new UmService(new HttpClient(handler), NullLogger<UmService>.Instance);
     }
 
     private static LoginRequestModel AnyCredentials() =>
@@ -110,6 +116,51 @@ public class UmServiceResponseTests
     }
 
     // -----------------------------------------------------------------------
+    // هدایت و خرابی‌های انتقال
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// همان پاسخی که پورت ۸۰۳۰ سرویس واقعی می‌دهد: ۳۰۷ به ‎https://&lt;IP&gt;‎.
+    /// دنبال کردنش رمز کاربر را به مقصدِ هدایت می‌فرستاد؛ باید خطای کنترل‌شده باشد.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.MovedPermanently)]
+    [InlineData(HttpStatusCode.Found)]
+    [InlineData(HttpStatusCode.TemporaryRedirect)]
+    [InlineData(HttpStatusCode.PermanentRedirect)]
+    public async Task A_redirect_becomes_a_handled_error(HttpStatusCode status)
+    {
+        var service = CreateService(new CannedResponseHandler(() =>
+        {
+            var response = new HttpResponseMessage(status);
+            response.Headers.Location = new Uri("https://172.17.0.86/api/Auth/checkCredential");
+            return response;
+        }));
+
+        var error = await Assert.ThrowsAsync<ExternalAuthException>(
+            () => service.CheckUserAndPassword(AnyCredentials()));
+
+        Assert.Equal(503, error.Code);
+        AssertSafeForTheBrowser(error.Message);
+    }
+
+    [Theory]
+    [InlineData(HttpRequestError.NameResolutionError)]
+    [InlineData(HttpRequestError.ConnectionError)]
+    [InlineData(HttpRequestError.SecureConnectionError)]
+    [InlineData(HttpRequestError.Unknown)]
+    public async Task A_transport_failure_becomes_service_unavailable(HttpRequestError failure)
+    {
+        var service = CreateService(new FailingHandler(failure));
+
+        var error = await Assert.ThrowsAsync<ExternalAuthException>(
+            () => service.CheckUserAndPassword(AnyCredentials()));
+
+        Assert.Equal(503, error.Code);
+        AssertSafeForTheBrowser(error.Message);
+    }
+
+    // -----------------------------------------------------------------------
     // پاسخ‌های درست - رفتار قبلی باید دست‌نخورده بماند
     // -----------------------------------------------------------------------
 
@@ -144,6 +195,24 @@ public class UmServiceResponseTests
     }
 
     /// <summary>
+    /// شکلِ واقعیِ پاسخ سرویس UM به اعتبارنامه‌ی غلط، همان‌طور که از
+    /// ‎https://usermanagement.odcc.ir/api/Auth/checkCredential‎ برگشت: ۴۰۰ با کدِ ۴۱۰
+    /// و متنی که با escapeهای یونیکد نوشته شده است.
+    /// </summary>
+    [Fact]
+    public async Task The_real_wrong_credential_response_keeps_its_message_and_code()
+    {
+        var service = CreateService(HttpStatusCode.BadRequest,
+            """{"message":"اطلاعات وارد شده صحیح نمی باشد","code":410}""");
+
+        var error = await Assert.ThrowsAsync<ExternalAuthException>(
+            () => service.CheckUserAndPassword(AnyCredentials()));
+
+        Assert.Equal(410, error.Code);
+        Assert.Contains("اطلاعات وارد شده", error.Message);
+    }
+
+    /// <summary>
     /// وقتی بدنه JSON است ولی کدی ندارد، کد وضعیتِ خودِ HTTP گویاترین چیزی است
     /// که در اختیار داریم.
     /// </summary>
@@ -163,7 +232,7 @@ public class UmServiceResponseTests
     {
         // پیام مستقیم به صفحه‌ی ورود می‌رود. نه نشانی داخلی، نه بدنه‌ی پاسخ، نه
         // نام استثنا.
-        foreach (var leak in new[] { "<", "um.internal", "8030", "http://", "Exception", "Json" })
+        foreach (var leak in new[] { "<", "um.internal", "8030", "172.17", "http://", "https://", "Exception", "Json" })
         {
             Assert.DoesNotContain(leak, message, StringComparison.OrdinalIgnoreCase);
         }

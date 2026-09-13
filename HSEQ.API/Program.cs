@@ -79,7 +79,10 @@ var umTimeout = TimeSpan.FromSeconds(configuration.GetValue("UserManagementAPI:T
 // برمی‌گرداند (آخرین ثبت برنده است) و تنظیمات را بی‌سروصدا بی‌اثر می‌کند.
 if (!string.Equals(umSource, "Database", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddHttpClient<IUMService, UmService>(client => client.Timeout = umTimeout);
+    // هدایت دنبال نمی‌شود: بدنه‌ی این درخواست رمز کاربر است و نباید به مقصدی برود که
+    // پاسخ تعیین می‌کند. UmService هدایت را با نشانیِ مقصد در لاگ گزارش می‌کند.
+    builder.Services.AddHttpClient<IUMService, UmService>(client => client.Timeout = umTimeout)
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 }
 
 // تنظیمات Authentication
@@ -158,14 +161,21 @@ if (args.Contains("--check-um") || args.Contains("--check-um-login"))
 {
     var checkLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Check.UserManagement");
 
-    if (umConnectionString is null)
+    // در حالت Database، پیش از سنجش ورود خودِ دیتابیس UM وارسی می‌شود. در حالت Api
+    // همان سرویس HTTP صدا زده می‌شود و خرابیِ انتقالش - نام، مسیر، TLS، هدایت - در
+    // لاگ همین خروجی دیده می‌شود؛ پس سنجش ورود در هر دو حالت معنی دارد.
+    if (umConnectionString is not null)
     {
-        Console.Error.WriteLine("این بررسی فقط در حالت «UserManagement:Source = Database» معنی دارد.");
-        Console.Error.WriteLine("تنظیمات فعلی: " + configuration.GetValue("UserManagement:Source", "Api"));
+        await UmDatabaseProbe.RunAsync(umConnectionString, checkLogger);
+    }
+    else if (!args.Contains("--check-um-login"))
+    {
+        Console.Error.WriteLine("وارسی دیتابیس فقط در حالت «UserManagement:Source = Database» معنی دارد.");
+        Console.Error.WriteLine("در حالت Api ورود یک حساب را بسنجید:  --check-um-login <کد پرسنلی>");
         return 2;
     }
 
-    await UmDatabaseProbe.RunAsync(umConnectionString, checkLogger);
+    Console.WriteLine("منبع احراز هویت: " + configuration.GetValue("UserManagement:Source", "Api"));
 
     var loginIndex = Array.IndexOf(args, "--check-um-login");
     if (loginIndex < 0) return 0;
