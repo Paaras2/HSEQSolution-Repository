@@ -1,5 +1,6 @@
 using HSEQ.API.Model.Dtos;
 using HSEQ.API.Model.RequestModels;
+using HSEQ.API.ServiceConfiguration;
 using HSEQ.Common;
 using HSEQ.Service.Interfaces.Services;
 using Microsoft.AspNetCore.Http;
@@ -145,10 +146,9 @@ namespace HSEQ.API.Controllers
                 // یک ۵۰۰ِ خالی می‌گرفت و صفحه‌ی ورود آن را «سامانه‌ی کاربران پاسخ نمی‌دهد»
                 // می‌خواند - یعنی عیب‌یابی به جای اشتباه فرستاده می‌شد.
                 _logger.LogError(ex,
-                    "سامانه‌ی مدیریت کاربران ورود کد پرسنلی {PCode} را پذیرفت، اما ساخت نشست شکست خورد. " +
-                    "این مرحله نقش را از جدول Admins در HSEQDb می‌خواند: یا دیتابیس در دسترس نیست، " +
-                    "یا اسکریپت migrations.sql بسته روی آن اجرا نشده و ساختار جدول قدیمی است.",
-                    credential.PCode);
+                    "سامانه‌ی مدیریت کاربران ورود کد پرسنلی {PCode} را پذیرفت، اما ساخت نشست شکست خورد " +
+                    "(خواندن نقش از جدول Admins در HSEQDb): {Reason}",
+                    credential.PCode, HseqDatabaseDiagnostics.Describe(ex));
                 return ServerError();
             }
 

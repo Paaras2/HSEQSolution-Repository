@@ -73,15 +73,17 @@ finally {
 Write-Host ''
 switch ($code) {
     0 {
-        if ($Username) { Write-Host 'ورود پذیرفته شد - مسیر احراز هویت سالم است.' -ForegroundColor Green }
-        else { Write-Host 'دیتابیس سامانه‌ی مدیریت کاربران در دسترس است.' -ForegroundColor Green }
+        if ($Username) { Write-Host 'ورود کامل شد: سامانه‌ی کاربران پذیرفت و HSEQ نشست را ساخت - مرورگر هم باید وارد شود.' -ForegroundColor Green }
+        else { Write-Host 'دیتابیس HSEQ در دسترس و به‌روز است.' -ForegroundColor Green }
     }
     1 {
-        Write-Host 'ورود پذیرفته نشد. خط‌های بالا می‌گویند چرا.' -ForegroundColor Yellow
+        Write-Host 'سامانه‌ی مدیریت کاربران ورود را نپذیرفت. خط‌های بالا می‌گویند چرا.' -ForegroundColor Yellow
     }
     2 {
-        Write-Host 'بدون ‎-Username‎ فقط دیتابیس UM وارسی می‌شود، و تنظیمات روی حالت Database نیست.' -ForegroundColor Yellow
-        Write-Host 'در حالت Api ورود یک حساب را بسنجید:  .\Test-UmLogin.ps1 -Username <کد پرسنلی>' -ForegroundColor Yellow
+        Write-Host 'استفاده:  .\Test-UmLogin.ps1 -Username <کد پرسنلی>' -ForegroundColor Yellow
+    }
+    3 {
+        Write-Host 'مشکل از دیتابیس HSEQ روی همین سرور است - همان «خطای داخلی سامانه»ی مرورگر. خط‌های بالا می‌گویند چه باید کرد.' -ForegroundColor Red
     }
     default {
         Write-Host "برنامه با کد $code خارج شد." -ForegroundColor Red

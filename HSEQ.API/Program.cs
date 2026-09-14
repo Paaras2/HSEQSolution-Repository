@@ -148,43 +148,47 @@ var app = builder.Build();
 // ---------------------------------------------------------------------------
 // سنجشِ ورود، از خط فرمان - بدون بالا آمدن وب‌سرور
 // ---------------------------------------------------------------------------
-//   HSEQ.API.exe --check-um                 فقط وارسی دیتابیس UM
-//   HSEQ.API.exe --check-um-login <کاربر>   ورود یک حساب واقعی را می‌سنجد
+//   HSEQ.API.exe --check-um                 دیتابیس HSEQ (و در حالت Database، دیتابیس UM)
+//   HSEQ.API.exe --check-um-login <کاربر>   کلِ مسیرِ ورودِ یک حساب واقعی
 //
-// چرا اینجا و نه در یک اسکریپت جدا: اسکریپت ناچار بود منطق راستی‌آزمایی رمز را
-// دوباره بنویسد، و آن وقت چیزی را می‌سنجید که شبیهِ کد واقعی است نه خودش. از اینجا
-// همان IUMService و همان UmPasswordVerifier اجرا می‌شوند که هنگام ورودِ واقعی
-// اجرا می‌شوند، با همان تنظیمات و همان رشته‌ی اتصال.
+// مسیرِ ورود دو مرحله دارد و خطای مرورگر در هر کدام معنای دیگری دارد:
 //
+//   ۱) سامانه‌ی مدیریت کاربران رمز را می‌سنجد        رد شدن  ← ۴۰۰ در مرورگر
+//   ۲) HSEQ نقش را از جدول Admins می‌خواند و توکن می‌سازد  خرابی  ← ۵۰۰ «خطای داخلی سامانه»
+//
+// این دستور هر دو را همان‌طور اجرا می‌کند که AuthController اجرا می‌کند - همان
+// IUMService، همان IJwtService، همان تنظیمات و رشته‌ی اتصال - و به‌جای «۵۰۰» علتِ
+// دقیقِ خرابیِ دیتابیس را می‌نویسد. اسکریپت جدا ناچار بود این منطق را دوباره بنویسد و
+// آن وقت چیزی شبیهِ کدِ واقعی را می‌سنجید، نه خودش را.
+//
+// کد خروج: ۰ ورود کامل، ۱ سامانه‌ی کاربران نپذیرفت، ۲ استفاده‌ی نادرست، ۳ دیتابیس HSEQ.
 // رمز از ورودی خوانده می‌شود و روی صفحه echo نمی‌شود؛ هیچ‌جا لاگ یا چاپ نمی‌شود.
 if (args.Contains("--check-um") || args.Contains("--check-um-login"))
 {
     var checkLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Check.UserManagement");
+    var hseqConnection = configuration["ConnectionStrings:DefaultConnection"];
 
-    // در حالت Database، پیش از سنجش ورود خودِ دیتابیس UM وارسی می‌شود. در حالت Api
-    // همان سرویس HTTP صدا زده می‌شود و خرابیِ انتقالش - نام، مسیر، TLS، هدایت - در
-    // لاگ همین خروجی دیده می‌شود؛ پس سنجش ورود در هر دو حالت معنی دارد.
+    // اول دیتابیس خودِ HSEQ: اگر این خراب باشد، هر ورودی - حتی با رمز درست - به
+    // «خطای داخلی سامانه» می‌رسد و بقیه‌ی خروجی فقط همان را تکرار می‌کند.
+    var hseqDatabaseOk = await ReportHseqDatabaseAsync(app.Services, hseqConnection);
+    Console.WriteLine();
+
+    // در حالت Database، دیتابیسِ سامانه‌ی کاربران هم وارسی می‌شود.
     if (umConnectionString is not null)
     {
         await UmDatabaseProbe.RunAsync(umConnectionString, checkLogger);
-    }
-    else if (!args.Contains("--check-um-login"))
-    {
-        Console.Error.WriteLine("وارسی دیتابیس فقط در حالت «UserManagement:Source = Database» معنی دارد.");
-        Console.Error.WriteLine("در حالت Api ورود یک حساب را بسنجید:  --check-um-login <کد پرسنلی>");
-        return 2;
     }
 
     Console.WriteLine("منبع احراز هویت: " + configuration.GetValue("UserManagement:Source", "Api"));
 
     var loginIndex = Array.IndexOf(args, "--check-um-login");
-    if (loginIndex < 0) return 0;
+    if (loginIndex < 0) return hseqDatabaseOk ? 0 : 3;
 
     var user = loginIndex + 1 < args.Length ? args[loginIndex + 1] : null;
     if (string.IsNullOrWhiteSpace(user))
     {
         Console.Error.WriteLine("استفاده: --check-um-login <کد پرسنلی>");
-        return 1;
+        return 2;
     }
 
     Console.Write($"رمز عبور {user}: ");
@@ -193,28 +197,93 @@ if (args.Contains("--check-um") || args.Contains("--check-um-login"))
 
     using var checkScope = app.Services.CreateScope();
     var um = checkScope.ServiceProvider.GetRequiredService<IUMService>();
+
+    HSEQ.API.Model.Dtos.CheckCredentialDto who;
     try
     {
-        var who = await um.CheckUserAndPassword(new HSEQ.API.Model.RequestModels.LoginRequestModel { Username = user, Password = password });
-        Console.WriteLine();
-        Console.WriteLine("=== ورود پذیرفته شد ===");
-        Console.WriteLine($"  کد پرسنلی : {who.PCode}");
-        Console.WriteLine($"  نام       : {who.FirstName} {who.LastName}");
-        Console.WriteLine($"  فعال      : {(who.IsActive ? "بله" : "خیر")}");
-        Console.WriteLine($"  اولین ورود: {(who.IsFirstLogin ? "بله" : "خیر")}");
-        return 0;
+        who = await um.CheckUserAndPassword(new HSEQ.API.Model.RequestModels.LoginRequestModel { Username = user, Password = password });
     }
     catch (ExternalAuthException ex)
     {
         Console.WriteLine();
-        Console.WriteLine("=== ورود پذیرفته نشد ===");
+        Console.WriteLine("=== ۱) سامانه‌ی مدیریت کاربران ورود را نپذیرفت ===");
         Console.WriteLine($"  کد {ex.Code}: {ex.Message}");
-        Console.WriteLine(ex.Code == 503
-            ? "  کد ۵۰۳ یعنی ایراد از سمت ماست نه از رمز - خط‌های بالا می‌گویند کدام."
-            : "  کد ۴۰۱ یعنی این نام کاربری و رمز با هم جور نیستند.");
+        Console.WriteLine(ex.Code >= 500
+            ? "  کد ۵xx یعنی سامانه‌ی کاربران در دسترس نبود - نه رمز غلط. خط‌های بالا می‌گویند چرا."
+            : "  یعنی این کد پرسنلی و رمز با هم جور نیستند - همان ۴۰۰ِ مرورگر.");
         return 1;
     }
+
+    Console.WriteLine();
+    Console.WriteLine("=== ۱) سامانه‌ی مدیریت کاربران ورود را پذیرفت ===");
+    Console.WriteLine($"  کد پرسنلی : {who?.PCode}");
+    Console.WriteLine($"  نام       : {who?.FirstName} {who?.LastName}");
+    Console.WriteLine($"  فعال      : {(who?.IsActive == true ? "بله" : "خیر")}");
+    Console.WriteLine($"  اولین ورود: {(who?.IsFirstLogin == true ? "بله" : "خیر")}");
+
+    if (who == null || !who.IsActive || who.PCode <= 0)
+    {
+        Console.WriteLine("  HSEQ این پاسخ را برای ورود کافی نمی‌داند (حساب غیرفعال یا بدون کد پرسنلی).");
+        return 1;
+    }
+
+    // مرحله‌ی دوم دقیقاً همان کاری است که AuthController پس از پاسخ UM می‌کند؛
+    // «خطای داخلی سامانه»ی مرورگر از همین‌جاست.
+    Console.WriteLine();
+    Console.WriteLine("=== ۲) ساخت نشست در HSEQ (نقش از جدول Admins، سپس امضای توکن) ===");
+    try
+    {
+        var jwt = checkScope.ServiceProvider.GetRequiredService<HSEQ.Service.Interfaces.Services.IJwtService>();
+        var token = await jwt.GenerateJwtToken(who.PCode.ToString(), who.FirstName, who.LastName);
+        var role = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token).Claims
+            .FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role")?.Value;
+        Console.WriteLine($"  نقش: {(role == "Addi" ? "فقط مشاهده (ردیفی در Admins ندارد)" : role)}");
+        Console.WriteLine();
+        Console.WriteLine("=== ورود کامل شد - مرورگر هم باید وارد شود ===");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("  شکست خورد - «خطای داخلی سامانه»ی مرورگر همین است:");
+        Console.WriteLine("  " + HSEQ.API.ServiceConfiguration.HseqDatabaseDiagnostics.Describe(ex, hseqConnection));
+        return 3;
+    }
 }
+
+// اتصال، و اینکه همه‌ی مهاجرت‌ها روی دیتابیس اجرا شده‌اند. MigrateOnStartup بیرون از
+// توسعه خاموش است، پس دیتابیسِ سروری که migrations.sql رویش اجرا نشده بی‌سروصدا
+// قدیمی می‌ماند - تا اولین کوئری‌ای که ستونِ تازه‌ای می‌خواهد.
+static async Task<bool> ReportHseqDatabaseAsync(IServiceProvider services, string connectionString)
+{
+    Console.WriteLine("=== دیتابیس HSEQ ===");
+    Console.WriteLine("  " + HSEQ.API.ServiceConfiguration.HseqDatabaseDiagnostics.Target(connectionString));
+
+    using var scope = services.CreateScope();
+    var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database;
+    try
+    {
+        await database.OpenConnectionAsync();
+        await database.CloseConnectionAsync();
+        Console.WriteLine("  اتصال : برقرار شد");
+
+        var pending = (await database.GetPendingMigrationsAsync()).ToList();
+        if (pending.Count == 0)
+        {
+            Console.WriteLine("  ساختار: به‌روز - همه‌ی مهاجرت‌ها اجرا شده‌اند");
+            return true;
+        }
+
+        Console.WriteLine($"  ساختار: {pending.Count} مهاجرت اجرا نشده - اسکریپت migrations.sql پوشه‌ی Database بسته را پس از پشتیبان‌گیری اجرا کنید:");
+        foreach (var migration in pending) Console.WriteLine("    - " + migration);
+        return false;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("  " + HSEQ.API.ServiceConfiguration.HseqDatabaseDiagnostics.Describe(ex, connectionString));
+        return false;
+    }
+}
+
 
 static string ReadPasswordWithoutEcho()
 {
