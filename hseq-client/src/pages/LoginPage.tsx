@@ -1,11 +1,20 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Role } from '../auth/roles'
-import { ApiError } from '../lib/httpClient'
-import { toLatinDigits, toPersianDigits } from '../lib/digits'
 import {
+  SLOW_LOGIN_HINT_MS,
+  describeLoginFailure,
+  looksLikePersianKeyboard,
+  normalizeUsername,
+  validateLogin,
+} from '../auth/loginFeedback'
+import type { LoginFailure, LoginFieldErrors } from '../auth/loginFeedback'
+import { ApiError } from '../lib/httpClient'
+import { toPersianDigits } from '../lib/digits'
+import {
+  AlertTriangleIcon,
   ChevronDownIcon,
   EyeIcon,
   EyeOffIcon,
@@ -31,50 +40,108 @@ const DEV_ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'Admin', label: 'مدیر سیستم' },
 ]
 
+// ورود با کد پرسنلی و رمزِ سامانه‌ی مدیریت کاربران (checkCredential).
+//
+// هر پاسخِ ناموفق یکی از چند علتِ مشخص دارد و هر کدام پیام و کارِ متفاوتی می‌خواهد:
+// رمز غلط (رمز پاک و فیلدش فوکوس می‌شود)، حساب غیرفعال، و در دسترس نبودنِ سامانه‌ی
+// کاربران (هشدارِ کهربایی با «تلاش دوباره» - تا کاربر رمزِ درستش را بی‌دلیل عوض نکند).
+// ترجمه‌ی پاسخ به پیام در loginFeedback.ts است و بدون مرورگر آزموده می‌شود.
 export function LoginPage() {
   const { isAuthenticated, login, devLogin } = useAuth()
   const navigate = useNavigate()
 
   const [pcode, setPcode] = useState('')
   const [password, setPassword] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({})
+  const [failure, setFailure] = useState<LoginFailure | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // پاسخ کُند: سرور تا ۱۰ ثانیه منتظر سامانه‌ی کاربران می‌ماند. بدون این پیام، دکمه‌ی
+  // چرخان پس از چند ثانیه شبیهِ صفحه‌ی قفل‌شده است و کاربر پشت سر هم کلیک می‌کند.
+  const [isSlow, setIsSlow] = useState(false)
 
   // نمایش/پنهان‌سازی رمز - فقط حالتِ ظاهری فیلد را عوض می‌کند، نه مقدارش را.
   const [isPasswordVisible, setPasswordVisible] = useState(false)
+  const [isCapsLockOn, setCapsLockOn] = useState(false)
 
   const [isDevOpen, setIsDevOpen] = useState(false)
   const [devRole, setDevRole] = useState<Role | ''>('')
   const [isDevSubmitting, setIsDevSubmitting] = useState(false)
   const [devError, setDevError] = useState<string | null>(null)
 
+  const pcodeRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // فیلدها هنگام ارسال غیرفعال‌اند و فیلدِ غیرفعال فوکوس نمی‌گیرد؛ پس فوکوسِ پس از خطا
+  // تا رندرِ بعدی که دوباره فعال شده‌اند صبر می‌کند.
+  const pendingFocus = useRef<'pcode' | 'password' | null>(null)
+  useEffect(() => {
+    if (isSubmitting || !pendingFocus.current) return
+    const target = pendingFocus.current === 'pcode' ? pcodeRef : passwordRef
+    pendingFocus.current = null
+    target.current?.focus()
+  }, [isSubmitting])
+
   if (isAuthenticated) {
     return <Navigate to={AFTER_LOGIN_PATH} replace />
   }
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
+  const isPersianKeyboard = looksLikePersianKeyboard(password)
+  const passwordHintIds = [
+    fieldErrors.password ? 'password-error' : null,
+    isCapsLockOn || isPersianKeyboard ? 'password-hints' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  async function submit() {
     // Duplicate-submission protection: ignore re-entrant submits (double
-    // click, double Enter) while a login request is already in flight.
+    // click, double Enter, retry while in flight).
     if (isSubmitting) return
 
-    // کاربر ممکن است با صفحه‌کلید فارسی عدد بزند؛ سرور فقط ارقام لاتین می‌پذیرد.
-    const trimmedPcode = toLatinDigits(pcode).trim()
-    if (!trimmedPcode || !password) {
-      setError('لطفاً کد پرسنلی و رمز عبور را وارد کنید.')
+    const username = normalizeUsername(pcode)
+    const errors = validateLogin(username, password)
+    setFieldErrors(errors)
+    if (errors.username || errors.password) {
+      setFailure(null)
+      ;(errors.username ? pcodeRef : passwordRef).current?.focus()
       return
     }
 
     setIsSubmitting(true)
-    setError(null)
+    setFailure(null)
+    const slowTimer = window.setTimeout(() => setIsSlow(true), SLOW_LOGIN_HINT_MS)
+
     try {
-      await login(trimmedPcode, password)
+      await login(username, password)
       navigate(AFTER_LOGIN_PATH, { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'امکان ورود وجود ندارد. لطفاً دوباره تلاش کنید.')
+      const described = describeLoginFailure(err)
+      setFailure(described)
+      if (described.kind === 'invalid_credentials') {
+        // رمزِ غلط پاک می‌شود تا کاربر از نو تایپش کند؛ کد پرسنلی می‌ماند.
+        setPassword('')
+        pendingFocus.current = 'password'
+      }
     } finally {
+      window.clearTimeout(slowTimer)
+      setIsSlow(false)
       setIsSubmitting(false)
     }
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    void submit()
+  }
+
+  // خطای «رمز غلط» با شروعِ تایپ دوباره کهنه می‌شود؛ هشدارِ در دسترس نبودنِ سامانه نه،
+  // چون ربطی به آنچه کاربر تایپ می‌کند ندارد و دکمه‌ی تلاش دوباره‌اش باید بماند.
+  function clearStaleFailure() {
+    if (failure && !failure.canRetry) setFailure(null)
+  }
+
+  function trackCapsLock(event: KeyboardEvent<HTMLInputElement>) {
+    setCapsLockOn(event.getModifierState('CapsLock'))
   }
 
   async function handleDevLogin() {
@@ -108,13 +175,29 @@ export function LoginPage() {
           <div className="login-panel__head">
             <img src="/brand/logo-icon.png" alt="" className="login-panel__mark" />
             <h1>مدیریت یکپارچه مدارک و مستندات</h1>
-            <p>برای ادامه، با کد پرسنلی خود وارد شوید</p>
+            <p>با کد پرسنلی و رمز عبورِ سامانه‌ی مدیریت کاربران وارد شوید</p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit} noValidate>
-            {error && (
-              <div className="form-error" role="alert">
-                {error}
+          <form className="login-form" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
+            {failure && (
+              <div className={`login-alert login-alert--${failure.tone}`} role="alert">
+                <span className="login-alert__icon" aria-hidden="true">
+                  <AlertTriangleIcon size={18} />
+                </span>
+                <div className="login-alert__body">
+                  <strong>{failure.title}</strong>
+                  {failure.detail && <p>{failure.detail}</p>}
+                  {failure.canRetry && (
+                    <button
+                      type="button"
+                      className="login-alert__retry"
+                      onClick={() => void submit()}
+                      disabled={isSubmitting}
+                    >
+                      تلاش دوباره
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -126,18 +209,33 @@ export function LoginPage() {
                   <UserIcon size={17} />
                 </span>
                 <input
+                  ref={pcodeRef}
                   id="pcode"
-                  name="pcode"
+                  name="username"
                   type="text"
                   inputMode="numeric"
                   autoComplete="username"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  maxLength={32}
                   className="text-input"
                   value={pcode}
-                  onChange={(event) => setPcode(event.target.value)}
+                  onChange={(event) => {
+                    setPcode(event.target.value)
+                    if (fieldErrors.username) setFieldErrors((errors) => ({ ...errors, username: undefined }))
+                    clearStaleFailure()
+                  }}
+                  aria-invalid={fieldErrors.username ? true : undefined}
+                  aria-describedby={fieldErrors.username ? 'pcode-error' : undefined}
                   disabled={isSubmitting}
                   autoFocus
                 />
               </div>
+              {fieldErrors.username && (
+                <p id="pcode-error" className="login-field-error">
+                  {fieldErrors.username}
+                </p>
+              )}
             </div>
 
             {/* رمز عبور به‌همراه دکمه‌ی نمایش/پنهان‌سازی */}
@@ -148,13 +246,24 @@ export function LoginPage() {
                   <LockIcon size={17} />
                 </span>
                 <input
+                  ref={passwordRef}
                   id="password"
                   name="password"
                   type={isPasswordVisible ? 'text' : 'password'}
                   autoComplete="current-password"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   className="text-input"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value)
+                    if (fieldErrors.password) setFieldErrors((errors) => ({ ...errors, password: undefined }))
+                    clearStaleFailure()
+                  }}
+                  onKeyDown={trackCapsLock}
+                  onKeyUp={trackCapsLock}
+                  aria-invalid={fieldErrors.password ? true : undefined}
+                  aria-describedby={passwordHintIds || undefined}
                   disabled={isSubmitting}
                 />
                 <button
@@ -168,18 +277,39 @@ export function LoginPage() {
                   {isPasswordVisible ? <EyeOffIcon size={17} /> : <EyeIcon size={17} />}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p id="password-error" className="login-field-error">
+                  {fieldErrors.password}
+                </p>
+              )}
+              {(isCapsLockOn || isPersianKeyboard) && (
+                <ul id="password-hints" className="login-field-hints" aria-live="polite">
+                  {isCapsLockOn && <li>Caps Lock روشن است.</li>}
+                  {isPersianKeyboard && <li>صفحه‌کلید روی فارسی است؛ رمزها معمولاً با حروف و ارقام لاتین‌اند.</li>}
+                </ul>
+              )}
             </div>
 
             <button type="submit" className="btn login-submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <SpinnerIcon size={17} />
-                  در حال ورود...
+                  در حال بررسی...
                 </>
               ) : (
                 'ورود'
               )}
             </button>
+
+            {isSlow && (
+              <p className="login-slow" role="status">
+                پاسخ سامانه‌ی مدیریت کاربران کمی طول کشیده؛ لطفاً صبر کنید.
+              </p>
+            )}
+
+            <p className="login-help">
+              همان رمزی که در سامانه‌ی مدیریت کاربران دارید. برای بازیابی رمز عبور با واحد فناوری اطلاعات تماس بگیرید.
+            </p>
           </form>
 
           {/* Dev-only sign-in shortcut - see AuthController.DevLogin. Never rendered in
@@ -277,7 +407,7 @@ export function LoginPage() {
               <span className="login-hero__feature-icon" aria-hidden="true">
                 <UsersIcon size={16} />
               </span>
-              دسترسی نقش‌محور و کنترل‌شده
+              ورود یکپارچه با حساب سامانه‌ی مدیریت کاربران
             </li>
           </ul>
         </aside>

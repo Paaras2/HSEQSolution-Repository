@@ -7,8 +7,10 @@ import { toPersianDigits } from '../lib/digits'
 import { SearchBar } from './SearchBar'
 import {
   AdminIcon,
+  AlertTriangleIcon,
   CalendarIcon,
   ChevronsIcon,
+  CloseIcon,
   DashboardIcon,
   FileTextIcon,
   LogoutIcon,
@@ -43,7 +45,7 @@ function todayLabel(): string {
 }
 
 export function AppShell() {
-  const { user, logout, hasCapability } = useAuth()
+  const { user, logout, hasCapability, showFirstLoginNotice, dismissFirstLoginNotice } = useAuth()
   // پنل ادمین فقط برای «مدیر اسناد» و «مدیر سیستم» دیده می‌شود.
   const canOpenAdminPanel = hasCapability('admin:access')
 
@@ -54,6 +56,13 @@ export function AppShell() {
 
   const dateLabel = useMemo(todayLabel, [])
   const roleLabel = user ? ROLE_LABELS[user.role] : ''
+
+  // نام از سامانه‌ی مدیریت کاربران می‌آید (داخل توکن). توکنِ قدیمی یا حسابی بی‌نام
+  // همچنان با کد پرسنلی نمایش داده می‌شود.
+  const pcodeLabel = `کد پرسنلی ${toPersianDigits(user?.pcode)}`
+  const userTitle = user?.displayName ?? pcodeLabel
+  const userSubtitle = user?.displayName ? `${roleLabel} · ${pcodeLabel}` : roleLabel
+  const avatarLabel = user?.initials ?? toPersianDigits(user?.pcode?.slice(-2) ?? '--')
 
   useEffect(() => {
     applyTheme(theme)
@@ -130,13 +139,13 @@ export function AppShell() {
           {/* کارت کاربر: هویتِ نشستِ جاری. عملیات خروج در نوار بالا است تا در حالت
               جمع‌شده و در موبایل هم همیشه در دسترس بماند. */}
           <div className="user-card">
-            <span className="user-card__avatar">
-              {toPersianDigits(user?.pcode?.slice(-2) ?? '--')}
+            <span className="user-card__avatar" aria-hidden="true">
+              {avatarLabel}
               <span className="user-card__status" aria-hidden="true" />
             </span>
             <span className="user-card__body">
-              <strong>کد پرسنلی {toPersianDigits(user?.pcode)}</strong>
-              <span>{roleLabel}</span>
+              <strong>{userTitle}</strong>
+              <span>{userSubtitle}</span>
             </span>
           </div>
 
@@ -196,10 +205,12 @@ export function AppShell() {
 
             <div className="topbar__user">
               <span className="topbar__user-info">
-                <strong>کد پرسنلی {toPersianDigits(user?.pcode)}</strong>
-                <span>{roleLabel}</span>
+                <strong>{userTitle}</strong>
+                <span>{userSubtitle}</span>
               </span>
-              <span className="topbar__avatar">{toPersianDigits(user?.pcode?.slice(-2) ?? '--')}</span>
+              <span className="topbar__avatar" aria-hidden="true">
+                {avatarLabel}
+              </span>
               <button type="button" className="topbar__icon-btn" onClick={logout} aria-label="خروج" title="خروج">
                 <LogoutIcon size={18} />
               </button>
@@ -208,6 +219,27 @@ export function AppShell() {
         </div>
 
         <main className="app-main">
+          {/* ورودِ اول با رمز پیش‌فرض: یک بار در این نشست، بالای هر صفحه‌ای که کاربر
+              به آن می‌رسد، تا خودش ببندد. */}
+          {showFirstLoginNotice && (
+            <div className="first-login-notice" role="status">
+              <span className="first-login-notice__icon" aria-hidden="true">
+                <AlertTriangleIcon size={18} />
+              </span>
+              <p>
+                <strong>رمز عبور شما هنوز رمز پیش‌فرض است.</strong>
+                برای امنیت حساب، آن را در سامانه‌ی مدیریت کاربران یا با هماهنگی واحد فناوری اطلاعات تغییر دهید.
+              </p>
+              <button
+                type="button"
+                className="first-login-notice__close"
+                onClick={dismissFirstLoginNotice}
+                aria-label="بستن پیام"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

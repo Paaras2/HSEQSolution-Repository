@@ -154,13 +154,14 @@ namespace HSEQ.Shared.Services.Services
                     return credential;
                 }
 
-                // پاسخِ خطا هم ممکن است JSON نباشد؛ آن‌وقت کد وضعیتِ خودِ HTTP
-                // گویاترین چیزی است که داریم.
+                // پاسخِ خطایی که JSON نیست از خودِ سرویس UM نیامده - صفحه‌ی خطای IIS یا
+                // یک پروکسی است - پس همیشه ۵۰۲ گزارش می‌شود، نه با کد وضعیتِ خودش. وگرنه
+                // ۴۰۴ِ یک نشانیِ اشتباه در صفحه‌ی ورود «رمز غلط» خوانده می‌شد.
                 var error = TryDeserialize<ErrorDto>(body);
                 if (error is null)
                 {
                     LogUnexpectedBody(response, body, url);
-                    throw new ExternalAuthException(UnavailableMessage, (int)response.StatusCode);
+                    throw new ExternalAuthException(UnavailableMessage, 502);
                 }
 
                 throw new ExternalAuthException(error.Message ?? "خطایی رخ داده است",

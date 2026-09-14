@@ -2,13 +2,25 @@
 // camelCase JSON output (System.Text.Json default naming policy) - do not
 // rename these to "look nicer" without checking the actual API response.
 
+// پاسخِ ورود. «user» بخشی از پاسخِ checkCredential سامانه‌ی مدیریت کاربران است که
+// صفحه لازم دارد - کد ملی و موبایل عمداً به مرورگر نمی‌رسند.
+export interface LoginUser {
+  pCode: number
+  firstName?: string | null
+  lastName?: string | null
+  isFirstLogin: boolean
+}
+
 export interface LoginResult {
   token: string
+  // سرورِ پیش از این تغییر فقط token برمی‌گرداند.
+  user?: LoginUser
 }
 
 export interface ApiErrorBody {
   message?: string
   code?: number
+  reason?: string
 }
 
 // HSEQ.Common.DocumentVersion: A=1 .. Z=26. Kept here only to render the

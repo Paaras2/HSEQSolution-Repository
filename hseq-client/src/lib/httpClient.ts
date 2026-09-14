@@ -17,11 +17,15 @@ function apiUrl(path: string): URL {
 export class ApiError extends Error {
   status: number
   code?: number
+  // علتِ ماشین‌خوانای خطا، وقتی سرور آن را می‌فرستد (مثلاً ورود: invalid_credentials،
+  // unavailable، inactive). متن پیام برای کاربر است و نباید رویش تصمیم گرفت.
+  reason?: string
 
-  constructor(status: number, message: string, code?: number) {
+  constructor(status: number, message: string, code?: number, reason?: string) {
     super(message)
     this.status = status
     this.code = code
+    this.reason = reason
   }
 }
 
@@ -37,11 +41,15 @@ export function configureHttpClient(tokenGetter: TokenGetter, unauthorizedHandle
   onUnauthorized = unauthorizedHandler
 }
 
-async function parseErrorBody(response: Response): Promise<{ message: string; code?: number }> {
+async function parseErrorBody(response: Response): Promise<{ message: string; code?: number; reason?: string }> {
   try {
     const body = await response.json()
     if (body && typeof body.message === 'string') {
-      return { message: body.message, code: body.code }
+      return {
+        message: body.message,
+        code: body.code,
+        reason: typeof body.reason === 'string' ? body.reason : undefined,
+      }
     }
   } catch {
     // Non-JSON or empty body - fall through to the generic message below.
@@ -52,18 +60,18 @@ async function parseErrorBody(response: Response): Promise<{ message: string; co
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     onUnauthorized()
-    const { message, code } = await parseErrorBody(response)
-    throw new ApiError(401, message || 'Your session has expired. Please log in again.', code)
+    const { message, code, reason } = await parseErrorBody(response)
+    throw new ApiError(401, message || 'Your session has expired. Please log in again.', code, reason)
   }
 
   if (response.status === 403) {
-    const { message, code } = await parseErrorBody(response)
-    throw new ApiError(403, message || 'You do not have permission to perform this action.', code)
+    const { message, code, reason } = await parseErrorBody(response)
+    throw new ApiError(403, message || 'You do not have permission to perform this action.', code, reason)
   }
 
   if (!response.ok) {
-    const { message, code } = await parseErrorBody(response)
-    throw new ApiError(response.status, message, code)
+    const { message, code, reason } = await parseErrorBody(response)
+    throw new ApiError(response.status, message, code, reason)
   }
 
   if (response.status === 204) {
@@ -122,6 +130,15 @@ export async function apiPostForm<T>(path: string, body: FormData | URLSearchPar
     method: 'POST',
     headers: { ...authHeaders() },
     body,
+  })
+  return handleResponse<T>(response)
+}
+
+export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(joinApiPath(API_BASE_URL, path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
   })
   return handleResponse<T>(response)
 }

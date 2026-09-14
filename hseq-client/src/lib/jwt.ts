@@ -51,3 +51,23 @@ export function getSubClaim(claims: JwtClaims | null): string | null {
   const value = claims.sub ?? claims[SUB_CLAIM_URI]
   return typeof value === 'string' ? value : null
 }
+
+// نام و نام خانوادگی را JwtService از پاسخ checkCredential در توکن می‌گذارد
+// (given_name / family_name). همان احتیاطِ نقش اینجا هم هست: شکلِ URI هم پذیرفته می‌شود.
+const GIVEN_NAME_CLAIM_URI = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'
+const SURNAME_CLAIM_URI = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'
+
+function firstText(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+export function getNameClaims(claims: JwtClaims | null): { firstName: string | null; lastName: string | null } {
+  if (!claims) return { firstName: null, lastName: null }
+  return {
+    firstName: firstText(claims.given_name, claims[GIVEN_NAME_CLAIM_URI]),
+    lastName: firstText(claims.family_name, claims[SURNAME_CLAIM_URI]),
+  }
+}
