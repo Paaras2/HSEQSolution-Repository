@@ -22,6 +22,6 @@ test('no name at all falls back to null', () => {
 })
 
 test('initials are separated so Persian letters do not join', () => {
-  assert.equal(initialsOf({ firstName: 'مریم', lastName: 'رضایی' }), 'م‌ر')
+  assert.equal(initialsOf({ firstName: 'مریم', lastName: 'رضایی' }), 'م\u200Cر')
   assert.equal(initialsOf({ firstName: 'Maryam' }), 'M')
 })

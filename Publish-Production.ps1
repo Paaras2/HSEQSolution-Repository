@@ -232,7 +232,15 @@ if ($SkipFrontend) {
     Invoke-Checked -Command 'npm' -Arguments @('test') -WorkingDirectory $ClientDir -What 'آزمون‌های کلاینت'
 
     # tsc -b داخل خود اسکریپت build هست، پس typecheck جدا لازم نیست.
-    Invoke-Checked -Command 'npm' -Arguments @('run', 'build') -WorkingDirectory $ClientDir -What 'build کلاینت'
+    # شناسه‌ی نسخه در پای صفحه‌ی ورود و منو دیده می‌شود، تا بدون باز کردن فایل‌های سرور
+    # بشود گفت کدام build واقعاً سرو می‌شود.
+    $env:VITE_RELEASE_ID = $ReleaseId
+    try {
+        Invoke-Checked -Command 'npm' -Arguments @('run', 'build') -WorkingDirectory $ClientDir -What 'build کلاینت'
+    }
+    finally {
+        Remove-Item Env:VITE_RELEASE_ID -ErrorAction SilentlyContinue
+    }
 
     $distDir = Join-Path $ClientDir 'dist'
     if (-not (Test-Path $distDir)) { throw 'build کلاینت خروجی dist نساخت.' }

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { JALALI_MONTH_NAMES, JALALI_WEEKDAY_NAMES, jalaliWeekdayIndex, todayJalali } from '../lib/jalali'
 import { applyTheme, resolveTheme, type Theme } from '../lib/theme'
 import { toPersianDigits } from '../lib/digits'
+import { releaseLabel } from '../lib/release'
 import { SearchBar } from './SearchBar'
 import {
   AdminIcon,
@@ -163,7 +164,15 @@ export function AppShell() {
               مثل بقیهٔ متن‌های منو. */}
           <p className="sidebar-credit">
             <span>طراحی و توسعه، فناوری اطلاعات، ارتباطات و حکمرانی داده</span>
-            <span className="sidebar-credit__version">نسخه {toPersianDigits('1.0')}</span>
+            <span className="sidebar-credit__version">
+              نسخه {toPersianDigits('1.0')}
+              {releaseLabel && (
+                <>
+                  {' · ساخت '}
+                  <bdi>{releaseLabel}</bdi>
+                </>
+              )}
+            </span>
           </p>
         </div>
       </aside>

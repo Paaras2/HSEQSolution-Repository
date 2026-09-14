@@ -23,5 +23,5 @@ export function initialsOf(name: PersonName): string | null {
   const letters = [clean(name.firstName), clean(name.lastName)]
     .filter(Boolean)
     .map((part) => Array.from(part)[0])
-  return letters.length > 0 ? letters.join('‌') : null
+  return letters.length > 0 ? letters.join('\u200C') : null
 }

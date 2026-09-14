@@ -34,6 +34,11 @@ public sealed class StubUmService : IUMService
     /// <summary>کاربری که رمزش درست است (<see cref="ValidPassword"/>) ولی حسابش در UM غیرفعال است.</summary>
     public const string InactiveUsername = "7777";
 
+    /// <summary>
+    /// کاربری که UM می‌پذیرد ولی خواندنِ نقشش از دیتابیس HSEQ شکست می‌خورد - ر.ک. <see cref="StubAdminService"/>.
+    /// </summary>
+    public const string BrokenSessionUsername = "6666";
+
     /// <summary>رمزی که سرویس UM را به خطای «سرویس در دسترس نیست» می‌اندازد.</summary>
     public const string PasswordThatBreaksUpstream = "trigger-upstream-outage";
 
@@ -70,6 +75,9 @@ public sealed class StubUmService : IUMService
         if (username == InactiveUsername && password == ValidPassword)
             return Task.FromResult(Credential(7777, "کاربر", "غیرفعال", isActive: false, isFirstLogin: false));
 
+        if (username == BrokenSessionUsername && password == ValidPassword)
+            return Task.FromResult(Credential(6666, "کاربر", "بی‌نشست", isActive: true, isFirstLogin: false));
+
         // همان شکلی که UmService واقعی از پاسخ ۴۰۰ سرویس UM می‌سازد.
         throw new ExternalAuthException(WrongCredentialsMessage, 410);
     }
@@ -95,7 +103,11 @@ public sealed class StubAdminService : IAdminService
 {
     public Task<bool> IsAdminAsync(int pcode) => Task.FromResult(true);
 
-    public Task<AppRole?> GetRoleAsync(int pcode) => Task.FromResult<AppRole?>(AppRole.Admin);
+    // برای BrokenSessionUsername همان چیزی را پرتاب می‌کند که دیتابیسِ در دسترس نبودن یا
+    // جدولِ مهاجرت‌نشده از EF می‌سازد.
+    public Task<AppRole?> GetRoleAsync(int pcode) => pcode == int.Parse(StubUmService.BrokenSessionUsername)
+        ? throw new InvalidOperationException("simulated HSEQDb failure while reading the role")
+        : Task.FromResult<AppRole?>(AppRole.Admin);
 
     public Task<List<AppUserDto>> GetUsersAsync() => Task.FromResult(new List<AppUserDto>());
 

@@ -98,9 +98,9 @@ public class LoginResponseTests
     [Theory]
     [InlineData("۳۲۵۶")]
     [InlineData("٣٢٥٦")]
-    [InlineData("‏3256")]
+    [InlineData("\u200F3256")]
     [InlineData(" 3256 ")]
-    [InlineData("‫۳۲۵۶‬")]
+    [InlineData("\u202B۳۲۵۶\u202C")]
     public async Task The_username_is_normalized_before_asking_user_management(string typed)
     {
         var (status, _, _) = await PostJsonAsync(Valid(username: typed));
@@ -123,7 +123,7 @@ public class LoginResponseTests
     [Theory]
     [InlineData("", "anything")]
     [InlineData("3256", "")]
-    [InlineData("‏ ", "anything")]
+    [InlineData("\u200F ", "anything")]
     public async Task Missing_fields_have_their_own_reason(string username, string password)
     {
         var (status, body, _) = await PostJsonAsync(new { username, password });
@@ -171,6 +171,22 @@ public class LoginResponseTests
         Assert.Equal(HttpStatusCode.Forbidden, status);
         Assert.Equal("inactive", body.GetProperty("reason").GetString());
         Assert.False(body.TryGetProperty("token", out _));
+    }
+
+    /// <summary>
+    /// UM رمز را پذیرفته ولی ساختِ نشست (خواندنِ نقش از HSEQDb) شکست خورده است. پیش از این
+    /// مرورگر یک ۵۰۰ِ خالی می‌گرفت و صفحه آن را «سامانه‌ی کاربران پاسخ نمی‌دهد» می‌خواند.
+    /// </summary>
+    [Fact]
+    public async Task A_server_failure_after_user_management_accepts_is_reported_as_such()
+    {
+        var (status, body, raw) = await PostJsonAsync(Valid(username: StubUmService.BrokenSessionUsername));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, status);
+        Assert.Equal("server_error", body.GetProperty("reason").GetString());
+        Assert.False(body.TryGetProperty("token", out _));
+        Assert.DoesNotContain("simulated", raw, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Exception", raw, StringComparison.OrdinalIgnoreCase);
     }
 
     private static JsonElement DecodePayload(string token)

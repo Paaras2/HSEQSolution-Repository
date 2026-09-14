@@ -71,6 +71,7 @@ namespace HSEQ.API.Controllers
         //     invalid_credentials   ۴۰۰  سامانه‌ی UM اعتبارنامه را نپذیرفت - پیامِ خودش می‌رسد
         //     unavailable           ۴۰۰  سامانه‌ی UM در دسترس نبود یا پاسخ نامعتبر داد
         //     inactive              ۴۰۳  رمز درست است ولی حساب در UM غیرفعال است
+        //     server_error          ۵۰۰  خرابی در خودِ این سرور (مثلاً دیتابیس HSEQ) - علت فقط در لاگ
         //
         // کدِ ۴۰۰ برای خطاهای UM عمداً همان مقدارِ پیشین است؛ صفحه‌ی ورود و آزمون‌های
         // استقرار روی آن بنا شده‌اند.
@@ -105,6 +106,13 @@ namespace HSEQ.API.Controllers
                                     string.IsNullOrWhiteSpace(ex.Message) ? "خطایی رخ داده است" : ex.Message,
                                     ex.Code);
             }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // هر چیزی جز ExternalAuthException از مسیر سنجش اعتبار، ایرادِ خودِ این
+                // سرور است (تنظیمات یا کد) - نه رمز کاربر و نه خاموشیِ سامانه‌ی کاربران.
+                _logger.LogError(ex, "سنجش اعتبار در سامانه‌ی مدیریت کاربران با خطای پیش‌بینی‌نشده متوقف شد.");
+                return ServerError();
+            }
 
             // The UM service can return 200 OK with a null body, or with a body for an
             // account that is not active. Neither may be treated as a successful login.
@@ -124,8 +132,25 @@ namespace HSEQ.API.Controllers
                 return LoginFailure(StatusCodes.Status400BadRequest, "unavailable", UnavailableMessage, 502);
             }
 
-            var token = await _jwtService.GenerateJwtToken(credential.PCode.ToString(),
+            string token;
+            try
+            {
+                token = await _jwtService.GenerateJwtToken(credential.PCode.ToString(),
                                                            credential.FirstName, credential.LastName);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // سامانه‌ی کاربران رمز را پذیرفته؛ خرابی از ساختِ نشست است، که نقش کاربر را از
+                // جدول Admins در HSEQDb می‌خواند. پیش از این، این استثنا مهار نمی‌شد: مرورگر
+                // یک ۵۰۰ِ خالی می‌گرفت و صفحه‌ی ورود آن را «سامانه‌ی کاربران پاسخ نمی‌دهد»
+                // می‌خواند - یعنی عیب‌یابی به جای اشتباه فرستاده می‌شد.
+                _logger.LogError(ex,
+                    "سامانه‌ی مدیریت کاربران ورود کد پرسنلی {PCode} را پذیرفت، اما ساخت نشست شکست خورد. " +
+                    "این مرحله نقش را از جدول Admins در HSEQDb می‌خواند: یا دیتابیس در دسترس نیست، " +
+                    "یا اسکریپت migrations.sql بسته روی آن اجرا نشده و ساختار جدول قدیمی است.",
+                    credential.PCode);
+                return ServerError();
+            }
 
             // از پاسخ checkCredential فقط چیزی به مرورگر می‌رسد که صفحه لازم دارد. کد ملی
             // و موبایل عمداً اینجا نیستند: نمایش داده نمی‌شوند، و هر چه به مرورگر برسد
@@ -182,6 +207,11 @@ namespace HSEQ.API.Controllers
         private ObjectResult LoginFailure(int status, string reason, string message, int code) =>
             StatusCode(status, new { message, code, reason });
 
+        // پیام عمداً کلی است؛ علتِ دقیق فقط در لاگ سرور می‌آید.
+        private ObjectResult ServerError() =>
+            LoginFailure(StatusCodes.Status500InternalServerError, "server_error",
+                         "ورود به دلیل خطای داخلی سامانه انجام نشد. لطفاً به پشتیبانی اطلاع دهید.", 500);
+
         private static async Task<LoginRequestModel> ReadLoginRequestAsync(HttpRequest request)
         {
             if (request.HasFormContentType)
@@ -223,10 +253,10 @@ namespace HSEQ.API.Controllers
             var normalized = new StringBuilder(raw.Length);
             foreach (var ch in raw)
             {
-                if (ch >= '۰' && ch <= '۹')
-                    normalized.Append((char)('0' + (ch - '۰')));
-                else if (ch >= '٠' && ch <= '٩')
-                    normalized.Append((char)('0' + (ch - '٠')));
+                if (ch >= '\u06F0' && ch <= '\u06F9')
+                    normalized.Append((char)('0' + (ch - '\u06F0')));
+                else if (ch >= '\u0660' && ch <= '\u0669')
+                    normalized.Append((char)('0' + (ch - '\u0660')));
                 else if (char.IsWhiteSpace(ch) || CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.Format)
                     continue;
                 else

@@ -17,10 +17,10 @@ test('Persian and Arabic digits become Latin digits', () => {
 })
 
 test('invisible marks and spaces copied from a Persian document are dropped', () => {
-  assert.equal(normalizeUsername('‏3256'), '3256')
-  assert.equal(normalizeUsername(' 32‌56 '), '3256')
-  assert.equal(normalizeUsername('‫۳۲۵۶‬'), '3256')
-  assert.equal(normalizeUsername('﻿3256'), '3256')
+  assert.equal(normalizeUsername('\u200F3256'), '3256')
+  assert.equal(normalizeUsername(' 32\u200C56 '), '3256')
+  assert.equal(normalizeUsername('\u202B۳۲۵۶\u202C'), '3256')
+  assert.equal(normalizeUsername('\uFEFF3256'), '3256')
 })
 
 test('empty fields are reported per field', () => {
@@ -60,6 +60,15 @@ test('an inactive account has its own message', () => {
   assert.equal(failure.canRetry, false)
 })
 
+test('a server error is blamed on neither user management nor the password', () => {
+  const failure = describeLoginFailure({ status: 500, code: 500, reason: 'server_error', message: 'x' })
+  assert.equal(failure.kind, 'server_error')
+  assert.equal(failure.canRetry, true)
+  assert.ok(!failure.title.includes('مدیریت کاربران'))
+  // یک ۵۰۰ِ خالی - مثلاً از IIS یا سرورِ قدیمی - هم همین است.
+  assert.equal(describeLoginFailure({ status: 500, message: 'Request failed with status 500' }).kind, 'server_error')
+})
+
 test('no response at all is a network failure', () => {
   assert.equal(describeLoginFailure(new TypeError('Failed to fetch')).kind, 'network')
 })
@@ -68,7 +77,7 @@ test('a server without reason is still classified from its codes', () => {
   assert.equal(describeLoginFailure({ status: 400, code: 503, message: 'x' }).kind, 'unavailable')
   assert.equal(describeLoginFailure({ status: 400, code: 410, message: 'x' }).kind, 'invalid_credentials')
   assert.equal(describeLoginFailure({ status: 403, message: 'x' }).kind, 'inactive')
-  assert.equal(describeLoginFailure({ status: 500 }).kind, 'unavailable')
+  assert.equal(describeLoginFailure({ status: 500 }).kind, 'server_error')
 })
 
 test('anything unexpected still produces a readable message', () => {

@@ -9,7 +9,7 @@ import { toLatinDigits } from '../lib/digits.ts'
 
 // نویسه‌های نامرئی‌ای که متنِ کپی‌شده از یک سند فارسی با خود می‌آورد: نیم‌فاصله،
 // نشانه‌های جهت (LRM/RLM)، و محصورکننده‌های جهت. هیچ‌کدام بخشی از کد پرسنلی نیستند.
-const INVISIBLE_MARKS = /[\s​-‏‪-‮⁦-⁩﻿]/g
+const INVISIBLE_MARKS = /[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g
 
 /**
  * کد پرسنلی را همان‌طور که سامانه‌ی مدیریت کاربران انتظار دارد درمی‌آورد: ارقام لاتین،
@@ -37,7 +37,7 @@ export function validateLogin(username: string, password: string): LoginFieldErr
  * فقط هشدار می‌دهد؛ رمز را تغییر نمی‌دهد.
  */
 export function looksLikePersianKeyboard(value: string): boolean {
-  return /[؀-ۿ]/.test(value)
+  return /[\u0600-\u06FF]/.test(value)
 }
 
 // اگر پاسخ ورود بیش از این طول بکشد، کاربر باید بداند صفحه قفل نشده است. سرور تا ۱۰
@@ -53,6 +53,7 @@ export type LoginFailureKind =
   | 'inactive'
   | 'unavailable'
   | 'missing_fields'
+  | 'server_error'
   | 'network'
   | 'unknown'
 
@@ -78,14 +79,19 @@ function classify(reason: string | undefined, status: number | undefined, code: 
     reason === 'invalid_credentials' ||
     reason === 'inactive' ||
     reason === 'unavailable' ||
-    reason === 'missing_fields'
+    reason === 'missing_fields' ||
+    reason === 'server_error'
   ) {
     return reason
   }
 
-  // سروری که هنوز نسخه‌ی پیش از «reason» را اجرا می‌کند: از روی کدها.
+  // بدون «reason»: سروری قدیمی‌تر، یا خطایی که اصلاً به اکشن ورود نرسید (IIS، استثنای
+  // مهارنشده). وضعیتِ ۵xxِ خودِ HTTP یعنی خرابی در همین سرور است؛ نسبت دادنش به
+  // سامانه‌ی کاربران عیب‌یابی را به جای اشتباه می‌فرستاد. فقط کدِ ۵xx داخل بدنه‌ی یک
+  // پاسخ ۴۰۰ (سرورِ پیش از reason) یعنی سامانه‌ی کاربران در دسترس نبوده است.
   if (status === 403) return 'inactive'
-  if ((code !== undefined && code >= 500) || (status !== undefined && status >= 500)) return 'unavailable'
+  if (status !== undefined && status >= 500) return 'server_error'
+  if (code !== undefined && code >= 500) return 'unavailable'
   if (status === 400 || status === 401) return 'invalid_credentials'
   return 'unknown'
 }
@@ -135,6 +141,15 @@ export function describeLoginFailure(error: unknown): LoginFailure {
         tone: 'warning',
         title: 'سامانه‌ی مدیریت کاربران پاسخ نمی‌دهد',
         detail: 'مشکل از کد پرسنلی یا رمز شما نیست. چند لحظه بعد دوباره تلاش کنید؛ اگر ادامه داشت با پشتیبانی تماس بگیرید.',
+        canRetry: true,
+      }
+
+    case 'server_error':
+      return {
+        kind: 'server_error',
+        tone: 'warning',
+        title: 'خطای داخلی سامانه',
+        detail: 'ورود به دلیل خطایی در سرورِ همین سامانه انجام نشد. مشکل از کد پرسنلی یا رمز شما نیست؛ لطفاً به پشتیبانی اطلاع دهید.',
         canRetry: true,
       }
 
