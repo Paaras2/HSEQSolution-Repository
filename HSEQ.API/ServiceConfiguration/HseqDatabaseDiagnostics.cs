@@ -39,10 +39,15 @@ namespace HSEQ.API.ServiceConfiguration
 
             switch (sql.Number)
             {
+                // ۲۳۳ همان ردِ ورود است وقتی اتصال از راه Shared Memory یا Named Pipes برقرار شده -
+                // یعنی دقیقاً وقتی رشته‌ی اتصال Server=localhost دارد. پیامِ خامش («No process is
+                // on the other end of the pipe») هیچ اشاره‌ای به لاگین نمی‌کند.
                 case 18456:
-                    return $"SQL Server ورودِ لاگین «{who}» را رد کرد (خطای 18456): یا نام کاربری یا رمز در " +
-                           "ConnectionStrings:DefaultConnection درست نیست، یا روی این SQL Server ورود با رمز " +
-                           "(SQL Server and Windows Authentication mode) فعال نیست.";
+                case 233:
+                    return $"SQL Server ورودِ لاگین «{who}» را رد کرد (خطای {sql.Number}): یا این لاگین روی آن SQL Server " +
+                           "وجود ندارد، یا رمزش در ConnectionStrings:DefaultConnection درست نیست، یا لاگین غیرفعال است، " +
+                           "یا ورود با رمز (SQL Server and Windows Authentication mode) روی آن سرور خاموش است. " +
+                           "علتِ دقیق در ERRORLOG همان SQL Server با عبارت «Login failed for user» نوشته شده است.";
 
                 case 4060:
                     return $"{where} باز نشد (خطای 4060): این دیتابیس روی آن سرور نیست، یا لاگین «{who}» به آن نگاشت ندارد.";
