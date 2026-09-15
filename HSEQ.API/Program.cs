@@ -13,6 +13,21 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
 
+// خروجیِ استاندارد به UTF-8، وقتی به فایل یا pipe هدایت شده است.
+//
+// روی IIS، ANCM خروجیِ استاندارد را در لاگ stdout می‌نویسد. .NET آن را با code page ِ
+// کنسولِ سرور (مثلاً 437 یا 1252) رمز می‌کرد و هر حرف فارسی - یعنی همه‌ی پیام‌های
+// عیب‌یابیِ این برنامه - در فایل لاگ به «?» تبدیل می‌شد: دقیقاً همان جایی که برای
+// پیدا کردن علتِ خرابی خوانده می‌شود.
+//
+// کنسولِ واقعی (بدون هدایت) دست نمی‌خورد: آنجا .NET خودش یونیکد می‌نویسد و
+// نوشتنِ بایت‌های UTF-8 رویش فقط خروجی را به‌هم می‌ریخت. لاگ را با UTF-8 باز کنید:
+//     Get-Content <stdout_*.log> -Encoding UTF8
+if (Console.IsOutputRedirected)
+    Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true });
+if (Console.IsErrorRedirected)
+    Console.SetError(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true });
+
 var builder = WebApplication.CreateBuilder(args);
 
 // تنظیمات اولیه
