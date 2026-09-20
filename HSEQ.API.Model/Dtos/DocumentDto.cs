@@ -46,6 +46,7 @@ namespace HSEQ.API.Model.Dtos
         public Guid DocumentTypeId { get; set; }
         public string? File { set; get; }
         public int CreatedByPCode { get; set; }
+        public int? ModifiedByPCode { get; set; }
 
         // تکه‌ای از متن فایل که عبارت جستجو در آن پیدا شده. فقط وقتی پر می‌شود که
         // «جستجو در محتوای فایل» روشن باشد و تطابق در خودِ فایل رخ داده باشد - یعنی

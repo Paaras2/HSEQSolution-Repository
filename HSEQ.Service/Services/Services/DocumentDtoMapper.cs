@@ -129,7 +129,8 @@ namespace HSEQ.Service.Services.Services
                 OrganizationalActivityId = document.OrganizationalActivityId,
                 DocumentTypeId = document.DocumentTypeId,
                 File = null,
-                CreatedByPCode = document.CreatedByPCode
+                CreatedByPCode = document.CreatedByPCode ?? 0,
+                ModifiedByPCode = document.ModifiedByPCode
             };
         }
     }

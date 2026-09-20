@@ -25,8 +25,5 @@ namespace HSEQ.Domain.Entities
         public DocumentRelationType RelationType { get; set; }
 
         // توضیح اختیاری کاربر درباره‌ی اینکه این دو مدرک چرا به هم مرتبط‌اند.
-        public string? Note { get; set; }
-
-        public int CreatedByPCode { get; set; }
-    }
+        public string? Note { get; set; }    }
 }

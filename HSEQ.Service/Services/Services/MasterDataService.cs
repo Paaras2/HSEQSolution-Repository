@@ -96,7 +96,11 @@ namespace HSEQ.Service.Services.Services
                         Title = x.Title,
                         IsActive = x.IsActive,
                         IsProjectRelated = x.IsProjectRelated,
-                        UsageCount = Used(x.Key)
+                        UsageCount = Used(x.Key),
+                        CreatedTime = x.CreatedTime,
+                        CreatedByPCode = x.CreatedByPCode,
+                        ModifiedDate = x.ModifiedDate,
+                        ModifiedByPCode = x.ModifiedByPCode
                     }).ToList();
 
                 case MasterDataKind.OrganizationalManagement:
@@ -107,7 +111,11 @@ namespace HSEQ.Service.Services.Services
                         Code = x.Code,
                         Title = x.Title,
                         IsActive = x.IsActive,
-                        UsageCount = Used(x.Key)
+                        UsageCount = Used(x.Key),
+                        CreatedTime = x.CreatedTime,
+                        CreatedByPCode = x.CreatedByPCode,
+                        ModifiedDate = x.ModifiedDate,
+                        ModifiedByPCode = x.ModifiedByPCode
                     }).ToList();
 
                 case MasterDataKind.OrganizationalActivity:
@@ -119,7 +127,11 @@ namespace HSEQ.Service.Services.Services
                         Title = x.Title,
                         IsActive = x.IsActive,
                         OrganizationalManagementId = x.OrganizationalManagementId,
-                        UsageCount = Used(x.Key)
+                        UsageCount = Used(x.Key),
+                        CreatedTime = x.CreatedTime,
+                        CreatedByPCode = x.CreatedByPCode,
+                        ModifiedDate = x.ModifiedDate,
+                        ModifiedByPCode = x.ModifiedByPCode
                     }).ToList();
 
                 default:
@@ -130,7 +142,11 @@ namespace HSEQ.Service.Services.Services
                         Code = x.Code,
                         Title = x.Title,
                         IsActive = x.IsActive,
-                        UsageCount = Used(x.Key)
+                        UsageCount = Used(x.Key),
+                        CreatedTime = x.CreatedTime,
+                        CreatedByPCode = x.CreatedByPCode,
+                        ModifiedDate = x.ModifiedDate,
+                        ModifiedByPCode = x.ModifiedByPCode
                     }).ToList();
             }
         }
@@ -220,39 +236,50 @@ namespace HSEQ.Service.Services.Services
                     throw new MasterDataItemInUseException(usedBy);
             }
 
+            // اگر کدی داده شده، اجازه‌ی ویرایشِ آن هم هست. خالی/نال یعنی کد دست‌نخورده
+            // بماند. ModifiedDate/ModifiedByPCode را دیگر اینجا دستی نمی‌گذاریم؛
+            // ApplicationDbContext.SaveChanges آن را متمرکز و امن می‌زند.
+            var editCode = !string.IsNullOrWhiteSpace(request.Code);
+
             switch (request.Kind)
             {
                 case MasterDataKind.Project:
                     var project = await _masterDataRepository.FindAsync<Project>(request.Key)
                         ?? throw new MasterDataItemNotFoundException();
+                    if (editCode)
+                        project.Code = await NormalizeEditedCodeAsync(request.Kind, request.Code, project.Key, null);
                     project.Title = title;
                     project.IsActive = request.IsActive;
                     project.IsProjectRelated = request.IsProjectRelated;
-                    project.ModifiedDate = DateTime.Now;
                     break;
 
                 case MasterDataKind.OrganizationalManagement:
                     var management = await _masterDataRepository.FindAsync<OrganizationalManagement>(request.Key)
                         ?? throw new MasterDataItemNotFoundException();
+                    if (editCode)
+                        management.Code = await NormalizeEditedCodeAsync(request.Kind, request.Code, management.Key, null);
                     management.Title = title;
                     management.IsActive = request.IsActive;
-                    management.ModifiedDate = DateTime.Now;
                     break;
 
                 case MasterDataKind.OrganizationalActivity:
                     var activity = await _masterDataRepository.FindAsync<OrganizationalActivity>(request.Key)
                         ?? throw new MasterDataItemNotFoundException();
+                    // یکتاییِ کدِ فعالیت درونِ همان مدیریتِ والدِ خودش سنجیده می‌شود.
+                    if (editCode)
+                        activity.Code = await NormalizeEditedCodeAsync(
+                            request.Kind, request.Code, activity.Key, activity.OrganizationalManagementId);
                     activity.Title = title;
                     activity.IsActive = request.IsActive;
-                    activity.ModifiedDate = DateTime.Now;
                     break;
 
                 default:
                     var documentType = await _masterDataRepository.FindAsync<DocumentType>(request.Key)
                         ?? throw new MasterDataItemNotFoundException();
+                    if (editCode)
+                        documentType.Code = await NormalizeEditedCodeAsync(request.Kind, request.Code, documentType.Key, null);
                     documentType.Title = title;
                     documentType.IsActive = request.IsActive;
-                    documentType.ModifiedDate = DateTime.Now;
                     break;
             }
 
@@ -260,22 +287,39 @@ namespace HSEQ.Service.Services.Services
         }
 
         // فعالیت سازمانی فقط داخل مدیریت والدش یکتاست (ایندکس مرکب)، بقیه سراسری.
-        private async Task EnsureCodeIsFreeAsync(MasterDataKind kind, string code, Guid? managementId)
+        // excludeKey: ردیفی که خودش در حال ویرایش است، نباید با کدِ فعلیِ خودش
+        // «تکراری» شمرده شود.
+        private async Task EnsureCodeIsFreeAsync(MasterDataKind kind, string code, Guid? managementId, Guid? excludeKey = null)
         {
             bool taken = kind switch
             {
                 MasterDataKind.Project =>
-                    (await _masterDataRepository.GetAllProjectsAsync()).Any(x => x.Code == code),
+                    (await _masterDataRepository.GetAllProjectsAsync()).Any(x => x.Code == code && x.Key != excludeKey),
                 MasterDataKind.OrganizationalManagement =>
-                    (await _masterDataRepository.GetAllManagementsAsync()).Any(x => x.Code == code),
+                    (await _masterDataRepository.GetAllManagementsAsync()).Any(x => x.Code == code && x.Key != excludeKey),
                 MasterDataKind.OrganizationalActivity =>
                     (await _masterDataRepository.GetAllActivitiesAsync())
-                        .Any(x => x.Code == code && x.OrganizationalManagementId == managementId),
-                _ => (await _masterDataRepository.GetAllDocumentTypesAsync()).Any(x => x.Code == code)
+                        .Any(x => x.Code == code && x.OrganizationalManagementId == managementId && x.Key != excludeKey),
+                _ => (await _masterDataRepository.GetAllDocumentTypesAsync()).Any(x => x.Code == code && x.Key != excludeKey)
             };
 
             if (taken)
                 throw new DuplicateMasterDataCodeException(code);
+        }
+
+        // کدِ ویرایش‌شده باید همان قالبِ ساخت را داشته باشد (طول و الگو) و در دامنه‌ی
+        // خودش یکتا بماند. برگرداندنِ کدِ عادی‌شده، تا فراخواننده همان را ذخیره کند.
+        private async Task<string> NormalizeEditedCodeAsync(
+            MasterDataKind kind, string rawCode, Guid key, Guid? managementId)
+        {
+            var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
+
+            var expectedLength = CodeLengthFor(kind);
+            if (code.Length != expectedLength || !CodePattern.IsMatch(code))
+                throw new InvalidMasterDataCodeException(expectedLength);
+
+            await EnsureCodeIsFreeAsync(kind, code, managementId, excludeKey: key);
+            return code;
         }
 
         // آرشیو شماره‌های قدیمی. هیچ عملیات نوشتنی ندارد: جدول یک‌بار از اکسل وارد شده و

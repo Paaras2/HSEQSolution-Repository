@@ -1,6 +1,7 @@
 using HSEQ.API.ServiceConfiguration;
 using HSEQ.Common;
 using HSEQ.Domain;
+using HSEQ.Domain.Common;
 using HSEQ.Service;
 using HSEQ.Service.Interfaces.Services;
 using HSEQ.Service.Services.Services;
@@ -100,6 +101,11 @@ if (!string.Equals(umSource, "Database", StringComparison.OrdinalIgnoreCase))
         .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 }
 
+// هویتِ کاربرِ درخواستِ جاری برای ردِ حسابرسی (ModifiedByPCode و ...). از HttpContext
+// خوانده می‌شود، نه از بدنه‌ی درخواست - در HttpContextCurrentUserAccessor.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
+
 // تنظیمات Authentication
 builder.Services.AddAuthentication(options =>
 {
@@ -115,7 +121,12 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = appSettings.JwtSettings.Issuer,
         ValidAudience = appSettings.JwtSettings.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appSettings.JwtSettings.Key))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appSettings.JwtSettings.Key)),
+
+        // نشست دقیقاً به اندازه‌ی Jwt:ExpiryInMinutes (۶۰ دقیقه) است. پیش‌فرضِ
+        // ClockSkew پنج دقیقه ارفاق می‌داد، یعنی توکن تا ۶۵ دقیقه معتبر می‌ماند؛
+        // صفر کردنش «۶۰ دقیقه» را واقعاً ۶۰ دقیقه می‌کند.
+        ClockSkew = TimeSpan.Zero
     };
 });
 

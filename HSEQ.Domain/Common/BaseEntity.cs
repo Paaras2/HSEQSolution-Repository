@@ -7,6 +7,12 @@
         public DateTime CreatedTime { get; set; }
         public DateTime? ModifiedDate { get; set; }
 
+        // ردِ حسابرسی. کدِ پرسنلیِ کاربر است، نه نام؛ نگاشتش به نام از سامانه‌ی
+        // مدیریت کاربران است. هر دو Nullable‌اند: داده‌ی پایه (seed) و ردیف‌های
+        // قدیمی سازنده‌ی مشخصی ندارند. مقداردهی‌شان متمرکز در SaveChanges انجام
+        // می‌شود (ApplicationDbContext) و از کلاینت خوانده نمی‌شود.
+        public int? CreatedByPCode { get; set; }
+        public int? ModifiedByPCode { get; set; }
     }
 
 

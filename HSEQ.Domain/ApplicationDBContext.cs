@@ -10,9 +10,50 @@ namespace HSEQ.Domain
     public class ApplicationDbContext : DbContext
     {
         
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        // currentUser اختیاری است تا factory زمانِ طراحی (مهاجرت‌ها) و آزمون‌هایی که
+        // context را فقط با options می‌سازند نشکنند؛ در زمان اجرا از DI تزریق می‌شود.
+        private readonly ICurrentUserAccessor _currentUser;
+
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ICurrentUserAccessor currentUser = null)
             : base(options)
         {
+            _currentUser = currentUser;
+        }
+
+        // ردِ حسابرسی به‌صورت متمرکز اینجا زده می‌شود، نه در سرویس‌ها: هر مسیری که سند
+        // یا داده‌ی پایه را تغییر دهد از همین‌جا رد می‌شود، پس نه جا می‌افتد و نه از
+        // بدنه‌ی درخواست قابل جعل است. ModifiedByPCode همیشه از هویتِ تأییدشده گرفته
+        // می‌شود؛ CreatedByPCode اگر سرویس صریحاً گذاشته باشد حفظ می‌شود.
+        public override int SaveChanges()
+        {
+            StampAudit();
+            return base.SaveChanges();
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            StampAudit();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void StampAudit()
+        {
+            var pcode = _currentUser?.PCode;
+            var now = DateTime.Now;
+
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    if (entry.Entity.CreatedTime == default) entry.Entity.CreatedTime = now;
+                    entry.Entity.CreatedByPCode ??= pcode;
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.ModifiedDate = now;
+                    entry.Entity.ModifiedByPCode = pcode;
+                }
+            }
         }
 
        

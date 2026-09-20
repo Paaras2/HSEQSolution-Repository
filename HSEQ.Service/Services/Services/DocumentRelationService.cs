@@ -79,7 +79,7 @@ namespace HSEQ.Service.Services.Services
                     IsOutgoing = isOutgoing,
                     Note = r.Note,
                     CreatedTime = r.CreatedTime,
-                    CreatedByPCode = r.CreatedByPCode
+                    CreatedByPCode = r.CreatedByPCode ?? 0
                 };
             }).ToList();
         }

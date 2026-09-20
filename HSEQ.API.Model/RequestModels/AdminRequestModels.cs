@@ -32,6 +32,9 @@ namespace HSEQ.API.Model.RequestModels
     {
         public MasterDataKind Kind { get; set; }
         public Guid Key { get; set; }
+        // کد قابل ویرایش است. کلیدهای خارجی مدارک به Id (Guid) اشاره می‌کنند نه به
+        // Code، پس تغییرِ Code هیچ ارجاعی را نمی‌شکند. خالی/نال یعنی «کد را دست نزن».
+        public string? Code { get; set; }
         public string Title { get; set; }
         public bool IsActive { get; set; }
         public bool IsProjectRelated { get; set; }

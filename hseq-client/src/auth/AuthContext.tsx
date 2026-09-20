@@ -96,6 +96,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsInitializing(false)
   }, [])
 
+  // خروج پس از ۶۰ دقیقه بی‌فعالیتی. توکن هم دقیقاً ۶۰ دقیقه عمر دارد (سقفِ سخت)؛
+  // این تایمر «بی‌فعالیتی» را هم پوشش می‌دهد: با هر تعاملِ کاربر ری‌ست می‌شود، و اگر
+  // کاربر رها کند، پیش از انقضای توکن هم نشست بسته می‌شود. فقط وقتی واردشده‌ایم فعال است.
+  useEffect(() => {
+    if (!token) return
+
+    const IDLE_LIMIT_MS = 60 * 60 * 1000
+    let timer = window.setTimeout(logout, IDLE_LIMIT_MS)
+    const reset = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(logout, IDLE_LIMIT_MS)
+    }
+    const events = ['pointerdown', 'keydown', 'scroll', 'visibilitychange'] as const
+    events.forEach((event) => window.addEventListener(event, reset, { passive: true }))
+
+    return () => {
+      window.clearTimeout(timer)
+      events.forEach((event) => window.removeEventListener(event, reset))
+    }
+  }, [token, logout])
+
   const login = useCallback(async (username: string, password: string) => {
     const result = await authApi.login(username, password)
     const isFirstLogin = result.user?.isFirstLogin === true

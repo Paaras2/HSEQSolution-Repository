@@ -32,11 +32,17 @@ namespace HSEQ.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -67,7 +73,7 @@ namespace HSEQ.API.Migrations
                     b.Property<int?>("ContentRevision")
                         .HasColumnType("int");
 
-                    b.Property<int>("CreatedByPCode")
+                    b.Property<int?>("CreatedByPCode")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedTime")
@@ -99,6 +105,9 @@ namespace HSEQ.API.Migrations
                         .HasColumnType("bit");
 
                     b.Property<int>("LastVersion")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ModifiedByPCode")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
@@ -150,7 +159,7 @@ namespace HSEQ.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("CreatedByPCode")
+                    b.Property<int?>("CreatedByPCode")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedTime")
@@ -158,6 +167,9 @@ namespace HSEQ.API.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -196,11 +208,17 @@ namespace HSEQ.API.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("nvarchar(2)");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -228,6 +246,9 @@ namespace HSEQ.API.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
@@ -235,6 +256,9 @@ namespace HSEQ.API.Migrations
                         .HasColumnType("bit");
 
                     b.Property<int>("LastSerialNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ModifiedByPCode")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
@@ -262,6 +286,9 @@ namespace HSEQ.API.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
@@ -287,6 +314,9 @@ namespace HSEQ.API.Migrations
                     b.Property<string>("ManagementCode")
                         .HasMaxLength(1)
                         .HasColumnType("nvarchar(1)");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -329,11 +359,17 @@ namespace HSEQ.API.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("nvarchar(2)");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -364,11 +400,17 @@ namespace HSEQ.API.Migrations
                         .HasMaxLength(1)
                         .HasColumnType("nvarchar(1)");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -396,6 +438,9 @@ namespace HSEQ.API.Migrations
                         .HasMaxLength(4)
                         .HasColumnType("nvarchar(4)");
 
+                    b.Property<int?>("CreatedByPCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedTime")
                         .HasColumnType("datetime2");
 
@@ -404,6 +449,9 @@ namespace HSEQ.API.Migrations
 
                     b.Property<bool>("IsProjectRelated")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("ModifiedByPCode")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");

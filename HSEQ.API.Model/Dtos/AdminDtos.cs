@@ -65,5 +65,11 @@ namespace HSEQ.API.Model.Dtos
         // تعداد مدارکی که به این ردیف وابسته‌اند. مبنای «آیا کد هنوز قابل تغییر است؟»
         // و هشدار پیش از غیرفعال‌سازی.
         public int UsageCount { get; set; }
+
+        // ردِ حسابرسی. کدِ پرسنلی است؛ نگاشت به نام سمتِ نمایش انجام می‌شود.
+        public DateTime CreatedTime { get; set; }
+        public int? CreatedByPCode { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedByPCode { get; set; }
     }
 }

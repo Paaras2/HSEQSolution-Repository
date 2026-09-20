@@ -44,7 +44,7 @@ namespace HSEQ.Domain.Entities
         public Guid DocumentTypeId { get; set; }
         public virtual DocumentType DocumentType { get; set; }
 
-        public int CreatedByPCode { get; set; }
+        // CreatedByPCode/ModifiedByPCode از BaseEntity به ارث می‌رسند.
 
         // متن استخراج‌شده از فایل مدرک (در زمان بارگذاری/بازنگری) برای جستجوی پیشرفته در
         // محتوای فایل. برای نوع‌های پشتیبانی‌نشده (تصویر و...) یا در صورت شکست استخراج، نال است.
