@@ -81,6 +81,9 @@ export interface DocumentDto {
   documentTypeId: string
   file: string | null
   createdByPCode: number
+  // کدِ پرسنلیِ آخرین ویرایش‌کننده، از ردِ حسابرسیِ سرور. برای مدرکی که پس از ساخت
+  // ویرایش/بازنگری نشده null است.
+  modifiedByPCode: number | null
   // تکه‌ی متنِ فایل که عبارت جستجو در آن پیدا شده. فقط وقتی مقدار دارد که «جستجو در
   // محتوای فایل» روشن باشد و تطابق در خودِ فایل رخ داده باشد.
   contentSnippet: string | null

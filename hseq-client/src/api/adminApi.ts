@@ -42,6 +42,7 @@ export const adminApi = {
   async updateMasterData(input: {
     kind: MasterDataKind
     key: string
+    code?: string
     title: string
     isActive: boolean
     isProjectRelated: boolean
@@ -49,6 +50,9 @@ export const adminApi = {
     const body = new URLSearchParams()
     body.set('Kind', String(input.kind))
     body.set('Key', input.key)
+    // کد اختیاری است؛ فقط وقتی فرستاده می‌شود که کاربر تغییرش داده باشد. سرور
+    // خالی را «دست‌نخورده» تعبیر می‌کند.
+    if (input.code !== undefined) body.set('Code', input.code)
     body.set('Title', input.title)
     body.set('IsActive', String(input.isActive))
     body.set('IsProjectRelated', String(input.isProjectRelated))

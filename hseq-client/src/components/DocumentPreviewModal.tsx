@@ -6,6 +6,16 @@ import { ApiError } from '../lib/httpClient'
 import type { DocumentDto } from '../types/api'
 import { LoadingState, ErrorState } from './StateViews'
 import { toPersianDigits } from '../lib/digits'
+import { isoToJalaliText } from '../lib/jalali'
+
+// ردِ حسابرسی: تاریخِ شمسی، و «کد پرسنلی N» برای شخص (نگاشت به نام از سامانه‌ی
+// مدیریت کاربران است و اینجا در دست نیست). نبودِ مقدار «—» می‌شود.
+function auditWhen(iso: string | null): string {
+  return iso ? toPersianDigits(isoToJalaliText(iso)) : '—'
+}
+function auditWho(pcode: number | null): string {
+  return pcode ? `کد پرسنلی ${toPersianDigits(pcode)}` : '—'
+}
 
 interface DocumentPreviewModalProps {
   document: DocumentDto
@@ -59,6 +69,17 @@ export function DocumentPreviewModal({ document, onClose }: DocumentPreviewModal
 
   return (
     <Modal title={`پیش‌نمایش ${toPersianDigits(document.number)}`} subtitle={document.name} size="lg" onClose={onClose}>
+      {/* ردِ حسابرسی مدرک - چه کسی و چه زمانی ساخته و آخرین‌بار ویرایش کرده است. */}
+      <dl className="preview-audit">
+        <div>
+          <dt>ایجاد</dt>
+          <dd>{auditWho(document.createdByPCode)} · {auditWhen(document.createdTime)}</dd>
+        </div>
+        <div>
+          <dt>آخرین ویرایش</dt>
+          <dd>{auditWho(document.modifiedByPCode)} · {auditWhen(document.modifiedDate)}</dd>
+        </div>
+      </dl>
       <div className="preview-body">
         {isLoading && <LoadingState title="در حال بارگذاری فایل..." />}
 

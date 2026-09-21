@@ -217,9 +217,6 @@ export function AppShell() {
                 <strong>{userTitle}</strong>
                 <span>{userSubtitle}</span>
               </span>
-              <span className="topbar__avatar" aria-hidden="true">
-                {avatarLabel}
-              </span>
               <button type="button" className="topbar__icon-btn" onClick={logout} aria-label="خروج" title="خروج">
                 <LogoutIcon size={18} />
               </button>

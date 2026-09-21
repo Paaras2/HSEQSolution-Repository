@@ -370,6 +370,7 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
 
   async function handleRowSave(
     item: MasterDataItem,
+    nextCode: string,
     nextTitle: string,
     nextIsActive: boolean,
     nextIsProjectRelated: boolean,
@@ -377,9 +378,13 @@ function MasterDataTab({ kind }: { kind: MasterDataKind }) {
     setEditingKey(item.key)
     setRowError(null)
     try {
+      const trimmedCode = nextCode.trim()
       await adminApi.updateMasterData({
         kind,
         key: item.key,
+        // فقط وقتی کد فرستاده می‌شود که واقعاً تغییر کرده باشد؛ وگرنه سرور دست‌نخورده
+        // نگهش می‌دارد و اعتبارسنجیِ بی‌مورد هم اجرا نمی‌شود.
+        code: trimmedCode && trimmedCode !== item.code ? trimmedCode : undefined,
         title: nextTitle.trim(),
         isActive: nextIsActive,
         isProjectRelated: meta.hasProjectFlag ? nextIsProjectRelated : false,
@@ -641,9 +646,10 @@ function MasterDataRow({
   meta: (typeof MASTER_DATA_META)[MasterDataKind]
   managementTitle: string
   isBusy: boolean
-  onSave: (item: MasterDataItem, title: string, isActive: boolean, isProjectRelated: boolean) => void
+  onSave: (item: MasterDataItem, code: string, title: string, isActive: boolean, isProjectRelated: boolean) => void
 }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [code, setCode] = useState(item.code)
   const [title, setTitle] = useState(item.title)
   const [isProjectRelated, setIsProjectRelated] = useState(item.isProjectRelated ?? false)
 
@@ -655,7 +661,21 @@ function MasterDataRow({
   return (
     <tr className={item.isActive ? undefined : 'is-inactive-row'}>
       <td className="row-index mono">{toPersianDigits(rowNumber)}</td>
-      <td className="mono">{toPersianDigits(item.code)}</td>
+      <td className="mono">
+        {isEditing ? (
+          // کد فقط حروف/رقمِ لاتینِ بزرگ است - همان قالبِ فرمِ افزودن. یکتایی و طولش
+          // سمت سرور بررسی می‌شود و خطای تکراری‌بودن به‌صورت پیام همین ردیف می‌آید.
+          <input
+            className="text-input mono"
+            value={code}
+            onChange={(e) => setCode(toLatinDigits(e.target.value).toUpperCase())}
+            disabled={isBusy}
+            aria-label="کد"
+          />
+        ) : (
+          toPersianDigits(item.code)
+        )}
+      </td>
       <td>
         {isEditing ? (
           <input
@@ -707,7 +727,7 @@ function MasterDataRow({
               icon={<CheckIcon />}
               tone="success"
               pending={isBusy}
-              onClick={() => onSave(item, title, item.isActive, isProjectRelated)}
+              onClick={() => onSave(item, code, title, item.isActive, isProjectRelated)}
             />
             <IconButton
               label="انصراف"
@@ -715,6 +735,7 @@ function MasterDataRow({
               tone="muted"
               disabled={isBusy}
               onClick={() => {
+                setCode(item.code)
                 setTitle(item.title)
                 setIsProjectRelated(item.isProjectRelated ?? false)
                 setIsEditing(false)
@@ -735,7 +756,7 @@ function MasterDataRow({
                 tone="danger"
                 disabled={lockedByUsage}
                 pending={isBusy}
-                onClick={() => onSave(item, item.title, false, item.isProjectRelated ?? false)}
+                onClick={() => onSave(item, item.code, item.title, false, item.isProjectRelated ?? false)}
               />
             ) : (
               <IconButton
@@ -743,7 +764,7 @@ function MasterDataRow({
                 icon={<PowerIcon />}
                 tone="success"
                 pending={isBusy}
-                onClick={() => onSave(item, item.title, true, item.isProjectRelated ?? false)}
+                onClick={() => onSave(item, item.code, item.title, true, item.isProjectRelated ?? false)}
               />
             )}
           </>

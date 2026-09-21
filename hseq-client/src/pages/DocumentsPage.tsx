@@ -12,6 +12,9 @@ import { DocumentFormDrawer } from '../components/DocumentFormDrawer'
 import { RevisionHistoryDrawer } from '../components/RevisionHistoryDrawer'
 import { RelatedDocumentsDrawer } from '../components/RelatedDocumentsDrawer'
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal'
+import { DocumentTreeView } from '../components/DocumentTreeView'
+import type { DocumentTreeLabels } from '../components/DocumentTreeView'
+import { masterDataApi } from '../api/masterDataApi'
 import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { LoadingState, EmptyState, ErrorState } from '../components/StateViews'
 import { SEARCH_PARAM, hasAnyFilter, readFilters } from '../lib/searchFilters'
@@ -87,6 +90,30 @@ export function DocumentsPage() {
   const [relationsDocument, setRelationsDocument] = useState<DocumentDto | null>(null)
   // وقتی مرورگر باز شدن تب را بلاک می‌کند، فایل همین‌جا داخل برنامه نشان داده می‌شود.
   const [previewDocument, setPreviewDocument] = useState<DocumentDto | null>(null)
+
+  // نمای جدولی (پیش‌فرض) یا نمای درختی. نمای درختی همان اسنادِ نتیجه‌ی جاری را بر پایه‌ی
+  // «نوع سند ← مدیریت ← فعالیت» گروه‌بندی می‌کند؛ برچسبِ گروه‌ها از اطلاعات پایه می‌آید.
+  const [viewMode, setViewMode] = useState<'table' | 'tree'>('table')
+  const [treeLabels, setTreeLabels] = useState<DocumentTreeLabels>({
+    types: new Map(),
+    managements: new Map(),
+    activities: new Map(),
+  })
+  useEffect(() => {
+    Promise.all([
+      masterDataApi.getDocumentTypes(),
+      masterDataApi.getManagements(),
+      masterDataApi.getActivities(),
+    ])
+      .then(([types, managements, activities]) => {
+        setTreeLabels({
+          types: new Map(types.map((t) => [t.key, t.title])),
+          managements: new Map(managements.map((m) => [m.key, m.title])),
+          activities: new Map(activities.map((a) => [a.key, a.title])),
+        })
+      })
+      .catch(noop)
+  }, [])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
 
@@ -458,7 +485,35 @@ export function DocumentsPage() {
           />
         )}
 
+        {/* سوییچِ نمای جدولی/درختی. فقط وقتی سندی برای نمایش هست دیده می‌شود. */}
         {!isLoading && !loadError && pageItems.length > 0 && (
+          <div className="doc-view-toggle" role="group" aria-label="نمای فهرست اسناد">
+            <button
+              type="button"
+              className={`doc-view-toggle__btn${viewMode === 'table' ? ' is-active' : ''}`}
+              onClick={() => setViewMode('table')}
+              aria-pressed={viewMode === 'table'}
+            >
+              نمای جدولی
+            </button>
+            <button
+              type="button"
+              className={`doc-view-toggle__btn${viewMode === 'tree' ? ' is-active' : ''}`}
+              onClick={() => setViewMode('tree')}
+              aria-pressed={viewMode === 'tree'}
+            >
+              نمای درختی
+            </button>
+          </div>
+        )}
+
+        {/* نمای درختی: اسنادِ همین صفحه‌ی نتیجه، گروه‌بندی‌شده. برای پیمایش صفحه‌ها به
+            نمای جدولی برگردید. */}
+        {!isLoading && !loadError && pageItems.length > 0 && viewMode === 'tree' && (
+          <DocumentTreeView documents={pageItems} labels={treeLabels} onOpen={handleView} />
+        )}
+
+        {!isLoading && !loadError && pageItems.length > 0 && viewMode === 'table' && (
           <>
             <div className="table-scroll">
               <table className="data-table">
