@@ -95,21 +95,18 @@ export function DocumentsPage() {
   // «نوع سند ← مدیریت ← فعالیت» گروه‌بندی می‌کند؛ برچسبِ گروه‌ها از اطلاعات پایه می‌آید.
   const [viewMode, setViewMode] = useState<'table' | 'tree'>('table')
   const [treeLabels, setTreeLabels] = useState<DocumentTreeLabels>({
-    types: new Map(),
     managements: new Map(),
     activities: new Map(),
+    activityParent: new Map(),
   })
   useEffect(() => {
-    Promise.all([
-      masterDataApi.getDocumentTypes(),
-      masterDataApi.getManagements(),
-      masterDataApi.getActivities(),
-    ])
-      .then(([types, managements, activities]) => {
+    Promise.all([masterDataApi.getManagements(), masterDataApi.getActivities()])
+      .then(([managements, activities]) => {
         setTreeLabels({
-          types: new Map(types.map((t) => [t.key, t.title])),
           managements: new Map(managements.map((m) => [m.key, m.title])),
           activities: new Map(activities.map((a) => [a.key, a.title])),
+          // فعالیت ← مدیریتِ والدش، تا سلسله‌مراتبِ درخت از رابطه‌ی واقعی ساخته شود.
+          activityParent: new Map(activities.map((a) => [a.key, a.organizationalManagementId])),
         })
       })
       .catch(noop)

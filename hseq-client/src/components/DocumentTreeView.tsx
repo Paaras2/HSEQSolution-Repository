@@ -1,13 +1,15 @@
 import { useMemo } from 'react'
 import type { DocumentDto } from '../types/api'
 import { toPersianDigits } from '../lib/digits'
-import { FileTextIcon } from './Icons'
+import { BuildingIcon, ChevronDownIcon, EyeIcon, FileTextIcon, LayersIcon } from './Icons'
 
 // نگاشتِ شناسه به عنوان، برای برچسبِ هر شاخه. از لوکاپ‌های اطلاعات پایه ساخته می‌شود.
+// activityParent: فعالیت ← مدیریتِ والدش، تا مدیریتِ هر سند از سلسله‌مراتبِ واقعی
+// (فعالیت→مدیریت) گرفته شود، نه فقط از فیلدِ managementId خودِ سند.
 export interface DocumentTreeLabels {
-  types: Map<string, string>
   managements: Map<string, string>
   activities: Map<string, string>
+  activityParent: Map<string, string>
 }
 
 interface Leaf {
@@ -42,20 +44,22 @@ function groupBy(
 }
 
 function buildTree(documents: DocumentDto[], labels: DocumentTreeLabels): Branch[] {
-  const label = (map: Map<string, string>, id: string) => map.get(id) ?? '—'
+  // سطح ۱: مدیریت سازمانی ← سطح ۲: فعالیت سازمانی ← اسناد.
+  // مدیریتِ سند از والدِ فعالیتش گرفته می‌شود؛ اگر فعالیت در لوکاپ نبود، از managementId
+  // خودِ سند. نبودِ عنوان به‌جای «—» با برچسبِ گویا پر می‌شود تا سندی گم‌شده به نظر نرسد.
+  const mgmtIdOf = (d: DocumentDto) =>
+    labels.activityParent.get(d.organizationalActivityId) ?? d.organizationalManagementId
+  const mgmtLabel = (id: string) => labels.managements.get(id) ?? 'سایر مدیریت‌ها'
+  const actLabel = (id: string) => labels.activities.get(id) ?? 'عمومی / سایر فعالیت‌ها'
 
-  return groupBy(documents, (d) => d.documentTypeId, (id) => label(labels.types, id)).map((typeGroup) => {
-    const managements = groupBy(
-      typeGroup.items,
-      (d) => d.organizationalManagementId,
-      (id) => label(labels.managements, id),
-    ).map((mgmtGroup) => {
+  return groupBy(documents, mgmtIdOf, mgmtLabel).map(
+    (mgmtGroup) => {
       const activities = groupBy(
         mgmtGroup.items,
         (d) => d.organizationalActivityId,
-        (id) => label(labels.activities, id),
+        actLabel,
       ).map<Branch>((actGroup) => ({
-        id: `${typeGroup.key}/${mgmtGroup.key}/${actGroup.key}`,
+        id: `${mgmtGroup.key}/${actGroup.key}`,
         label: actGroup.label,
         children: [],
         leaves: actGroup.items
@@ -64,17 +68,25 @@ function buildTree(documents: DocumentDto[], labels: DocumentTreeLabels): Branch
           .map((document) => ({ document })),
         count: actGroup.items.length,
       }))
-      return { id: `${typeGroup.key}/${mgmtGroup.key}`, label: mgmtGroup.label, children: activities, leaves: [], count: mgmtGroup.items.length }
-    })
-    return { id: typeGroup.key, label: typeGroup.label, children: managements, leaves: [], count: typeGroup.items.length }
-  })
+      return { id: mgmtGroup.key, label: mgmtGroup.label, children: activities, leaves: [], count: mgmtGroup.items.length }
+    },
+  )
 }
 
 function TreeBranch({ branch, level, onOpen }: { branch: Branch; level: number; onOpen: (d: DocumentDto) => void }) {
-  // <details> برای بازوبسته‌شدنِ نیتیو - بدون state، دسترس‌پذیر و سبک. سطح اول باز است.
+  // <details> برای بازوبسته‌شدنِ نیتیو - بدون state، دسترس‌پذیر و سبک. سطح اول (مدیریت)
+  // باز است، سطح دوم (فعالیت) جمع. آیکونِ فولدرِ سطح: مدیریت=ساختمان، فعالیت=لایه‌ها.
+  const FolderIcon = level === 0 ? BuildingIcon : LayersIcon
   return (
-    <details className="doc-tree__branch" open={level === 0} style={{ marginInlineStart: level === 0 ? 0 : 14 }}>
+    <details className={`doc-tree__branch doc-tree__branch--l${level}`} open={level === 0}>
       <summary className="doc-tree__summary">
+        {/* شِوران در RTL: جمع = رو به چپ، باز = رو به پایین (چرخش با CSS). */}
+        <span className="doc-tree__chevron" aria-hidden="true">
+          <ChevronDownIcon size={14} />
+        </span>
+        <span className="doc-tree__folder" aria-hidden="true">
+          <FolderIcon size={15} />
+        </span>
         <span className="doc-tree__label">{branch.label}</span>
         <span className="doc-tree__count">{toPersianDigits(branch.count)}</span>
       </summary>
@@ -86,11 +98,20 @@ function TreeBranch({ branch, level, onOpen }: { branch: Branch; level: number; 
       {branch.leaves.length > 0 && (
         <ul className="doc-tree__leaves">
           {branch.leaves.map(({ document }) => (
-            <li key={document.key}>
-              <button type="button" className="doc-tree__leaf" onClick={() => onOpen(document)} title={document.name}>
-                <FileTextIcon size={14} />
-                <span className="doc-tree__leaf-code mono">{toPersianDigits(document.number)}</span>
-                <span className="doc-tree__leaf-name">{document.name}</span>
+            <li key={document.key} className="doc-tree__leaf-row">
+              <FileTextIcon size={14} />
+              <span className="doc-tree__leaf-code mono">{toPersianDigits(document.number)}</span>
+              <span className="doc-tree__leaf-name" title={document.name}>
+                {document.name}
+              </span>
+              <button
+                type="button"
+                className="doc-tree__leaf-action"
+                onClick={() => onOpen(document)}
+                aria-label={`مشاهده ${document.number}`}
+                title="مشاهده"
+              >
+                <EyeIcon size={15} />
               </button>
             </li>
           ))}

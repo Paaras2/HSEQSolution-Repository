@@ -5119,46 +5119,70 @@ html[dir="ltr"] .bulk-dock__progress {
   box-shadow: var(--shadow-card);
 }
 
-.doc-tree { display: flex; flex-direction: column; gap: 2px; }
-.doc-tree__branch { border-inline-start: 2px solid var(--color-border-soft); }
+.doc-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  background: var(--color-surface);
+}
+.doc-tree__branch { border-radius: var(--radius-sm); }
+/* سطح ۲ (فعالیت) زیرِ سطح ۱ (مدیریت) تورفتگی می‌گیرد؛ در RTL از سمت راست. */
+.doc-tree__branch .doc-tree__branch { margin-inline-start: 16px; border-inline-start: 1px dashed var(--color-border); }
+
 .doc-tree__summary {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 7px 8px;
   cursor: pointer;
   list-style: none;
   border-radius: var(--radius-sm);
 }
 .doc-tree__summary::-webkit-details-marker { display: none; }
 .doc-tree__summary:hover { background: var(--color-row-hover); }
-.doc-tree__label { font-weight: 600; font-size: 13.5px; color: var(--color-text); }
+
+/* شِوران: جمع → رو به چپ (RTL)، باز → رو به پایین. */
+.doc-tree__chevron {
+  display: inline-flex;
+  color: var(--color-text-muted);
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+details[open] > .doc-tree__summary .doc-tree__chevron { transform: rotate(0); }
+
+.doc-tree__folder { display: inline-flex; }
+.doc-tree__branch--l0 > .doc-tree__summary .doc-tree__folder { color: var(--color-teal); }
+.doc-tree__branch--l1 > .doc-tree__summary .doc-tree__folder { color: var(--color-secondary); }
+
+.doc-tree__branch--l0 > .doc-tree__summary .doc-tree__label { font-weight: 700; font-size: 13.5px; }
+.doc-tree__label { font-weight: 600; font-size: 13px; color: var(--color-text); }
 .doc-tree__count {
+  margin-inline-start: auto;
   font-size: 11px;
   color: var(--color-text-muted);
   background: var(--color-surface-2);
+  border: 1px solid var(--color-border-soft);
   border-radius: 999px;
-  padding: 1px 8px;
+  padding: 1px 9px;
 }
-.doc-tree__leaves { list-style: none; margin: 0; padding: 0 0 4px; }
-.doc-tree__leaf {
+
+/* ردیف‌های سند زیرِ فعالیت: کد + عنوان + عملیات. */
+.doc-tree__leaves { list-style: none; margin: 0; padding: 2px 0 4px; }
+.doc-tree__leaf-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 5px 10px;
-  padding-inline-start: 26px;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  text-align: start;
+  padding: 5px 8px;
+  padding-inline-start: 34px;
   border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text);
 }
-.doc-tree__leaf:hover { background: var(--color-primary-soft); }
-.doc-tree__leaf svg { color: var(--color-text-muted); flex-shrink: 0; }
+.doc-tree__leaf-row:hover { background: var(--color-primary-soft); }
+.doc-tree__leaf-row > svg { color: var(--color-text-muted); flex-shrink: 0; }
 .doc-tree__leaf-code { color: var(--color-primary); flex-shrink: 0; }
 .doc-tree__leaf-name {
   color: var(--color-text-muted);
@@ -5166,3 +5190,20 @@ html[dir="ltr"] .bulk-dock__progress {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.doc-tree__leaf-action {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.doc-tree__leaf-action:hover { background: var(--color-surface); color: var(--color-primary); }
