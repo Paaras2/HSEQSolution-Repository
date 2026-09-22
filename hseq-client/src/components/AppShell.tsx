@@ -47,7 +47,8 @@ function todayLabel(): string {
 
 export function AppShell() {
   const { user, logout, hasCapability, showFirstLoginNotice, dismissFirstLoginNotice } = useAuth()
-  // پنل ادمین فقط برای «مدیر اسناد» و «مدیر سیستم» دیده می‌شود.
+  // داشبورد و پنل ادمین فقط برای «مدیر اسناد» و «مدیر سیستم» دیده می‌شوند؛ کاربرِ
+  // «فقط مشاهده» در حد مشاهده و دانلود سند می‌ماند.
   const canOpenAdminPanel = hasCapability('admin:access')
 
   // کشوی موبایل و جمع‌شدنِ ریلِ دسکتاپ دو چیز جدا هستند: اولی موقتی است، دومی ترجیح ماندگار.
@@ -79,9 +80,11 @@ export function AppShell() {
 
   const navItems = [
     { to: '/documents', end: true, label: 'اسناد', icon: <FileTextIcon size={18} /> },
-    { to: '/dashboard', end: true, label: 'داشبورد', icon: <DashboardIcon size={18} /> },
     ...(canOpenAdminPanel
-      ? [{ to: '/admin', end: true, label: 'پنل ادمین', icon: <AdminIcon size={18} /> }]
+      ? [
+          { to: '/dashboard', end: true, label: 'داشبورد', icon: <DashboardIcon size={18} /> },
+          { to: '/admin', end: true, label: 'پنل ادمین', icon: <AdminIcon size={18} /> },
+        ]
       : []),
   ]
 

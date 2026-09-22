@@ -23,15 +23,17 @@ function App() {
               {/* ریشه صفحه‌ی خودش را ندارد و به اسناد هدایت می‌شود - کار روزمره‌ی کاربر
                   آنجاست. داشبورد مسیر صریح خودش را دارد تا لینک‌پذیر بماند. */}
               <Route index element={<Navigate to="/documents" replace />} />
-              <Route path="dashboard" element={<DashboardPage />} />
               <Route path="documents" element={<DocumentsPage />} />
               {/* Creating a document is its own destination, so it is linkable and
                   survives a refresh. Editing/revising stay as dialogs on the list. */}
               <Route path="documents/new" element={<DocumentCreatePage />} />
 
-              {/* پنل ادمین پشت یک ProtectedRoute دوم با requireCapability است، تا
-                  کاربر «فقط مشاهده» حتی با تایپ مستقیم آدرس هم واردش نشود. */}
+              {/* داشبورد و پنل ادمین هر دو پشت همین ProtectedRoute دوم با
+                  requireCapability="admin:access" هستند - مدیر اسناد و مدیر سیستم هر
+                  دو این قابلیت را دارند، کاربر «فقط مشاهده» ندارد و حتی با تایپ
+                  مستقیم آدرس هم واردشان نمی‌شود. */}
               <Route element={<ProtectedRoute requireCapability="admin:access" />}>
+                <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="admin" element={<AdminPanelPage />} />
               </Route>
             </Route>

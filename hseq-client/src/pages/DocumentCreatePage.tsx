@@ -20,6 +20,7 @@ import { LoadingState, ErrorState } from '../components/StateViews'
 import { ChevronDownIcon, LinkIcon, UploadIcon } from '../components/Icons'
 import { toPersianDigits } from '../lib/digits'
 import { sortedByTitle } from '../lib/sorting'
+import { reviewDateOrderError } from '../lib/reviewDates'
 
 export interface DocumentLookups {
   projects: ProjectLookup[]
@@ -146,6 +147,11 @@ export function DocumentCreatePage() {
     }
     if (!file) {
       setError('هنگام افزودن سند، فایل الزامی است.')
+      return
+    }
+    const reviewDateError = reviewDateOrderError(formerReviewDate, currentReviewDate)
+    if (reviewDateError) {
+      setError(reviewDateError)
       return
     }
 

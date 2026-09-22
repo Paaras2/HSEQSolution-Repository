@@ -26,5 +26,9 @@ namespace HSEQ.API.Model.RequestModels
 
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
+
+        // فقط در مسیر Export دیده می‌شود؛ کلیدهای HSEQ.Common.DocumentExportColumns.
+        // خالی یا نال یعنی مجموعه‌ی پیش‌فرض؛ کلیدهای نامعتبر در همان کلاس پالایش می‌شوند.
+        public string[]? ExportColumns { get; set; }
     }
 }

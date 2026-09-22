@@ -46,7 +46,12 @@ namespace HSEQ.API.Model.Dtos
         public Guid DocumentTypeId { get; set; }
         public string? File { set; get; }
         public int CreatedByPCode { get; set; }
+        // نام کامل، نگاشته‌شده از سامانه‌ی مدیریت کاربران (IUmDirectoryService). کد
+        // پیدانشده یا سرویسِ UM در دسترس‌نبود یعنی این‌جا null می‌ماند و کلاینت
+        // به‌جایش کد پرسنلی را نشان می‌دهد.
+        public string? CreatedByName { get; set; }
         public int? ModifiedByPCode { get; set; }
+        public string? ModifiedByName { get; set; }
 
         // تکه‌ای از متن فایل که عبارت جستجو در آن پیدا شده. فقط وقتی پر می‌شود که
         // «جستجو در محتوای فایل» روشن باشد و تطابق در خودِ فایل رخ داده باشد - یعنی

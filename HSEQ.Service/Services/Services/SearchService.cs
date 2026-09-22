@@ -4,6 +4,7 @@ using HSEQ.Common;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
+using HSEQ.Shared.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
@@ -30,6 +31,16 @@ namespace HSEQ.Service.Services.Services
             if (!date.HasValue) return "";
 
             var value = date.Value;
+
+            // PersianCalendar فقط از حدود سال ۶۲۲ میلادی پشتیبانی می‌کند. تا پیش از
+            // افزودنِ ستون‌های ایجاد/ویرایش، این متد فقط روی FormerReviewDate و
+            // CurrentReviewDate صدا زده می‌شد که همیشه یا نال بودند یا تاریخی واقعی؛
+            // اما CreatedTime هیچ‌وقت نال نیست، و دست‌کم یک سندِ قدیمی مقدارش هرگز
+            // ست نشده (۰۰۰۱-۰۱-۰۱، پیش‌فرضِ خودِ DateTime) - بدونِ این چک، همان یک
+            // ردیف کل خروجی اکسل را با استثنا می‌ترکاند.
+            if (value < ShamsiCalendar.MinSupportedDateTime || value > ShamsiCalendar.MaxSupportedDateTime)
+                return "";
+
             return string.Format(
                 CultureInfo.InvariantCulture,
                 "{0:0000}/{1:00}/{2:00}",
@@ -41,13 +52,17 @@ namespace HSEQ.Service.Services.Services
         private readonly IDocumentRepository _documentRepository;
         // برای ستون «شماره مدارک مرتبط» در نتایج جستجو - همان بارگذار دسته‌ای فهرست اسناد.
         private readonly IDocumentRelationRepository _documentRelationRepository;
+        // نگاشتِ کد پرسنلی به نام کامل برای ردِ حسابرسی هر ردیف - همان سرویسِ DocumentService.
+        private readonly IUmDirectoryService _umDirectoryService;
 
         public SearchService(
             IDocumentRepository documentRepository,
-            IDocumentRelationRepository documentRelationRepository)
+            IDocumentRelationRepository documentRelationRepository,
+            IUmDirectoryService umDirectoryService)
         {
             _documentRepository = documentRepository;
             _documentRelationRepository = documentRelationRepository;
+            _umDirectoryService = umDirectoryService;
         }
 
         public async Task<PagedResult> SearchAsync(SearchDocumentsRequestModel request)
@@ -68,9 +83,11 @@ namespace HSEQ.Service.Services.Services
             var supersededKeys = await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, documents.Select(d => d.Key).ToList());
             // شماره‌ی مدارک مرتبط هر ردیف نتیجه - یک کوئری برای کل صفحه، نه یکی به ازای هر ردیف.
             var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
+            // نامِ سازنده/ویرایش‌کننده‌ی هر ردیف - یک رفت‌وبرگشت به دیتابیس UM برای کل صفحه.
+            var userNames = await DocumentDtoMapper.LoadUserNamesAsync(_umDirectoryService, documents);
 
             var items = documents
-                .Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers))
+                .Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers, userNames))
                 .ToList();
 
             // نشان دادن اینکه عبارت *کجای* فایل پیدا شده - بدون این، ردیفی که نه در
@@ -131,6 +148,9 @@ namespace HSEQ.Service.Services.Services
                 .ToListAsync();
         }
 
+        // فقط Admin و DocumentManager (کنترلر Authorize می‌زند). ستون‌ها قابل‌سفارشی‌سازی‌اند -
+        // request.ExportColumns هر زیرمجموعه‌ای از HSEQ.Common.DocumentExportColumns
+        // را می‌تواند بخواهد؛ خالی یعنی همان مجموعه‌ی پیش‌فرضِ همیشگی.
         public async Task<byte[]> ExportAsync(SearchDocumentsRequestModel request)
         {
             var documents = await BuildFilteredQuery(request)
@@ -142,28 +162,64 @@ namespace HSEQ.Service.Services.Services
                 .Take(MaxExportRows)
                 .ToListAsync();
 
-            // شماره‌ی مدارک مرتبط، همان بارگذار دسته‌ای فهرست و جستجو - یک کوئری برای کل خروجی.
+            // شماره‌ی مدارک مرتبط و نامِ ایجادکننده/ویرایش‌کننده - هر دو یک رفت‌وبرگشتِ
+            // دسته‌ای برای کل خروجی، نه یکی به‌ازای هر ردیف. حتی اگر ستون‌های مربوطه
+            // انتخاب نشده باشند بارشان ناچیز است، پس همیشه بارگذاری می‌شوند تا منطق
+            // ساده بماند.
             var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
+            var userNames = await DocumentDtoMapper.LoadUserNamesAsync(_umDirectoryService, documents);
 
-            var headers = new[] { "شماره", "نام", "دسته‌بندی", "وضعیت", "پروژه", "مدیریت سازمانی", "فعالیت سازمانی", "نوع سند", "بازنگری", "تاریخ بازبینی جاری", "مدارک مرتبط" };
+            var columns = HSEQ.Common.DocumentExportColumns.Normalize(request.ExportColumns);
+            var labelByKey = HSEQ.Common.DocumentExportColumns.All.ToDictionary(c => c.Key, c => c.Label);
+            var headers = columns.Select(key => labelByKey[key]).ToArray();
 
-            var rows = documents.Select(d => new[]
-            {
-                d.Number,
-                d.Name,
-                d.Category == HSEQ.Common.DocumentCategory.Project ? "پروژه" : "ستاد",
-                d.IsActive ? "فعال" : "غیرفعال",
-                d.Project?.Title ?? "",
-                d.OrganizationalManagement?.Title ?? "",
-                d.OrganizationalActivity?.Title ?? "",
-                d.DocumentType?.Title ?? "",
-                d.LastVersion.ToString() + (d.ContentRevision.HasValue ? d.ContentRevision.Value.ToString("00") : ""),
-                ToShamsi(d.CurrentReviewDate),
-                // چند مدرک مرتبط در یک سلول، جداشده با ویرگول فارسی.
-                relationNumbers.TryGetValue(d.Key, out var related) ? string.Join("، ", related) : "",
-            });
+            var rows = documents.Select(d => columns.Select(key => ExportCellValue(key, d, relationNumbers, userNames)).ToArray());
 
             return SimpleXlsxWriter.Write("اسناد", headers, rows);
+        }
+
+        // مقدارِ یک سلولِ خروجی برای یک ستونِ مشخص. کلیدهای نامعتبر تا اینجا نمی‌رسند
+        // (Normalize پیش‌تر پالایششان کرده)، پس حالتِ پیش‌فرض فقط برای اطمینان است.
+        private static string ExportCellValue(
+            string columnKey,
+            Document d,
+            Dictionary<Guid, List<string>> relationNumbers,
+            Dictionary<int, string> userNames)
+        {
+            return columnKey switch
+            {
+                HSEQ.Common.DocumentExportColumns.Number => d.Number,
+                HSEQ.Common.DocumentExportColumns.Name => d.Name,
+                HSEQ.Common.DocumentExportColumns.Category => d.Category == HSEQ.Common.DocumentCategory.Project ? "پروژه" : "ستاد",
+                HSEQ.Common.DocumentExportColumns.Status => d.IsActive ? "فعال" : "غیرفعال",
+                HSEQ.Common.DocumentExportColumns.Project => d.Project?.Title ?? "",
+                HSEQ.Common.DocumentExportColumns.Management => d.OrganizationalManagement?.Title ?? "",
+                HSEQ.Common.DocumentExportColumns.Activity => d.OrganizationalActivity?.Title ?? "",
+                HSEQ.Common.DocumentExportColumns.DocumentType => d.DocumentType?.Title ?? "",
+                HSEQ.Common.DocumentExportColumns.Revision =>
+                    d.LastVersion.ToString() + (d.ContentRevision.HasValue ? d.ContentRevision.Value.ToString("00") : ""),
+                HSEQ.Common.DocumentExportColumns.FormerReviewDate => ToShamsi(d.FormerReviewDate),
+                HSEQ.Common.DocumentExportColumns.CurrentReviewDate => ToShamsi(d.CurrentReviewDate),
+                // چند مدرک مرتبط در یک سلول، جداشده با ویرگول فارسی.
+                HSEQ.Common.DocumentExportColumns.RelatedNumbers =>
+                    relationNumbers.TryGetValue(d.Key, out var related) ? string.Join("، ", related) : "",
+                HSEQ.Common.DocumentExportColumns.FileName => d.FileName ?? "",
+                HSEQ.Common.DocumentExportColumns.CreatedBy => ExportPersonLabel(d.CreatedByPCode, userNames),
+                HSEQ.Common.DocumentExportColumns.CreatedTime => ToShamsi(d.CreatedTime),
+                HSEQ.Common.DocumentExportColumns.ModifiedBy => ExportPersonLabel(d.ModifiedByPCode, userNames),
+                HSEQ.Common.DocumentExportColumns.ModifiedDate => ToShamsi(d.ModifiedDate),
+                HSEQ.Common.DocumentExportColumns.IsOutsideCodingStructure => d.IsOutsideCodingStructure ? "بله" : "خیر",
+                HSEQ.Common.DocumentExportColumns.IsEnglishVersion => d.IsEnglishVersion ? "بله" : "خیر",
+                _ => "",
+            };
+        }
+
+        // نام کامل اگر سامانه‌ی مدیریت کاربران نگاشت کرده باشد، وگرنه کد پرسنلی - همان
+        // قاعده‌ی auditPersonText سمت کلاینت، تا فایل اکسل با بقیه‌ی رابط یک‌دست بماند.
+        private static string ExportPersonLabel(int? pCode, Dictionary<int, string> userNames)
+        {
+            if (!pCode.HasValue || pCode.Value <= 0) return "";
+            return userNames.TryGetValue(pCode.Value, out var name) ? name : $"کد پرسنلی {pCode.Value}";
         }
 
         // فیلترهای مشترک بین SearchAsync و ExportAsync، تا دو مسیر همیشه یک نتیجه بدهند.

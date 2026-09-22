@@ -4,6 +4,7 @@ import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { ApiError } from '../lib/httpClient'
 import { documentVersionLabel } from '../types/api'
 import { isoToJalaliText } from '../lib/jalali'
+import { auditPersonText, auditWhenText } from '../lib/audit'
 import type { DocumentDto } from '../types/api'
 import { Modal } from './Modal'
 import { LoadingState, ErrorState } from './StateViews'
@@ -131,9 +132,13 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
                     <dd>{revisionLabel(rev)}</dd>
                   </div>
                   <div>
-                    <dt>تاریخ بازبینی</dt>
+                    <dt>تاریخ بازبینی فعلی</dt>
                     {/* نمایش شمسی؛ مقدار ذخیره‌شده در دیتابیس همچنان میلادی است. */}
                     <dd>{isoToJalaliText(rev.currentReviewDate ?? '') || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>تاریخ بازبینی قبلی</dt>
+                    <dd>{isoToJalaliText(rev.formerReviewDate ?? '') || '—'}</dd>
                   </div>
                   <div>
                     <dt>نام</dt>
@@ -143,6 +148,18 @@ export function RevisionHistoryDrawer({ document, onClose }: RevisionHistoryDraw
                     <dt>فایل</dt>
                     <dd className="mono">{rev.fileName ?? '—'}</dd>
                   </div>
+                  {/* ردِ حسابرسیِ همین بازنگری: چه کسی و دقیقاً چه ساعتی همین نسخه را
+                      بارگذاری کرده - نام از سامانه‌ی مدیریت کاربران، وگرنه کد پرسنلی. */}
+                  <div>
+                    <dt>بارگذاری‌شده توسط</dt>
+                    <dd>{auditPersonText(rev.createdByPCode, rev.createdByName)} · {auditWhenText(rev.createdTime)}</dd>
+                  </div>
+                  {rev.modifiedDate && (
+                    <div>
+                      <dt>آخرین تغییر</dt>
+                      <dd>{auditPersonText(rev.modifiedByPCode, rev.modifiedByName)} · {auditWhenText(rev.modifiedDate)}</dd>
+                    </div>
+                  )}
                 </dl>
 
                 <div className="revision-item__actions">

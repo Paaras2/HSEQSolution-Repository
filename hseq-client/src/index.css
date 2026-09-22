@@ -2638,6 +2638,12 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   color: var(--color-text-muted);
 }
 
+/* همان راهنمای معمول، ولی کنار عنوانِ بخش - برای وقتی که فقط باید بگوید فلان بخش
+   اختیاری است، نه یک پاراگراف جدا زیرش. وزنِ نرمال دارد تا با عنوانِ توپُر قاطی نشود. */
+.field-hint--inline {
+  font-weight: 400;
+}
+
 /* File picker styled as a drop target: the native control is invisible but
    still the thing being clicked, so keyboard and screen-reader behaviour is
    unchanged. */
@@ -2761,6 +2767,45 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   font-size: 12px;
   line-height: 1.7;
   color: var(--color-text-muted);
+}
+
+/* ---- منوی سفارشی‌سازیِ ستون‌های خروجی اکسل -------------------------------- */
+/* برخلافِ check-row (یک گزینه‌ی برجسته با کادر و توضیح)، اینجا نزدیک به بیست ردیفِ
+   جمع‌وجور کنار همیم، پس هر ردیف سبک می‌ماند - بدون کادر و پدینگِ سنگین. */
+.export-columns-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.export-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.export-columns-grid__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.export-columns-grid__item:hover {
+  background: var(--color-row-hover);
+}
+
+@media (max-width: 640px) {
+  .export-columns-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pagination {
@@ -3577,92 +3622,33 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   color: var(--color-text);
 }
 
-/* ---- پنل هشدارها ----------------------------------------------------------- */
-/* چهار فهرست هشدار، داخل یک کارت. قبلاً چهار کارت جدا بودند و فاصله‌ی بین کارت‌ها
-   ارتفاع اضافه می‌ساخت. */
-.alerts-panel {
-  padding: 16px;
+/* ---- بخش‌های داشبورد --------------------------------------------------------
+   داشبورد یک صفحه‌ی پیوسته است نه چند تب؛ این بخش‌ها همان جایی را می‌گیرند که قبلاً
+   محتوای هر تب بود، با یک عنوان بالای هرکدام تا کاربر بداند الان کدام داستان را
+   می‌بیند (بارِ معوقات؟ اقدامِ فوری؟ صرفاً ترکیبِ اسناد؟). */
+.dashboard-section {
+  margin-top: 24px;
 }
 
-.alerts-panel__grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+.dashboard-section:first-child {
+  margin-top: 0;
 }
 
-.alert-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-2);
+.dashboard-section__head {
+  margin-bottom: 12px;
 }
 
-.alert-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.alert-card__head h3 {
+.dashboard-section__title {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
 }
 
-/* شمارنده‌ی هر دسته، تا بدون شمردنِ ردیف‌ها معلوم باشد چند مورد است. */
-.alert-card__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--color-border);
+.dashboard-section__hint {
+  margin: 2px 0 0;
+  font-size: 12.5px;
   color: var(--color-text-muted);
-}
-
-.alert-card__count--danger {
-  background: rgb(var(--tone-danger) / 0.15);
-  color: rgb(var(--tone-danger));
-}
-
-.alert-card__count--warning {
-  background: rgb(var(--tone-warning) / 0.15);
-  color: rgb(var(--tone-warning));
-}
-
-.alert-card__empty {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-/* ---- ناوبری بخش‌ها: نشانِ عددی روی تب ------------------------------------- */
-/* پنهان کردن «بازبینی منقضی‌شده» پشت یک تب فقط وقتی بی‌خطر است که کاربر بدون باز
-   کردنش هم بفهمد چند مورد منتظر اوست. */
-.section-nav__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: rgb(var(--tone-danger));
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ---- میله‌ی افقی: کدِ کوتاه کنار عنوان ------------------------------------- */
@@ -3717,6 +3703,14 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   --hbar-tone: var(--tone-history);
 }
 
+.hbar-list--danger {
+  --hbar-tone: var(--tone-danger);
+}
+
+.hbar-list--warning {
+  --hbar-tone: var(--tone-warning);
+}
+
 .hbar-list .hbar-row__fill {
   background: rgb(var(--hbar-tone));
 }
@@ -3725,17 +3719,7 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   background: rgb(var(--hbar-tone) / 0.75);
 }
 
-@media (max-width: 1200px) {
-  .alerts-panel__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 768px) {
-  .alerts-panel__grid {
-    grid-template-columns: 1fr;
-  }
-
   .hbar-list .hbar-row {
     grid-template-columns: 60% 1fr 38px;
   }
@@ -3749,27 +3733,8 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   margin-bottom: 16px;
 }
 
-.dashboard-grid--full {
-  grid-template-columns: 1fr;
-}
-
-/* چهار کارت هشدار کنار هم، هم‌تراز با ردیف KPI بالا - هرکدام فهرست کوتاهی است و یک
-   ردیف کامل برایشان اسراف بود */
-/* minmax(0,1fr) نه 1fr - با 1fr کارتِ خالی («موردی وجود ندارد») باریک‌تر از بقیه
-   می‌شد و چهار ستون ناهم‌عرض می‌شدند */
-.dashboard-grid--quarters {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-@media (max-width: 1200px) {
-  .dashboard-grid--quarters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 900px) {
-  .dashboard-grid,
-  .dashboard-grid--quarters {
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -3866,184 +3831,6 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   text-align: end;
 }
 
-/* --- نمودار دونات (SVG) + راهنما --- */
-.donut-chart-wrap {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.donut-chart {
-  flex-shrink: 0;
-}
-
-.donut-chart__total-value {
-  fill: var(--color-text);
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.donut-chart__total-label {
-  fill: var(--color-text-muted);
-  font-size: 10.5px;
-}
-
-.donut-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-width: 160px;
-}
-
-.donut-legend__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.donut-legend__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.donut-legend__label {
-  color: var(--color-text);
-  flex: 1;
-}
-
-.donut-legend__count {
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-/* --- نمودار خطی (SVG) --- */
-.line-chart-wrap {
-  position: relative;
-}
-
-.line-chart {
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-
-.line-chart .line-chart__gridline {
-  stroke: var(--color-border);
-  stroke-width: 1;
-}
-
-.line-chart .line-chart__axis-label {
-  fill: var(--color-text-muted);
-  font-size: 10.5px;
-}
-
-.line-chart .line-chart__area {
-  fill: var(--color-primary);
-  opacity: 0.1;
-}
-
-.line-chart .line-chart__line {
-  fill: none;
-  stroke: var(--color-primary);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.line-chart .line-chart__dot {
-  fill: var(--color-primary);
-  stroke: var(--color-surface);
-  stroke-width: 2;
-  cursor: pointer;
-}
-
-.line-chart .line-chart__dot--hover {
-  fill: var(--color-accent);
-}
-
-.line-chart-tooltip {
-  position: absolute;
-  transform: translate(-50%, -110%);
-  background: var(--color-ink);
-  color: var(--color-on-ink);
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: var(--shadow-panel);
-}
-
-/* --- هشدارها --- */
-.alert-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.alert-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-}
-
-/* min-width:0 لازم است تا ellipsis داخل flex واقعاً کار کند */
-.alert-row__info {
-  min-width: 0;
-  flex: 1;
-}
-
-.alert-row__number {
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-/* بدون max-width ثابت - کارت هشدار حالا یک‌سوم عرض است و عدد ثابت باعث سرریز می‌شد */
-.alert-row__name {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-}
-
-.alert-row__days {
-  font-size: 11.5px;
-  font-weight: 700;
-  white-space: nowrap;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
-.alert-row__days--danger {
-  color: var(--color-danger);
-  background: var(--color-danger-soft);
-}
-
-.alert-row__days--warning {
-  color: var(--color-warning);
-  background: var(--color-warning-soft);
-}
-
-/* «بدون تاریخ» یک شکاف اطلاعاتی است نه موعد از دست رفته - رنگ خنثی می‌گیرد تا با
-   هشدارهای واقعاً فوری اشتباه نشود */
-.alert-row__days--muted {
-  color: var(--color-text-muted);
-  background: var(--color-primary-soft);
-}
 /* نوار تب‌های پنل ادمین. دکمه است نه لینک، چون تب‌ها آدرس جدا ندارند و
    وضعیتشان درون همان صفحه نگه داشته می‌شود. */
 /* ---------------------------------------------------------------------------
@@ -5093,30 +4880,73 @@ html[dir="ltr"] .bulk-dock__progress {
 .preview-audit dt { color: var(--color-text-muted); }
 .preview-audit dd { margin: 0; color: var(--color-text); }
 
-.doc-view-toggle {
+/* ---- نوارِ نما و انتخابگرش ---------------------------------------------- */
+
+/* ردیفی بالای فهرست: انتخابگرِ نما، و بلافاصله کنارش توضیحِ نمای فعال. توضیح عمداً
+   چسبیده به انتخابگر است نه چسبیده به لبه‌ی دور: زیرنویسِ همان گزینه‌ی انتخاب‌شده
+   است، و اگر آن‌سرِ ردیف می‌نشست دیگر به آن ربط داده نمی‌شد. */
+.view-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-block-end: 14px;
+}
+.view-bar__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* دو گزینه‌ی جدا از هم، نه دو نیمه‌ی یک قرص. قرصِ قبلی مثل «یک دکمه با دو کلمه»
+   دیده می‌شد و حالتِ انتخاب‌شده‌اش فقط یک پله سفیدتر از زمینه بود - روی تم تیره
+   تقریباً نامرئی. حالا انتخاب با رنگِ برند اعلام می‌شود، نه با اختلافِ جزئیِ سطح. */
+.view-switch {
+  display: flex;
+  gap: 8px;
+}
+.view-switch__option {
   display: inline-flex;
-  gap: 2px;
-  margin-block-end: 12px;
-  padding: 3px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: var(--color-surface-2);
-}
-.doc-view-toggle__btn {
-  border: none;
-  background: transparent;
+  background: var(--color-surface);
   color: var(--color-text-muted);
   font: inherit;
   font-size: 13px;
-  padding: 5px 16px;
-  border-radius: 999px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
-.doc-view-toggle__btn.is-active {
-  background: var(--color-surface);
+.view-switch__icon {
+  display: inline-flex;
+  /* آیکون یک پله کم‌رنگ‌تر از متن، تا برچسب اول خوانده شود. در حالت انتخاب هر دو
+     هم‌رنگ می‌شوند و گزینه یکپارچه دیده می‌شود. */
+  opacity: 0.75;
+}
+.view-switch__option:hover {
   color: var(--color-text);
-  box-shadow: var(--shadow-card);
+  border-color: var(--color-border-strong);
+  background: var(--color-row-hover);
+}
+.view-switch__option:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.view-switch__option[aria-checked='true'] {
+  background: var(--color-primary-soft);
+  /* مرزِ دولایه (مرز + سایه‌ی داخلی) به‌جای مرزِ ۲ پیکسلی: ضخیم‌تر دیده می‌شود بدون
+     اینکه عرضِ دکمه با تغییر حالت یک پیکسل جابه‌جا شود. */
+  border-color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.view-switch__option[aria-checked='true'] .view-switch__icon {
+  opacity: 1;
 }
 
 .doc-tree {
@@ -5159,6 +4989,23 @@ details[open] > .doc-tree__summary .doc-tree__chevron { transform: rotate(0); }
 
 .doc-tree__branch--l0 > .doc-tree__summary .doc-tree__label { font-weight: 700; font-size: 13.5px; }
 .doc-tree__label { font-weight: 600; font-size: 13px; color: var(--color-text); }
+/* کدِ مدیریت/فعالیت - همان حرفی که در شماره‌ی مدرک دیده می‌شود، پس چشم از روی کد
+   شاخه را پیدا می‌کند نه از روی عنوان. */
+.doc-tree__code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+/* یادآوریِ سقف: درخت صفحه‌بندی ندارد، پس اگر همه‌ی نتیجه را نشان نمی‌دهد باید بگوید. */
+.doc-tree__note {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
 .doc-tree__count {
   margin-inline-start: auto;
   font-size: 11px;
@@ -5169,41 +5016,44 @@ details[open] > .doc-tree__summary .doc-tree__chevron { transform: rotate(0); }
   padding: 1px 9px;
 }
 
-/* ردیف‌های سند زیرِ فعالیت: کد + عنوان + عملیات. */
+/* ردیف‌های سند زیرِ فعالیت - همان ستون‌های نمای جدولی (ردیف، شماره، نام، بازنگری،
+   مدارک مرتبط، تاریخ بازبینی، وضعیت، عملیات)، فقط این‌بار زیرِ شاخه‌ی خودشان به‌جای
+   یک جدولِ تخت. سرستون و هر ردیف هرکدام یک grid جدا هستند (نه یک grid مشترک)، پس
+   هیچ ستونی نباید عرضش را از محتوا بگیرد (fr یا auto) - وگرنه عرضِ آن ستون بسته به
+   محتوای همان ردیف (مثلاً تعداد آیکونِ عملیات) فرق می‌کند و ستون‌ها زیر سرستون
+   هم‌تراز نمی‌مانند. همه‌ی ستون‌ها عمداً px ثابت‌اند تا سرستون و همه‌ی ردیف‌ها،
+   صرف‌نظر از محتوایشان، دقیقاً همان عرض‌ها را بگیرند. */
+.doc-tree__leaves-scroll { overflow-x: auto; padding-inline-start: 34px; }
+.doc-tree__leaves-head,
+.doc-tree__leaf-row {
+  display: grid;
+  grid-template-columns: 34px 120px 300px 64px 150px 92px 96px 156px;
+  align-items: center;
+  gap: 10px;
+  min-width: 1082px;
+}
+.doc-tree__leaves-head {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-soft);
+}
 .doc-tree__leaves { list-style: none; margin: 0; padding: 2px 0 4px; }
 .doc-tree__leaf-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  padding-inline-start: 34px;
+  padding: 7px 8px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--color-text);
 }
 .doc-tree__leaf-row:hover { background: var(--color-primary-soft); }
-.doc-tree__leaf-row > svg { color: var(--color-text-muted); flex-shrink: 0; }
-.doc-tree__leaf-code { color: var(--color-primary); flex-shrink: 0; }
+.doc-tree__leaf-index { color: var(--color-text-muted); font-size: 12px; }
+.doc-tree__leaf-number { color: var(--color-primary); }
 .doc-tree__leaf-name {
-  color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.doc-tree__leaf-action {
-  margin-inline-start: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-.doc-tree__leaf-action:hover { background: var(--color-surface); color: var(--color-primary); }
+.doc-tree__leaf-revision,
+.doc-tree__leaf-review { font-size: 12.5px; color: var(--color-text-muted); }
+.doc-tree__leaf-actions { display: flex; align-items: center; gap: 2px; }

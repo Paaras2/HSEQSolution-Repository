@@ -12,8 +12,11 @@ import { DocumentFormDrawer } from '../components/DocumentFormDrawer'
 import { RevisionHistoryDrawer } from '../components/RevisionHistoryDrawer'
 import { RelatedDocumentsDrawer } from '../components/RelatedDocumentsDrawer'
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal'
+import { ExportColumnsDialog } from '../components/ExportColumnsDialog'
 import { DocumentTreeView } from '../components/DocumentTreeView'
 import type { DocumentTreeLabels } from '../components/DocumentTreeView'
+import { ViewSwitch } from '../components/ViewSwitch'
+import type { ViewSwitchOption } from '../components/ViewSwitch'
 import { masterDataApi } from '../api/masterDataApi'
 import { downloadDocumentFile, viewDocumentFile } from '../lib/documentFile'
 import { LoadingState, EmptyState, ErrorState } from '../components/StateViews'
@@ -23,22 +26,37 @@ import {
   CloseIcon,
   DeactivateIcon,
   DownloadIcon,
-  EditIcon,
   EyeIcon,
   HistoryIcon,
   ReviseIcon,
   SearchIcon,
   SpinnerIcon,
+  TableIcon,
+  TreeIcon,
 } from '../components/Icons'
 
 const PAGE_SIZE = 10
 
+// سقفِ تعداد سندی که نمای درختی یک‌جا می‌گیرد. درخت صفحه‌بندی ندارد (دسته‌بندی با
+// صفحه‌بندی معنا نمی‌دهد)، پس یک سقف لازم است تا یک درخواستِ بی‌فیلتر کلِ آرشیو را
+// نکشد؛ اگر نتیجه از این بیشتر بود، بالای درخت گفته می‌شود.
+const TREE_PAGE_SIZE = 1000
+
+type ViewMode = 'table' | 'tree'
+
+// گزینه‌های نما - بیرون از کامپوننت، چون ثابت‌اند و نباید در هر رندر دوباره ساخته شوند.
+const VIEW_OPTIONS: ViewSwitchOption<ViewMode>[] = [
+  { value: 'table', label: 'جدولی', icon: <TableIcon size={16} />, hint: 'فهرست ردیفی با همه‌ی ستون‌ها و عملیات' },
+  { value: 'tree', label: 'درختی', icon: <TreeIcon size={16} />, hint: 'گروه‌بندی بر پایه‌ی مدیریت و فعالیت سازمانی' },
+]
+
 // Creating a document lives on its own route (/documents/new), so only the
 // row-scoped actions open as dialogs here.
-type DrawerState =
-  | { mode: 'edit'; document: DocumentDto }
-  | { mode: 'revise'; document: DocumentDto }
-  | null
+//
+// «ویرایش» و «بازنگری» یک دیالوگ شدند (DocumentFormDrawer تصمیم می‌گیرد کدام
+// عملیات واقعی رخ دهد، بر پایه‌ی اینکه کاربر فایل پیوست کرده یا نه)، پس این‌جا هم
+// فقط یک نوع باز است، نه دو حالت جدا.
+type DrawerState = DocumentDto | null
 
 // وضعیت عملیات گروهی: چون API نسخه‌ی دسته‌ای ندارد، درخواست‌ها یکی‌یکی فرستاده
 // می‌شوند و همین شمارنده پیشرفت را روی نوار انتخاب نشان می‌دهد.
@@ -51,6 +69,9 @@ function noop() {}
 export function DocumentsPage() {
   const { hasCapability } = useAuth()
   const canManage = hasCapability('documents:manage')
+  // خروجی اکسل شاملِ داده‌ی خامِ کلِ آرشیو است، پس فقط Admin و DocumentManager -
+  // سرور هم همین را اجبار می‌کند (۴۰۳ برای بقیه)؛ این‌جا فقط دکمه را زودتر پنهان می‌کند.
+  const canExport = hasCapability('documents:export')
 
   const [documents, setDocuments] = useState<DocumentDto[] | null>(null)
   const [totalCount, setTotalCount] = useState(0)
@@ -63,6 +84,9 @@ export function DocumentsPage() {
   // است تا اگر نقشِ همین نشست عوض شد، فهرست روی حالتِ قبلی جا نماند.
   const showInactive = canManage && includeInactive
   const [isExporting, setIsExporting] = useState(false)
+  // کلیک روی «خروجی اکسل» اول این دیالوگ را باز می‌کند، نه خودِ دانلود را؛ خروجیِ
+  // واقعی از داخلِ دیالوگ با ستون‌های انتخاب‌شده انجام می‌شود.
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
 
   // نوار جستجوی بالای صفحه فیلترها را در آدرس می‌نویسد و این صفحه فقط آن‌ها را
   // می‌خواند - یعنی بازگشت مرورگر، تازه‌سازی و اشتراک لینکِ جستجو رایگان به دست می‌آید.
@@ -91,22 +115,23 @@ export function DocumentsPage() {
   // وقتی مرورگر باز شدن تب را بلاک می‌کند، فایل همین‌جا داخل برنامه نشان داده می‌شود.
   const [previewDocument, setPreviewDocument] = useState<DocumentDto | null>(null)
 
-  // نمای جدولی (پیش‌فرض) یا نمای درختی. نمای درختی همان اسنادِ نتیجه‌ی جاری را بر پایه‌ی
-  // «نوع سند ← مدیریت ← فعالیت» گروه‌بندی می‌کند؛ برچسبِ گروه‌ها از اطلاعات پایه می‌آید.
-  const [viewMode, setViewMode] = useState<'table' | 'tree'>('table')
+  // نمای جدولی (پیش‌فرض) یا نمای درختی. نمای درختی همان نتیجه‌ی جاری را بر پایه‌ی
+  // «مدیریت سازمانی ← فعالیت سازمانی» گروه‌بندی می‌کند؛ کد و عنوانِ گروه‌ها از اطلاعات
+  // پایه می‌آید و خودِ گروه‌بندی از فیلدهای همان سند.
+  // نمای درختی پیش‌فرض است: دسته‌بندیِ مدیریت ← فعالیت برای مرور اسناد گویاتر از
+  // فهرستِ تخت است؛ نمای جدولی همچنان یک کلیک آن‌طرف‌تر می‌ماند.
+  const [viewMode, setViewMode] = useState<ViewMode>('tree')
+  const isTreeView = viewMode === 'tree'
   const [treeLabels, setTreeLabels] = useState<DocumentTreeLabels>({
     managements: new Map(),
     activities: new Map(),
-    activityParent: new Map(),
   })
   useEffect(() => {
     Promise.all([masterDataApi.getManagements(), masterDataApi.getActivities()])
       .then(([managements, activities]) => {
         setTreeLabels({
-          managements: new Map(managements.map((m) => [m.key, m.title])),
-          activities: new Map(activities.map((a) => [a.key, a.title])),
-          // فعالیت ← مدیریتِ والدش، تا سلسله‌مراتبِ درخت از رابطه‌ی واقعی ساخته شود.
-          activityParent: new Map(activities.map((a) => [a.key, a.organizationalManagementId])),
+          managements: new Map(managements.map((m) => [m.key, { code: m.code, title: m.title }])),
+          activities: new Map(activities.map((a) => [a.key, { code: a.code, title: a.title }])),
         })
       })
       .catch(noop)
@@ -136,10 +161,13 @@ export function DocumentsPage() {
       projectId: null,
       onlyLatestRevision: filters.onlyLatest,
       searchInFileContent: filters.inFileContent,
-      pageNumber: page,
-      pageSize: PAGE_SIZE,
+      // درخت باید کلِ نتیجه‌ی فیلترشده را ببیند، وگرنه شاخه‌هایش فقط همان ده ردیفِ
+      // صفحه‌ی جاری را دسته‌بندی می‌کنند و دسته‌بندی بی‌معنا می‌شود. جدول همان
+      // صفحه‌بندی سمت سرور را نگه می‌دارد.
+      pageNumber: isTreeView ? 1 : page,
+      pageSize: isTreeView ? TREE_PAGE_SIZE : PAGE_SIZE,
     }),
-    [filters, showInactive, page],
+    [filters, showInactive, page, isTreeView],
   )
 
   const loadDocuments = useCallback(() => {
@@ -173,18 +201,19 @@ export function DocumentsPage() {
   }, [filters, showInactive])
 
   // با صفحه‌بندی سمت سرور، ردیف‌های صفحه‌ی قبل دیگر در حافظه نیستند؛ نگه داشتن
-  // انتخابشان فقط شمارنده‌ی داک را گمراه‌کننده می‌کرد.
+  // انتخابشان فقط شمارنده‌ی داک را گمراه‌کننده می‌کرد. عوض شدنِ نما هم همین حکم را
+  // دارد: نمای درختی چک‌باکس ندارد، پس انتخابِ نامرئی باقی نمی‌ماند.
   useEffect(() => {
     setSelectedKeys(new Set())
-  }, [page])
+  }, [page, viewMode])
 
   // خروجی اکسل، همان فیلترهای جاری را به سرور می‌دهد - قابلیتی که پیش‌تر روی صفحه‌ی
   // «جستجوی پیشرفته» بود و با حذف آن صفحه به اینجا منتقل شد.
-  async function handleExport() {
+  async function handleExport(columns: string[]) {
     if (isExporting) return
     setIsExporting(true)
     try {
-      const blob = await searchApi.exportExcel(searchInput)
+      const blob = await searchApi.exportExcel(searchInput, columns)
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -193,6 +222,7 @@ export function DocumentsPage() {
       link.click()
       link.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      setIsExportDialogOpen(false)
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : 'امکان تهیه‌ی خروجی اکسل وجود ندارد.')
     } finally {
@@ -202,12 +232,8 @@ export function DocumentsPage() {
 
   // Editing and revising never needed the master-data lookups - only the create
   // form did, and that now loads them itself on /documents/new.
-  function openEditDrawer(document: DocumentDto) {
-    setDrawer({ mode: 'edit', document })
-  }
-
-  function openReviseDrawer(document: DocumentDto) {
-    setDrawer({ mode: 'revise', document })
+  function openFormDrawer(document: DocumentDto) {
+    setDrawer(document)
   }
 
   // Viewing is available to every authenticated user, not just canManage - the
@@ -403,14 +429,18 @@ export function DocumentsPage() {
                 نمایش آرشیو
               </label>
             )}
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleExport}
-              disabled={isExporting || totalCount === 0}
-            >
-              {isExporting ? 'در حال آماده‌سازی...' : 'خروجی اکسل'}
-            </button>
+            {/* خروجی اکسل فقط برای Admin و DocumentManager - شاملِ داده‌ی خامِ کلِ
+                آرشیو است، نه همان نمایی که کاربرِ فقط‌مشاهده در فهرست می‌بیند. */}
+            {canExport && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsExportDialogOpen(true)}
+                disabled={isExporting || totalCount === 0}
+              >
+                خروجی اکسل
+              </button>
+            )}
             {canManage && (
               <Link to="/documents/new" className="btn btn-primary">
                 افزودن سند
@@ -460,6 +490,24 @@ export function DocumentsPage() {
           </div>
         )}
 
+        {/* نوارِ نما بالای خودِ محتوا می‌نشیند و هنگام بارگذاری هم می‌ماند: عوض کردن نما
+            یک درخواست تازه می‌فرستد، و اگر کنترل در همان لحظه ناپدید می‌شد، هم جای
+            محتوا می‌پرید و هم فوکوسِ کاربرِ کیبورد گم می‌شد. ردیف‌های قبلی تا رسیدن
+            نتیجه‌ی تازه در حافظه‌اند، پس شرطش هم روی همان‌هاست نه روی isLoading. */}
+        {!loadError && pageItems.length > 0 && (
+          <div className="view-bar">
+            <ViewSwitch
+              label="نمای فهرست اسناد"
+              value={viewMode}
+              onChange={setViewMode}
+              options={VIEW_OPTIONS}
+            />
+            {isTreeView && (
+              <p className="view-bar__hint">گروه‌بندی بر پایه‌ی مدیریت سازمانی ← فعالیت سازمانی</p>
+            )}
+          </div>
+        )}
+
         {isLoading && <LoadingState title="در حال بارگذاری اسناد..." />}
 
         {!isLoading && loadError && (
@@ -482,35 +530,33 @@ export function DocumentsPage() {
           />
         )}
 
-        {/* سوییچِ نمای جدولی/درختی. فقط وقتی سندی برای نمایش هست دیده می‌شود. */}
-        {!isLoading && !loadError && pageItems.length > 0 && (
-          <div className="doc-view-toggle" role="group" aria-label="نمای فهرست اسناد">
-            <button
-              type="button"
-              className={`doc-view-toggle__btn${viewMode === 'table' ? ' is-active' : ''}`}
-              onClick={() => setViewMode('table')}
-              aria-pressed={viewMode === 'table'}
-            >
-              نمای جدولی
-            </button>
-            <button
-              type="button"
-              className={`doc-view-toggle__btn${viewMode === 'tree' ? ' is-active' : ''}`}
-              onClick={() => setViewMode('tree')}
-              aria-pressed={viewMode === 'tree'}
-            >
-              نمای درختی
-            </button>
-          </div>
+        {/* نمای درختی: کلِ نتیجه‌ی فیلترشده، گروه‌بندی‌شده بر پایه‌ی مدیریت ← فعالیت.
+            صفحه‌بندی ندارد؛ فقط اگر نتیجه از سقف بگذرد همان سقف نشان داده می‌شود. */}
+        {!isLoading && !loadError && pageItems.length > 0 && isTreeView && (
+          <>
+            {totalCount > pageItems.length && (
+              <p className="doc-tree__note">
+                نمایش {toPersianDigits(pageItems.length)} سند از {toPersianDigits(totalCount)} سند. برای
+                دیدن بقیه، نتیجه را با جستجو یا فیلترها محدود کنید.
+              </p>
+            )}
+            <DocumentTreeView
+              documents={pageItems}
+              labels={treeLabels}
+              onOpen={handleView}
+              onDownload={handleDownload}
+              onHistory={(doc) => setHistoryDocument(doc)}
+              onManage={openFormDrawer}
+              onArchive={handleDelete}
+              onRelations={(doc) => setRelationsDocument(doc)}
+              canManage={canManage}
+              pendingFileId={pendingFileId}
+              pendingDeleteId={pendingDeleteId}
+            />
+          </>
         )}
 
-        {/* نمای درختی: اسنادِ همین صفحه‌ی نتیجه، گروه‌بندی‌شده. برای پیمایش صفحه‌ها به
-            نمای جدولی برگردید. */}
-        {!isLoading && !loadError && pageItems.length > 0 && viewMode === 'tree' && (
-          <DocumentTreeView documents={pageItems} labels={treeLabels} onOpen={handleView} />
-        )}
-
-        {!isLoading && !loadError && pageItems.length > 0 && viewMode === 'table' && (
+        {!isLoading && !loadError && pageItems.length > 0 && !isTreeView && (
           <>
             <div className="table-scroll">
               <table className="data-table">
@@ -646,9 +692,12 @@ export function DocumentsPage() {
                           onClick={() => handleDownload(doc)}
                           disabled={pendingFileId !== null}
                         />
-                        {/* Only meaningful once the chain has more than one link: either
-                            this revision superseded an earlier one, or it was superseded. */}
-                        {(doc.relatedDocumentNumber || doc.isSuperseded) && (
+                        {/* تاریخچه هم کارِ مدیریت است، نه صرفِ مشاهده - کاربرِ فقط‌مشاهده
+                            باید فقط بتواند مدرک را ببیند و دانلود کند، همان قاعده‌ای که
+                            نمای درختی هم رعایت می‌کند. علاوه بر آن، فقط وقتی معنا دارد
+                            که زنجیره بیش از یک حلقه داشته باشد: یا این بازنگری چیزی را
+                            جایگزین کرده، یا خودش جایگزین شده. */}
+                        {canManage && (doc.relatedDocumentNumber || doc.isSuperseded) && (
                           <IconButton
                             label="تاریخچه"
                             icon={<HistoryIcon />}
@@ -657,26 +706,20 @@ export function DocumentsPage() {
                           />
                         )}
                         {/* دکمه‌ی «مدارک مرتبط» از این ستون برداشته شد: مدیریت ارتباط‌ها
-                            داخل فرم ویرایش انجام می‌شود و شماره‌های ستون مقابل هم برای
+                            داخل همین فرم انجام می‌شود و شماره‌های ستون مقابل هم برای
                             دیدنشان کلیک‌پذیر مانده‌اند. */}
                         {canManage && (
                           <>
+                            {/* ویرایش و بازنگری یک دکمه‌اند: همیشه در دسترس است (مثل قبلاً
+                                ویرایش)، و خودِ فرم بر پایه‌ی اینکه کاربر فایل پیوست می‌کند
+                                یا نه، بین اصلاح اطلاعات و ثبت بازنگری واقعی تصمیم می‌گیرد -
+                                روی نسخه‌ی منسوخ یا آرشیوشده فقط بخش فایل غیرفعال می‌شود. */}
                             <IconButton
-                              label="ویرایش"
-                              icon={<EditIcon />}
-                              tone="edit"
-                              onClick={() => openEditDrawer(doc)}
+                              label="بازنگری"
+                              icon={<ReviseIcon />}
+                              tone="revise"
+                              onClick={() => openFormDrawer(doc)}
                             />
-                            {/* Revising a superseded revision would fork the chain, which
-                                the server rejects - so don't offer it. */}
-                            {doc.isActive && !doc.isSuperseded && (
-                              <IconButton
-                                label="بازنگری"
-                                icon={<ReviseIcon />}
-                                tone="revise"
-                                onClick={() => openReviseDrawer(doc)}
-                              />
-                            )}
                             {doc.isActive && (
                               <IconButton
                                 label="آرشیو"
@@ -787,9 +830,8 @@ export function DocumentsPage() {
         <DocumentFormDrawer
           // Remounts when the target changes, so the form's initial state is
           // re-derived from the new document instead of being kept from the old one.
-          key={`${drawer.mode}-${drawer.document.key}`}
-          mode={drawer.mode}
-          document={drawer.document}
+          key={drawer.key}
+          document={drawer}
           onClose={() => setDrawer(null)}
           onSaved={() => {
             setDrawer(null)
@@ -813,6 +855,14 @@ export function DocumentsPage() {
           key={relationsDocument.key}
           document={relationsDocument}
           onClose={() => setRelationsDocument(null)}
+        />
+      )}
+
+      {isExportDialogOpen && (
+        <ExportColumnsDialog
+          onClose={() => setIsExportDialogOpen(false)}
+          onConfirm={handleExport}
+          isExporting={isExporting}
         />
       )}
     </div>

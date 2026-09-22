@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { documentApi } from '../api/documentApi'
 import { documentRelationApi } from '../api/documentRelationApi'
@@ -10,32 +10,26 @@ import { PersianDatePicker } from './PersianDatePicker'
 import type { PickedRelation } from './DocumentRelationPicker'
 import { Modal } from './Modal'
 import { toPersianDigits } from '../lib/digits'
+import { reviewDateOrderError } from '../lib/reviewDates'
 
 // Creating a document is not handled here - it has its own route
 // (/documents/new), because it also collects the master-data classification that
 // permanently determines the Document Number.
-export type DocumentFormMode = 'edit' | 'revise'
-
+//
+// یک فرم، یک عملیات: پیش‌تر «ویرایش» و «بازنگری» دو دکمه و دو دیالوگ جدا بودند، در
+// حالی که از دید کاربر هر دو یک کارند - اصلاح یک سند. حالا هر دو از همین دیالوگ
+// انجام می‌شوند: اگر فایل تازه بارگذاری شود، بازنگری واقعی رخ می‌دهد (سند جدید با
+// شماره‌ی بعدی)، وگرنه فقط اطلاعات همین سند به‌روزرسانی می‌شود. تصمیم از خودِ فرم
+// می‌آید (وجود فایل)، نه از یک پرچمِ بیرونی - چون همان چیزی است که واقعاً فرق را
+// می‌سازد: شماره‌ی نسخه فقط باید وقتی جلو برود که محتوا واقعاً عوض شده.
+//
+// شماره‌ی بازنگریِ سند دقیقاً همین را کنترل می‌کند، پس اجازه‌ی جایگزینیِ فایل بدون
+// جلو رفتنِ آن شماره کلِ این سازوکار را بی‌اثر می‌کرد - برای همین فایل هنوز هم مسیر
+// جداگانه‌ی خودش (ReviseAsync) را دارد، فقط دیگر پشتِ دکمه‌ی جدا نیست.
 interface DocumentFormDrawerProps {
-  mode: DocumentFormMode
   document: DocumentDto
   onClose: () => void
   onSaved: () => void
-}
-
-const MODE_COPY: Record<DocumentFormMode, { title: string; subtitle: string; submit: string; busy: string }> = {
-  edit: {
-    title: 'ویرایش سند',
-    subtitle: 'شماره، پروژه و طبقه‌بندی سازمانی پس از ایجاد سند قابل تغییر نیستند.',
-    submit: 'ذخیره تغییرات',
-    busy: 'در حال ذخیره…',
-  },
-  revise: {
-    title: 'ثبت بازنگری',
-    subtitle: 'یک سند جدید با شماره بازنگری بعدی ساخته می‌شود؛ نسخه فعلی در تاریخچه می‌ماند.',
-    submit: 'ثبت بازنگری',
-    busy: 'در حال ثبت بازنگری…',
-  },
 }
 
 function formatFileSize(bytes: number): string {
@@ -44,43 +38,51 @@ function formatFileSize(bytes: number): string {
   return `${toPersianDigits((bytes / (1024 * 1024)).toFixed(1))} مگابایت`
 }
 
-// Edit only exposes what UpdateDocumentRequestModel actually accepts:
-// Number/Project/organizational classification are immutable after creation, so
-// those fields simply don't appear. Revise is different again: it issues the
-// NEXT revision as a new document, so it always requires a file and never
-// touches the document being revised.
-export function DocumentFormDrawer({ mode, document, onClose, onSaved }: DocumentFormDrawerProps) {
+export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormDrawerProps) {
+  // بازنگریِ دوباره‌ی یک نسخه‌ی منسوخ زنجیره را شاخه‌شاخه می‌کند و سرور آن را رد
+  // می‌کند؛ آرشیوشده هم تا فعال نشود بازنگری نمی‌شود (تصمیم UI، نه محدودیت سرور،
+  // اما همان قاعده‌ای که پیش از یکی‌شدنِ این فرم برقرار بود). در هر دو حالت بخشِ
+  // فایل غیرفعال می‌شود؛ بقیه‌ی فرم (اطلاعات، تاریخ‌ها، وضعیت، ارتباط‌ها) همچنان کار می‌کند.
+  const canRevise = document.isActive && !document.isSuperseded
+
+  const initialFormerReviewDate = document.formerReviewDate?.slice(0, 10) ?? ''
+  const initialCurrentReviewDate = document.currentReviewDate?.slice(0, 10) ?? ''
+
   const [name, setName] = useState(document.name ?? '')
-  // A revision revises *from* the previous revision's review date, so that date
-  // becomes the new FormerReviewDate and the new review date starts empty. The
-  // server applies the same default when the field is left blank.
-  const [formerReviewDate, setFormerReviewDate] = useState(
-    mode === 'revise'
-      ? (document.currentReviewDate?.slice(0, 10) ?? '')
-      : (document.formerReviewDate?.slice(0, 10) ?? ''),
-  )
-  const [currentReviewDate, setCurrentReviewDate] = useState(
-    mode === 'revise' ? '' : (document.currentReviewDate?.slice(0, 10) ?? ''),
-  )
+  const [formerReviewDate, setFormerReviewDate] = useState(initialFormerReviewDate)
+  const [currentReviewDate, setCurrentReviewDate] = useState(initialCurrentReviewDate)
   const [isActive, setIsActive] = useState(document.isActive ?? true)
   const [file, setFile] = useState<File | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // مدارک مرتبط - فقط در حالت ویرایش. برخلاف فرم افزودن، سند اینجا از قبل کلید دارد،
-  // پس ارتباط بلافاصله روی سرور ثبت/حذف می‌شود و به دکمه‌ی «ذخیره تغییرات» گره نمی‌خورد.
+  // فایل یعنی این ثبت واقعاً یک بازنگری است، نه فقط اصلاح اطلاعات. کپی، بنر و دکمه‌ی
+  // ثبت همه از همین یک مقدار مشتق می‌شوند تا حرفشان با هم یکی بماند.
+  const willRevise = canRevise && file !== null
+
+  // لحظه‌ای که کاربر برای اولین‌بار فایل پیوست می‌کند، تاریخ‌ها به قاعده‌ی بازنگری
+  // می‌روند: «بازبینی جاری» قبلی می‌شود «بازبینی قبلی»ِ نسخه‌ی تازه، و «جاری» خالی
+  // می‌ماند تا کاربر تاریخ تازه انتخاب کند - اما فقط اگر کاربر خودش قبلاً دستی چیزی
+  // در این دو فیلد تغییر نداده باشد؛ وگرنه روی انتخاب او می‌نشست.
+  const dateDefaultsShiftedRef = useRef(false)
+  useEffect(() => {
+    if (!file || dateDefaultsShiftedRef.current) return
+    dateDefaultsShiftedRef.current = true
+    setFormerReviewDate((prev) => (prev === initialFormerReviewDate ? initialCurrentReviewDate || prev : prev))
+    setCurrentReviewDate((prev) => (prev === initialCurrentReviewDate ? '' : prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file])
+
+  // مدارک مرتبط - همیشه بارگذاری می‌شوند مگر روی نسخه‌ی منسوخ، چون بازنگریِ بعدی
+  // ارتباط‌ها را خودش با خودش جلو می‌برد و ردیف تازه همان‌جا جا می‌ماند.
   const [relations, setRelations] = useState<DocumentRelation[] | null>(null)
   const [isRelationBusy, setIsRelationBusy] = useState(false)
   const [relationError, setRelationError] = useState<string | null>(null)
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
 
-  const copy = MODE_COPY[mode]
-
-  // فهرست ارتباط‌ها فقط برای حالت ویرایش بارگذاری می‌شود؛ حالت بازنگری سند جدید می‌سازد
-  // و ارتباط‌ها خودشان سمت سرور به نسخه‌ی جدید منتقل می‌شوند.
   const loadRelations = useCallback(() => {
-    if (mode !== 'edit') return
+    if (document.isSuperseded) return
     setRelationError(null)
     documentRelationApi
       .getForDocument(document.key)
@@ -88,7 +90,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
       .catch((err) =>
         setRelationError(err instanceof ApiError ? err.message : 'امکان بارگذاری مدارک مرتبط وجود ندارد.'),
       )
-  }, [mode, document.key])
+  }, [document.key, document.isSuperseded])
 
   useEffect(() => {
     loadRelations()
@@ -133,7 +135,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
   function handleFileDrop(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault()
     setIsDraggingFile(false)
-    if (isSubmitting) return
+    if (isSubmitting || !canRevise) return
     const dropped = event.dataTransfer.files?.[0]
     if (dropped) setFile(dropped)
   }
@@ -147,17 +149,16 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
       return
     }
 
-    // Mirrors RevisionFileRequiredException server-side: a revision is a new
-    // content version, so it cannot reuse the previous revision's file.
-    if (mode === 'revise' && !file) {
-      setError('برای ثبت بازنگری، بارگذاری فایل جدید الزامی است.')
+    const reviewDateError = reviewDateOrderError(formerReviewDate, currentReviewDate)
+    if (reviewDateError) {
+      setError(reviewDateError)
       return
     }
 
     setIsSubmitting(true)
     setError(null)
     try {
-      if (mode === 'revise') {
+      if (willRevise) {
         await documentApi.revise({
           key: document.key,
           name: name.trim(),
@@ -182,15 +183,23 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
     }
   }
 
+  const subtitle = willRevise
+    ? 'یک سند جدید با شماره بازنگری بعدی ساخته می‌شود؛ نسخه فعلی در تاریخچه می‌ماند.'
+    : canRevise
+      ? 'شماره، پروژه و طبقه‌بندی سازمانی پس از ایجاد سند قابل تغییر نیستند. برای ثبت محتوای تازه، در بخش «فایل» پایین یک فایل بارگذاری کنید.'
+      : document.isSuperseded
+        ? 'این نسخه پیش‌تر بازنگری شده و محتوایش دیگر قابل تغییر نیست؛ فقط اطلاعاتش را می‌توانید اصلاح کنید.'
+        : 'این سند آرشیو شده است. محتوایش تا فعال‌سازی دوباره (پایین فرم) قابل بازنگری نیست.'
+
   return (
     <Modal
       title={
         <>
-          {copy.title}
+          بازنگری سند
           <span className="modal-title-badge mono">{toPersianDigits(document.number)}</span>
         </>
       }
-      subtitle={copy.subtitle}
+      subtitle={subtitle}
       onClose={onClose}
     >
       <form className="modal-form" onSubmit={handleSubmit}>
@@ -201,7 +210,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
             </div>
           )}
 
-          {mode === 'revise' && (
+          {willRevise && (
             <div className="form-note">
               بازنگری فعلی <strong>
                 {documentVersionLabel(document.lastVersion)}
@@ -257,83 +266,87 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
             </div>
           </section>
 
-          {/* Edit deliberately has no file field. The revision suffix of a Document
-              Number exists to control content changes, so swapping the file without
-              advancing it would defeat the whole scheme - and since files are named
-              after the Number, it also overwrote the old content. */}
-          {mode === 'edit' && (
-            <section className="form-section">
-              <h3 className="form-section__title">فایل</h3>
+          <section className="form-section">
+            <h3 className="form-section__title">
+              فایل
+              {canRevise && <span className="field-hint field-hint--inline">(اختیاری - برای ثبت بازنگری)</span>}
+            </h3>
+
+            {!canRevise && (
               <p className="field-hint">
-                فایل فعلی <span className="mono">{document.fileName ?? 'ندارد'}</span> است و از این فرم
-                قابل تغییر نیست. برای جایگزینی محتوای مدرک، آن را <strong>بازنگری</strong> کنید تا نسخه‌ی
-                جدید با شماره بازنگری بعدی ثبت شود و نسخه‌ی فعلی در تاریخچه بماند.
+                فایل فعلی <span className="mono">{document.fileName ?? 'ندارد'}</span> است و از این فرم قابل تغییر
+                نیست.{' '}
+                {document.isSuperseded
+                  ? 'این نسخه بازنگری شده؛ برای ثبت محتوای تازه، آخرین بازنگریِ زنجیره را باز کنید.'
+                  : 'برای بازنگری، ابتدا سند را از بخش «وضعیت» پایین‌تر فعال کنید.'}
               </p>
-            </section>
-          )}
+            )}
 
-          {mode === 'revise' && (
-            <section className="form-section">
-              <h3 className="form-section__title">
-                فایل بازنگری جدید
-                <span className="required-mark" aria-hidden="true">*</span>
-              </h3>
+            {canRevise && (
+              <>
+                <p className="field-hint">
+                  این بخش را خالی بگذارید تا فقط اطلاعات بالا ذخیره شود، بدون ساختن نسخه‌ی تازه. برای ثبت بازنگری، فایل
+                  جدید محتوا را همین‌جا بارگذاری کنید.
+                </p>
 
-              <label
-                htmlFor="doc-file"
-                className={`file-drop ${isDraggingFile ? 'is-dragging' : ''} ${file ? 'has-file' : ''}`}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (!isSubmitting) setIsDraggingFile(true)
-                }}
-                onDragLeave={() => setIsDraggingFile(false)}
-                onDrop={handleFileDrop}
-              >
-                <input
-                  id="doc-file"
-                  type="file"
-                  className="file-drop__input"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                  disabled={isSubmitting}
-                />
-
-                {file ? (
-                  <div className="file-drop__selected">
-                    <span className="file-drop__name mono">{file.name}</span>
-                    <span className="file-drop__size">{formatFileSize(file.size)}</span>
-                  </div>
-                ) : (
-                  <div className="file-drop__prompt">
-                    <strong>فایل را اینجا رها کنید</strong>
-                    <span>یا برای انتخاب کلیک کنید</span>
-                  </div>
-                )}
-              </label>
-
-              {file && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm file-drop__clear"
-                  onClick={() => setFile(null)}
-                  disabled={isSubmitting}
+                <label
+                  htmlFor="doc-file"
+                  className={`file-drop ${isDraggingFile ? 'is-dragging' : ''} ${file ? 'has-file' : ''}`}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (!isSubmitting) setIsDraggingFile(true)
+                  }}
+                  onDragLeave={() => setIsDraggingFile(false)}
+                  onDrop={handleFileDrop}
                 >
-                  حذف فایل انتخاب‌شده
-                </button>
-              )}
+                  <input
+                    id="doc-file"
+                    type="file"
+                    className="file-drop__input"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    disabled={isSubmitting}
+                  />
 
-              <p className="field-hint">
-                فایل نسخه‌ی قبلی (<span className="mono">{document.fileName ?? 'ندارد'}</span>) دست‌نخورده باقی می‌ماند.
-              </p>
-            </section>
-          )}
+                  {file ? (
+                    <div className="file-drop__selected">
+                      <span className="file-drop__name mono">{file.name}</span>
+                      <span className="file-drop__size">{formatFileSize(file.size)}</span>
+                    </div>
+                  ) : (
+                    <div className="file-drop__prompt">
+                      <strong>فایل را اینجا رها کنید</strong>
+                      <span>یا برای انتخاب کلیک کنید</span>
+                    </div>
+                  )}
+                </label>
 
-          {/* مدارک مرتبط در ویرایش. روی نسخه‌ی منسوخ نمایش داده نمی‌شود: بازنگری بعدی
-              ارتباط‌ها را با خودش جلو می‌برد، پس ردیف تازه همان‌جا جا می‌ماند. */}
-          {mode === 'edit' && !document.isSuperseded && (
+                {file && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm file-drop__clear"
+                      onClick={() => setFile(null)}
+                      disabled={isSubmitting}
+                    >
+                      حذف فایل انتخاب‌شده
+                    </button>
+                    <p className="field-hint">
+                      فایل نسخه‌ی قبلی (<span className="mono">{document.fileName ?? 'ندارد'}</span>) دست‌نخورده باقی
+                      می‌ماند.
+                    </p>
+                  </>
+                )}
+              </>
+            )}
+          </section>
+
+          {/* مدارک مرتبط، مگر روی نسخه‌ی منسوخ: بازنگری بعدی ارتباط‌ها را با خودش
+              جلو می‌برد، پس ردیف تازه همان‌جا جا می‌ماند. */}
+          {!document.isSuperseded && (
             <section className="form-section">
               <h3 className="form-section__title">مدارک مرتبط</h3>
               <p className="field-hint">
-                ارتباط‌ها بلافاصله ثبت می‌شوند و به دکمه‌ی «ذخیره تغییرات» وابسته نیستند.
+                ارتباط‌ها بلافاصله ثبت می‌شوند و به دکمه‌ی ذخیره‌ی پایین فرم وابسته نیستند.
               </p>
 
               {relationError && (
@@ -384,7 +397,9 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
             </section>
           )}
 
-          {mode === 'edit' && (
+          {/* وقتی فایل پیوست شده، این سند بعد از ثبت خودکار منسوخ می‌شود - تغییر
+              دستیِ وضعیتش همان لحظه دیگر معنا ندارد. */}
+          {!willRevise && (
             <section className="form-section">
               <h3 className="form-section__title">وضعیت</h3>
               <label className={`check-row ${document.isSuperseded ? 'is-disabled' : ''}`}>
@@ -414,7 +429,7 @@ export function DocumentFormDrawer({ mode, document, onClose, onSaved }: Documen
             انصراف
           </button>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? copy.busy : copy.submit}
+            {isSubmitting ? (willRevise ? 'در حال ثبت بازنگری…' : 'در حال ذخیره…') : willRevise ? 'ثبت بازنگری' : 'ذخیره تغییرات'}
           </button>
         </div>
       </form>

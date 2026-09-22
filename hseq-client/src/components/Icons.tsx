@@ -287,6 +287,30 @@ export function BuildingIcon(props: IconProps) {
   )
 }
 
+// نمای جدولی اسناد - ردیف‌ها و ستون‌ها
+export function TableIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M3 9.5h18" />
+      <path d="M9.5 9.5v10" />
+    </Icon>
+  )
+}
+
+// نمای درختی اسناد - یک گره‌ی بالا و دو گره‌ی زیرش (چارت سازمانی)
+export function TreeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="9" y="3" width="6" height="5" rx="1.2" />
+      <rect x="2.5" y="16" width="6" height="5" rx="1.2" />
+      <rect x="15.5" y="16" width="6" height="5" rx="1.2" />
+      <path d="M12 8v3.5" />
+      <path d="M5.5 16v-4.5h13V16" />
+    </Icon>
+  )
+}
+
 // فعالیت سازمانی
 export function LayersIcon(props: IconProps) {
   return (

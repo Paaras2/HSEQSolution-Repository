@@ -106,6 +106,18 @@ namespace HSEQ.Common
         }
     }
 
+    // FormerReviewDate/CurrentReviewDate record the review the document is moving
+    // *from* and *to*. Allowing the current date to land on or before the former
+    // one would make the revision chain's review history run backwards - thrown
+    // by AddAsync/UpdateAsync/ReviseAsync whenever both dates are supplied.
+    public class ReviewDateOrderException : CustomException
+    {
+        public ReviewDateOrderException()
+            : base("تاریخ بازبینی فعلی باید از تاریخ بازبینی قبلی جلوتر باشد")
+        {
+        }
+    }
+
     // Exactly one revision of a chain is current at a time. Thrown when an update
     // tries to re-activate a revision that a newer one has already superseded.
     public class SupersededDocumentCannotBeReactivatedException : CustomException

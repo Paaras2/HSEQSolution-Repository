@@ -4,6 +4,7 @@ using HSEQ.Common;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
 using HSEQ.Service.Interfaces.Services;
+using HSEQ.Shared.Interfaces.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Metadata;
@@ -20,6 +21,8 @@ namespace HSEQ.Service.Services.Services
         private readonly IDocumentRelationService _documentRelationService;
         // برای ستون «شماره مدارک مرتبط» فهرست - خواندن دسته‌ای، جدا از سرویس ارتباط که تک‌سندی است.
         private readonly IDocumentRelationRepository _documentRelationRepository;
+        // نگاشتِ کد پرسنلی به نام کامل برای ردِ حسابرسی (GetById و تاریخچه‌ی بازنگری).
+        private readonly IUmDirectoryService _umDirectoryService;
 
         public DocumentService(
             IDocumentRepository documentRepository,
@@ -27,7 +30,8 @@ namespace HSEQ.Service.Services.Services
             IDocumentNumberGeneratorService documentNumberGenerator,
             IFileTextExtractionService fileTextExtractionService,
             IDocumentRelationService documentRelationService,
-            IDocumentRelationRepository documentRelationRepository)
+            IDocumentRelationRepository documentRelationRepository,
+            IUmDirectoryService umDirectoryService)
         {
             _documentRepository = documentRepository;
             _fileService = fileService;
@@ -35,6 +39,7 @@ namespace HSEQ.Service.Services.Services
             _fileTextExtractionService = fileTextExtractionService;
             _documentRelationService = documentRelationService;
             _documentRelationRepository = documentRelationRepository;
+            _umDirectoryService = umDirectoryService;
         }
         //Add
         public async Task<Guid> AddAsync(CreateDocumentRequestModel request, string pcode)
@@ -61,6 +66,8 @@ namespace HSEQ.Service.Services.Services
                     request.DocumentTypeId,
                     request.IsEnglishVersion);
             }
+
+            EnsureReviewDateOrder(request.FormerReviewDate, request.CurrentReviewDate);
 
             var fileName = await _fileService.SaveFileAsync(generated.Number, request.File);
             var document = new Domain.Entities.Document
@@ -96,6 +103,16 @@ namespace HSEQ.Service.Services.Services
             using var stream = file.OpenReadStream();
             return _fileTextExtractionService.Extract(stream, file.FileName);
         }
+
+        // هر دو تاریخ اختیاری‌اند و اکثر اسناد فقط یکی (یا هیچ‌کدام) را دارند، پس فقط
+        // وقتی هر دو مقدار دارند مقایسه معنا دارد. برابر بودن هم رد می‌شود: بازبینیِ
+        // «فعلی» باید واقعاً جلوتر از «قبلی» باشد، نه هم‌روز با آن.
+        private static void EnsureReviewDateOrder(DateTime? formerReviewDate, DateTime? currentReviewDate)
+        {
+            if (formerReviewDate.HasValue && currentReviewDate.HasValue
+                && currentReviewDate.Value.Date <= formerReviewDate.Value.Date)
+                throw new ReviewDateOrderException();
+        }
         //Update
         public async Task UpdateAsync(UpdateDocumentRequestModel request)
         {
@@ -116,6 +133,8 @@ namespace HSEQ.Service.Services.Services
                 if (isSuperseded)
                     throw new SupersededDocumentCannotBeReactivatedException();
             }
+
+            EnsureReviewDateOrder(request.FormerReviewDate, request.CurrentReviewDate);
 
             document.IsActive = request.IsActive;
             document.Name = request.Name;
@@ -152,6 +171,12 @@ namespace HSEQ.Service.Services.Services
 
             var generated = await _documentNumberGenerator.GenerateNextRevisionAsync(current);
 
+            // The superseded revision's review date is what the new revision revises
+            // *from*, so it becomes the new FormerReviewDate unless overridden. Resolved
+            // up front so the order check below sees the value that actually gets saved.
+            var formerReviewDate = request.FormerReviewDate ?? current.CurrentReviewDate;
+            EnsureReviewDateOrder(formerReviewDate, request.CurrentReviewDate);
+
             // Files are keyed by Document Number, and the revision has a brand-new one,
             // so this writes alongside the superseded revision's file rather than over it.
             var fileName = await _fileService.SaveFileAsync(generated.Number, request.File);
@@ -171,9 +196,7 @@ namespace HSEQ.Service.Services.Services
                 FileName = fileName,
                 ExtractedText = ExtractTextBestEffort(request.File),
 
-                // The superseded revision's review date is what the new revision revises
-                // *from*, so it becomes the new FormerReviewDate unless overridden.
-                FormerReviewDate = request.FormerReviewDate ?? current.CurrentReviewDate,
+                FormerReviewDate = formerReviewDate,
                 CurrentReviewDate = request.CurrentReviewDate,
 
                 // A revision is the same document, so its classification - and therefore
@@ -234,7 +257,8 @@ namespace HSEQ.Service.Services.Services
             return DocumentDtoMapper.MapToDto(
                 document,
                 await DocumentDtoMapper.LoadRelatedNumbersAsync(_documentRepository, documents),
-                await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, new List<Guid> { document.Key }));
+                await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, new List<Guid> { document.Key }),
+                userNames: await DocumentDtoMapper.LoadUserNamesAsync(_umDirectoryService, documents));
         }
         //GetFile
         public async Task<DocumentFileResult> GetFileAsync(Guid documentId)
@@ -281,8 +305,11 @@ namespace HSEQ.Service.Services.Services
 
             var relatedNumbers = await DocumentDtoMapper.LoadRelatedNumbersAsync(_documentRepository, chain);
             var supersededKeys = await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, chain.Select(d => d.Key).ToList());
+            // نام سازنده/ویرایش‌کننده‌ی هر بازنگری - همه‌ی زنجیره با یک رفت‌وبرگشت به
+            // دیتابیس UM، نه یکی به ازای هر بازنگری.
+            var userNames = await DocumentDtoMapper.LoadUserNamesAsync(_umDirectoryService, chain);
 
-            return chain.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys)).ToList();
+            return chain.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, userNames: userNames)).ToList();
         }
 
         // زنجیره‌ی بازنگریِ یک سند را از میان نامزدها بیرون می‌کشد: ابتدا با دنبال‌کردن
@@ -368,10 +395,11 @@ namespace HSEQ.Service.Services.Services
             var supersededKeys = await DocumentDtoMapper.LoadSupersededKeysAsync(_documentRepository, documents.Select(d => d.Key).ToList());
             // شماره‌ی مدارک مرتبط هر ردیف، برای ستون جدید فهرست - یک کوئری برای کل صفحه.
             var relationNumbers = await DocumentDtoMapper.LoadRelationNumbersAsync(_documentRelationRepository, documents);
+            var userNames = await DocumentDtoMapper.LoadUserNamesAsync(_umDirectoryService, documents);
 
             return new PagedResult
             {
-                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers)).ToList(),
+                Items = documents.Select(d => DocumentDtoMapper.MapToDto(d, relatedNumbers, supersededKeys, relationNumbers, userNames)).ToList(),
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount

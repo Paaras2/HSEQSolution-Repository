@@ -1,5 +1,5 @@
 import { apiGet, apiGetBlob } from '../lib/httpClient'
-import type { DocumentDto, DocumentSuggestion, PagedResult, SearchDocumentsInput } from '../types/api'
+import type { DocumentDto, DocumentSuggestion, ExportColumn, PagedResult, SearchDocumentsInput } from '../types/api'
 
 // کلیدها با PascalCase چون بایندینگ [FromQuery] سمت سرور روی همون اسم‌های
 // SearchDocumentsRequestModel هست (case-insensitive است، اما برای هماهنگی با بقیه‌ی پروژه همینو نگه داشتیم).
@@ -31,7 +31,14 @@ export const searchApi = {
     return apiGet<DocumentSuggestion[]>('/Search/suggestions', { query: query.trim() })
   },
 
-  async exportExcel(input: SearchDocumentsInput): Promise<Blob> {
-    return apiGetBlob('/Search/export', toParams(input))
+  // فقط Admin - سرور هم همین را اجبار می‌کند (۴۰۳ برای بقیه)، این چک فقط رابط
+  // کاربری را زودتر و بدون یک رفت‌وبرگشتِ ناموفق درست نشان می‌دهد.
+  async exportExcel(input: SearchDocumentsInput, columns?: string[]): Promise<Blob> {
+    return apiGetBlob('/Search/export', { ...toParams(input), ExportColumns: columns })
+  },
+
+  // فهرستِ ستون‌های قابل‌انتخاب برای منوی سفارشی‌سازیِ خروجی - فقط Admin.
+  async getExportColumns(): Promise<ExportColumn[]> {
+    return apiGet<ExportColumn[]>('/Search/export/columns')
   },
 }

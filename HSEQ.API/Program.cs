@@ -61,16 +61,17 @@ var umSource = configuration.GetValue("UserManagement:Source", "Api");
 
 builder.Services.AddScoped<UmPasswordVerifier>();
 
-// بیرون از شرط نگه داشته می‌شود چون وارسیِ هنگام راه‌اندازی، پایین‌تر، به آن نیاز دارد.
-string umConnectionString = null;
+// همیشه ساخته می‌شود، نه فقط در حالت Database: هم وارسیِ هنگام راه‌اندازی پایین‌تر
+// به آن نیاز دارد، هم IUmDirectoryService (نگاشتِ کد پرسنلی به نام برای ردِ
+// حسابرسی) که مستقل از این سوییچ همیشه مستقیم از دیتابیس UM می‌خواند - نمایشِ نام
+// یک نیازِ فقط-خواندنی است، نه بخشی از تصمیمِ «احراز هویت از کجا سنجیده شود».
+string umConnectionString = UmConnectionString.Build(
+    configuration["ConnectionStrings:DefaultConnection"],
+    configuration.GetValue("UserManagement:Database", "UserManagement"),
+    configuration["ConnectionStrings:UserManagement"]);
 
 if (string.Equals(umSource, "Database", StringComparison.OrdinalIgnoreCase))
 {
-    umConnectionString = UmConnectionString.Build(
-        configuration["ConnectionStrings:DefaultConnection"],
-        configuration.GetValue("UserManagement:Database", "UserManagement"),
-        configuration["ConnectionStrings:UserManagement"]);
-
     builder.Services.AddScoped<IUMService>(provider => new UmDatabaseService(
         umConnectionString,
         provider.GetRequiredService<UmPasswordVerifier>(),
@@ -80,6 +81,13 @@ else
 {
     builder.Services.AddScoped<IUMService, UmService>();
 }
+
+// نگاشتِ کد پرسنلی → نام کامل، برای ردِ حسابرسیِ اسناد (چه کسی ایجاد/بازنگری کرده).
+// هرگز پرتاب نمی‌کند؛ اگر دیتابیس UM در دسترس نبود، فقط نام‌ها خالی می‌مانند و
+// کلاینت به‌جایش کد پرسنلی نشان می‌دهد - نبودِ این سرویس نباید صفحه‌ی سند را بخواباند.
+builder.Services.AddScoped<IUmDirectoryService>(provider => new UmDirectoryService(
+    umConnectionString,
+    provider.GetRequiredService<ILogger<UmDirectoryService>>()));
 
 // مهلتِ تماس با سرویس مدیریت کاربران.
 //

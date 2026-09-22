@@ -157,6 +157,18 @@ export function isoToJalaliText(iso: string): string {
   return toPersianDigits(`${j.jy}/${pad2(j.jm)}/${pad2(j.jd)}`)
 }
 
+// «yyyy-MM-ddTHH:mm:ss...» میلادی -> «yyyy/MM/dd - HH:mm» شمسی، برای ردِ حسابرسی
+// (چه زمانی دقیقاً بارگذاری/ویرایش شده). ساعت مستقیم از رشته خوانده می‌شود، نه از
+// شیء Date - همان قاعده‌ی بالا، تا منطقه‌ی زمانیِ مرورگر ساعتِ سرور را جابه‌جا نکند؛
+// آن ساعت از DateTime.Now سرور آمده و همان چیزی است که باید دیده شود. ورودی
+// نامعتبر یا بدون بخشِ ساعت رشته‌ی خالی می‌دهد.
+export function isoToJalaliDateTimeText(iso: string): string {
+  const dateText = isoToJalaliText(iso)
+  const time = (iso ?? '').match(/T(\d{2}):(\d{2})/)
+  if (!dateText || !time) return dateText
+  return `${dateText} - ${toPersianDigits(time[1])}:${toPersianDigits(time[2])}`
+}
+
 // «yyyy/MM/dd» یا «yyyy-MM-dd» شمسی -> «yyyy-MM-dd» میلادی. نامعتبر باشد null.
 // ورودی می‌تواند ارقام فارسی یا عربی داشته باشد؛ همان چیزی که خودمان نمایش داده‌ایم و
 // کاربر ممکن است کپی کند، باید دوباره قابل خواندن باشد.

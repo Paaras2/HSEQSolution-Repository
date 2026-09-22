@@ -1,72 +1,53 @@
-using System;
 using System.Collections.Generic;
 
 namespace HSEQ.API.Model.Dtos
 {
-    // خروجی کامل داشبورد پیشرفته - همه‌ی محاسبات (KPI، هشدارها، نمودارها) سمت سرور
-    // انجام می‌شود تا فرانت‌اند فقط رندر کند، نه اینکه کل جدول اسناد را بگیرد و خودش جمع بزند.
+    // خروجی کامل داشبورد - همه‌ی محاسبات (KPI، نمودارها) سمت سرور انجام می‌شود تا
+    // فرانت‌اند فقط رندر کند، نه اینکه کل جدول اسناد را بگیرد و خودش جمع بزند.
+    //
+    // محور اصلیِ این نسخه «بدهیِ بازبینی» است، نه صرفاً ترکیب اسناد: روی داده‌ی واقعی،
+    // اکثریتِ قریب‌به‌اتفاق اسناد فعال از موعد بازبینی‌شان گذشته (نزدیک صفر درصد
+    // «به‌روز»)، و این باید همان چیزی باشد که کاربر با باز کردن داشبورد اول از همه
+    // می‌بیند - نه گم‌شده میان چند نمودارِ خنثیِ توزیع نوع/فعالیت.
     public class DashboardSummaryDto
     {
         // --- کارت‌های KPI ---
-        // تعداد «سندهای متمایز» یعنی فقط آخرین بازنگری هر زنجیره حساب می‌شود، نه هر ردیف
-        // تاریخی؛ وگرنه TotalDocuments با هر بازنگری بی‌دلیل بزرگ‌تر می‌شد.
+        // فقط «سندهای متمایز و فعال» یعنی آخرین بازنگری هر زنجیره، و فقط فعال - وگرنه
+        // با هر بازنگری یا با نسخه‌های آرشیوشده بی‌دلیل بزرگ‌تر می‌شد.
         public int TotalDocuments { get; set; }
-        public int ActiveDocuments { get; set; }
-        public int DueForReview { get; set; }
+
+        // درصدِ همان اسناد که هم تاریخ بازبینی دارند هم از آن نگذشته‌اند. سندِ بدون
+        // تاریخ نه «به‌روز» شمرده می‌شود نه «معوق» - یک خلأ جداست (پایین را ببینید) -
+        // برای همین این درصد از ۱۰۰ کم می‌شود.
+        public double PercentUpToDate { get; set; }
         public int OverdueReviews { get; set; }
 
-        // --- هشدارها (هر کدام حداکثر ۱۰ مورد، به ترتیب فوریت) ---
-        public List<DocumentAlertDto> ExpiredReviews { get; set; } = new();
-        public List<DocumentAlertDto> DueWithin7Days { get; set; } = new();
-        // بین روز ۸ تا ۳۰ - عمداً با DueWithin7Days همپوشانی ندارد تا یک سند دوبار نشان داده نشود.
-        public List<DocumentAlertDto> DueWithin30Days { get; set; } = new();
-        // نقطه‌ی کور سیستم: این اسناد چون تاریخ بازبینی ندارند، هرگز در سه هشدار بالا
-        // ظاهر نمی‌شوند و بدون این کارت اصلاً دیده نمی‌شدند.
-        public List<DocumentAlertDto> MissingReviewDate { get; set; } = new();
+        // نقطه‌ی کور سیستم: این اسناد چون تاریخ بازبینی ندارند، در KPI «بازبینی معوق»
+        // هم جا نمی‌گیرند، پس شمارشِ جداگانه‌شان لازم است تا از دید کنار نروند.
+        public int MissingReviewDateCount { get; set; }
 
-        // --- نمودارها ---
-        public List<NamedCountDto> DocumentsByManagement { get; set; } = new();
+        // --- نمودارهای بدهیِ بازبینی ---
+        // سنِ معوقات، از کم‌فوریت به پرفوریت. همه‌ی بازه‌ها همیشه برمی‌گردند (حتی صفر)
+        // چون ترتیبشان خودش داستان است، نه فقط بزرگیِ عدد.
+        public List<NamedCountDto> OverdueByAge { get; set; } = new();
+        // درصدِ معوق در هر مدیریت سازمانی (نه تعدادِ خام) - یک مدیریتِ بزرگ طبیعتاً
+        // معوقِ بیشتری دارد؛ آنچه واقعاً می‌گوید کدام مدیریت عقب‌تر است همین نسبت است.
+        public List<NamedCountDto> OverdueByManagement { get; set; } = new();
+
+        // --- ترکیب اسناد (زمینه‌ای، نه اقدام) ---
         // فقط ۱۰ فعالیت پرتکرار - فعالیت‌ها نزدیک به ۶۰ مورد هستند و نمایش همه در یک
         // نمودار عملاً غیرقابل‌خواندن می‌شود.
         public List<NamedCountDto> DocumentsByActivity { get; set; } = new();
-        public ReviewStatusBreakdownDto ReviewStatus { get; set; } = new();
-        // ۱۲ ماه پیش‌رو، شامل ماه‌های بدون هیچ بازبینی (مقدار صفر) تا روند واقعاً پیوسته باشد.
-        public List<MonthCountDto> ReviewTrend { get; set; } = new();
         // ۷ نوع سند پرتکرار + مابقی زیر «سایر» - نوع سند ۵۵ مقدار دارد، همان استدلال بالا.
         public List<NamedCountDto> DocumentsByType { get; set; } = new();
     }
 
-    // یک ردیف عمومی «برچسب + تعداد» - برای نمودارهای مدیریت سازمانی، فعالیت، و نوع سند.
+    // یک ردیف عمومی «برچسب + عدد» - برای نمودارهای سن معوقات، مدیریت سازمانی، فعالیت
+    // و نوع سند. عدد بسته به نمودار می‌تواند شمارش باشد یا درصد (روی خودِ نمودار مشخص می‌شود).
     public class NamedCountDto
     {
         public string Code { get; set; }
         public string Label { get; set; }
         public int Count { get; set; }
-    }
-
-    public class MonthCountDto
-    {
-        // فرمت yyyy-MM (میلادی) - هماهنگ با فرمت تاریخ‌های دیگر پروژه (مثلاً خروجی اکسل جستجو).
-        public string MonthLabel { get; set; }
-        public int Count { get; set; }
-    }
-
-    public class DocumentAlertDto
-    {
-        public Guid Key { get; set; }
-        public string Number { get; set; }
-        public string Name { get; set; }
-        // برای فهرست «بدون تاریخ بازبینی» هر دو نال‌اند - همان چیزی که آن هشدار را می‌سازد.
-        public DateTime? ReviewDate { get; set; }
-        // منفی یعنی از موعد گذشته (چند روز قبل)، مثبت یعنی چند روز تا موعد مانده.
-        public int? DaysUntilDue { get; set; }
-    }
-
-    public class ReviewStatusBreakdownDto
-    {
-        public int OnTrack { get; set; }
-        public int DueSoon { get; set; }
-        public int Overdue { get; set; }
-        public int NoDateSet { get; set; }
     }
 }

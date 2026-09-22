@@ -1,14 +1,18 @@
 export type Role = 'ReadOnly' | 'DocumentManager' | 'Admin'
 
-export type Capability = 'documents:view' | 'documents:manage' | 'admin:access'
+// documents:export هم برای «مدیر اسناد» هم برای «مدیر سیستم» است - سرور همین را
+// با [Authorize(Roles = "Admin,DocumentManager")] روی GET /Search/export و
+// /Search/export/columns اجبار می‌کند؛ این‌جا فقط همان قاعده را زودتر (قبل از
+// یک ۴۰۳) به رابط کاربری منعکس می‌کند.
+export type Capability = 'documents:view' | 'documents:manage' | 'admin:access' | 'documents:export'
 
 const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   ReadOnly: ['documents:view'],
   // «مدیر اسناد» هم به پنل ادمین دسترسی دارد: اطلاعات پایه را تعریف می‌کند و
   // می‌تواند مدیر اسناد دیگری بسازد. اما نقش «مدیر سیستم» را نمی‌تواند بدهد یا
   // بگیرد - آن قاعده سمت سرور در AdminService اعمال می‌شود.
-  DocumentManager: ['documents:view', 'documents:manage', 'admin:access'],
-  Admin: ['documents:view', 'documents:manage', 'admin:access'],
+  DocumentManager: ['documents:view', 'documents:manage', 'admin:access', 'documents:export'],
+  Admin: ['documents:view', 'documents:manage', 'admin:access', 'documents:export'],
 }
 
 // Mirrors what the API enforces: Document Add/Update/Revise/Delete accept

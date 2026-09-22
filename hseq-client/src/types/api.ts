@@ -81,9 +81,13 @@ export interface DocumentDto {
   documentTypeId: string
   file: string | null
   createdByPCode: number
+  // نام کامل، نگاشته‌شده در سرور از سامانه‌ی مدیریت کاربران. اگر آن سامانه در دسترس
+  // نبود یا کد پیدا نشد، null است و نمایش به کد پرسنلی برمی‌گردد.
+  createdByName: string | null
   // کدِ پرسنلیِ آخرین ویرایش‌کننده، از ردِ حسابرسیِ سرور. برای مدرکی که پس از ساخت
   // ویرایش/بازنگری نشده null است.
   modifiedByPCode: number | null
+  modifiedByName: string | null
   // تکه‌ی متنِ فایل که عبارت جستجو در آن پیدا شده. فقط وقتی مقدار دارد که «جستجو در
   // محتوای فایل» روشن باشد و تطابق در خودِ فایل رخ داده باشد.
   contentSnippet: string | null
@@ -199,6 +203,13 @@ export interface DocumentSuggestion {
   name: string
 }
 
+// یک ستونِ قابل‌انتخاب برای خروجی اکسل - از GET /Search/export/columns (Admin و DocumentManager).
+export interface ExportColumn {
+  key: string
+  label: string
+  isDefault: boolean
+}
+
 // آینه‌ی HSEQ.API.Model.Dtos.DashboardSummaryDto - همه‌ی محاسبات سمت سرور انجام شده،
 // این فقط شکل داده‌ی آماده‌ی رندر است.
 export interface NamedCount {
@@ -207,42 +218,20 @@ export interface NamedCount {
   count: number
 }
 
-export interface MonthCount {
-  monthLabel: string
-  count: number
-}
-
-export interface DocumentAlert {
-  key: string
-  number: string
-  name: string
-  // هر دو فقط برای فهرست «بدون تاریخ بازبینی» نال‌اند.
-  reviewDate: string | null
-  daysUntilDue: number | null
-}
-
-export interface ReviewStatusBreakdown {
-  onTrack: number
-  dueSoon: number
-  overdue: number
-  noDateSet: number
-}
-
 export interface DashboardSummary {
   totalDocuments: number
-  activeDocuments: number
-  dueForReview: number
+  // درصدِ اسنادی که هم تاریخ بازبینی دارند هم از آن نگذشته‌اند - سندِ بی‌تاریخ نه
+  // اینجا حساب می‌شود نه در معوق.
+  percentUpToDate: number
   overdueReviews: number
+  missingReviewDateCount: number
 
-  expiredReviews: DocumentAlert[]
-  dueWithin7Days: DocumentAlert[]
-  dueWithin30Days: DocumentAlert[]
-  missingReviewDate: DocumentAlert[]
+  // سنِ معوقات، از کم‌فوریت به پرفوریت (count = تعداد سند).
+  overdueByAge: NamedCount[]
+  // سهمِ معوق در هر مدیریت سازمانی (count = درصد، نه تعداد).
+  overdueByManagement: NamedCount[]
 
-  documentsByManagement: NamedCount[]
   documentsByActivity: NamedCount[]
-  reviewStatus: ReviewStatusBreakdown
-  reviewTrend: MonthCount[]
   documentsByType: NamedCount[]
 }
 

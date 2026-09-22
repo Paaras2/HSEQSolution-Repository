@@ -88,13 +88,26 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function apiGet<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
-  const url = apiUrl(path)
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined) url.searchParams.set(key, String(value))
+// آرایه هم پذیرفته می‌شود (مثلاً ستون‌های خروجی اکسل) - هر عضو با append به‌جای
+// set اضافه می‌شود تا چند پارامترِ هم‌نام ساخته شود، همان شکلی که [FromQuery]
+// آرایه‌ی ASP.NET Core انتظار دارد (‎?Key=a&Key=b‎، نه ‎Key[]=a‎).
+type ApiQueryParams = Record<string, string | number | boolean | string[] | undefined>
+
+function appendParams(url: URL, params?: ApiQueryParams) {
+  if (!params) return
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(key, item)
+    } else {
+      url.searchParams.set(key, String(value))
     }
   }
+}
+
+export async function apiGet<T>(path: string, params?: ApiQueryParams): Promise<T> {
+  const url = apiUrl(path)
+  appendParams(url, params)
   const response = await fetch(url, { headers: { ...authHeaders() } })
   return handleResponse<T>(response)
 }
@@ -103,16 +116,9 @@ export async function apiGet<T>(path: string, params?: Record<string, string | n
 // because the file routes are Bearer-protected: a plain <a href> or window.open
 // would not carry the Authorization header, so files have to be fetched here and
 // handed to the browser as a blob URL.
-export async function apiGetBlob(
-  path: string,
-  params?: Record<string, string | number | boolean | undefined>,
-): Promise<Blob> {
+export async function apiGetBlob(path: string, params?: ApiQueryParams): Promise<Blob> {
   const url = apiUrl(path)
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined) url.searchParams.set(key, String(value))
-    }
-  }
+  appendParams(url, params)
 
   const response = await fetch(url, { headers: { ...authHeaders() } })
 

@@ -1,6 +1,7 @@
 ﻿using HSEQ.API.Model.Dtos;
 using HSEQ.Domain.Entities;
 using HSEQ.Service.Interfaces.Repositories;
+using HSEQ.Shared.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSEQ.Service.Services.Services
@@ -9,6 +10,22 @@ namespace HSEQ.Service.Services.Services
     // SearchService هم بدون کپی‌کردن دوباره‌ی همین منطق از آن استفاده کند.
     internal static class DocumentDtoMapper
     {
+        // کد پرسنلی سازنده و آخرین ویرایش‌کننده‌ی کل فهرست، یک‌جا - تا هر ردیف یک
+        // رفت‌وبرگشت جداگانه به دیتابیس UM نزند. سرویس هرگز پرتاب نمی‌کند، پس این
+        // متد هم نمی‌تواند شکست بخورد؛ فقط ممکن است دیکشنری خالی برگرداند.
+        internal static Task<Dictionary<int, string>> LoadUserNamesAsync(
+            IUmDirectoryService umDirectoryService,
+            IEnumerable<Document> documents)
+        {
+            var pCodes = documents
+                .SelectMany(d => new[] { d.CreatedByPCode, d.ModifiedByPCode })
+                .Where(p => p.HasValue)
+                .Select(p => p!.Value)
+                .Distinct();
+
+            return umDirectoryService.GetFullNamesAsync(pCodes);
+        }
+
         // شماره‌ی مدرک قبلی هر ردیف (برای RelatedDocumentNumber)، در یک رفت‌وبرگشت به
         // دیتابیس به‌جای یک بار به ازای هر ردیف.
         internal static async Task<Dictionary<Guid, string>> LoadRelatedNumbersAsync(
@@ -95,7 +112,10 @@ namespace HSEQ.Service.Services.Services
             Dictionary<Guid, string> relatedNumbers,
             HashSet<Guid> supersededKeys,
             // اختیاری تا فراخوان‌های موجود دست نخورند؛ فقط فهرست صفحه‌بندی‌شده آن را می‌دهد.
-            Dictionary<Guid, List<string>>? relationNumbers = null)
+            Dictionary<Guid, List<string>>? relationNumbers = null,
+            // کد پرسنلی → نام کامل (IUmDirectoryService). اختیاری و پیش‌فرض خالی تا
+            // فراخوانی که نامی نمی‌خواهد مجبور به ساختنِ یک دیکشنری خالی نباشد.
+            Dictionary<int, string>? userNames = null)
         {
             return new DocumentDto
             {
@@ -130,7 +150,17 @@ namespace HSEQ.Service.Services.Services
                 DocumentTypeId = document.DocumentTypeId,
                 File = null,
                 CreatedByPCode = document.CreatedByPCode ?? 0,
-                ModifiedByPCode = document.ModifiedByPCode
+                CreatedByName = document.CreatedByPCode.HasValue
+                    && userNames != null
+                    && userNames.TryGetValue(document.CreatedByPCode.Value, out var createdByName)
+                        ? createdByName
+                        : null,
+                ModifiedByPCode = document.ModifiedByPCode,
+                ModifiedByName = document.ModifiedByPCode.HasValue
+                    && userNames != null
+                    && userNames.TryGetValue(document.ModifiedByPCode.Value, out var modifiedByName)
+                        ? modifiedByName
+                        : null,
             };
         }
     }
