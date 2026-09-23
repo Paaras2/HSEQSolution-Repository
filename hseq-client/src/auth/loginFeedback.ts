@@ -122,7 +122,7 @@ export function describeLoginFailure(error: unknown): LoginFailure {
         kind: 'invalid_credentials',
         tone: 'danger',
         title: message ?? 'کد پرسنلی یا رمز عبور درست نیست',
-        detail: 'همان کد پرسنلی و رمزی را وارد کنید که در سامانه‌ی مدیریت کاربران دارید. به زبان صفحه‌کلید و Caps Lock دقت کنید.',
+        detail: 'همان کد پرسنلی و رمزی را وارد کنید که در سامانه یکپارچه پرسنلی دارید. به زبان صفحه‌کلید و Caps Lock دقت کنید.',
         canRetry: false,
       }
 
@@ -131,7 +131,7 @@ export function describeLoginFailure(error: unknown): LoginFailure {
         kind: 'inactive',
         tone: 'danger',
         title: 'حساب کاربری شما غیرفعال است',
-        detail: 'رمز عبور درست بود، اما حساب شما در سامانه‌ی مدیریت کاربران فعال نیست. برای فعال‌سازی با واحد فناوری اطلاعات تماس بگیرید.',
+        detail: 'رمز عبور درست بود، اما حساب شما در سامانه یکپارچه پرسنلی فعال نیست. برای فعال‌سازی با واحد فناوری اطلاعات تماس بگیرید.',
         canRetry: false,
       }
 
@@ -139,7 +139,7 @@ export function describeLoginFailure(error: unknown): LoginFailure {
       return {
         kind: 'unavailable',
         tone: 'warning',
-        title: 'سامانه‌ی مدیریت کاربران پاسخ نمی‌دهد',
+        title: 'سامانه یکپارچه پرسنلی پاسخ نمی‌دهد',
         detail: 'مشکل از کد پرسنلی یا رمز شما نیست. چند لحظه بعد دوباره تلاش کنید؛ اگر ادامه داشت با پشتیبانی تماس بگیرید.',
         canRetry: true,
       }

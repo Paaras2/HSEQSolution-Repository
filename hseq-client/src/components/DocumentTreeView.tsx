@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { DocumentDto } from '../types/api'
 import { documentVersionLabel } from '../types/api'
 import { toPersianDigits } from '../lib/digits'
@@ -134,156 +135,162 @@ interface TreeActions {
   pendingDeleteId: string | null
 }
 
-function TreeBranch({ branch, level, actions }: { branch: Branch; level: number; actions: TreeActions }) {
-  // <details> برای بازوبسته‌شدنِ نیتیو - بدون state، دسترس‌پذیر و سبک. هر دو سطح با
-  // ورود به نمای درختی بسته‌اند؛ کاربر خودش هر شاخه‌ای را که می‌خواهد باز می‌کند،
-  // چون با ۷۰۰+ سند بازبودنِ پیش‌فرضِ سطح مدیریت یک صفحه‌ی پر از سند نامرتب می‌داد.
-  // آیکونِ فولدرِ سطح: مدیریت=ساختمان، فعالیت=لایه‌ها.
-  const FolderIcon = level === 0 ? BuildingIcon : LayersIcon
+// عمقِ درخت فقط داخلِ سلولِ «نام» به‌صورت تورفتگی نمایش داده می‌شود (متغیرِ ‎--depth‎).
+// هیچ ستونِ دیگری با عمق جابه‌جا نمی‌شود، چون همه‌ی ردیف‌ها - سرستون، پوشه‌ها و اسناد -
+// از یک تعریفِ ستونیِ واحد (‎--doc-tree-cols‎ در CSS) استفاده می‌کنند.
+const INDENT_STYLE = (depth: number): CSSProperties => ({ ['--depth' as string]: depth } as CSSProperties)
+
+// ---- ردیفِ پوشه (مدیریت/فعالیت): دکمه‌ی باز/بسته‌کردن ----
+// برخلافِ ردیف‌های سند که گریدِ ۸ستونی‌اند، ردیفِ پوشه یک سطرِ تمام‌عرض است: عنوان
+// (شِوران، آیکون، کد، برچسب) کاملاً سمتِ راست می‌نشیند و شمارنده تا آخرِ سطر به چپ
+// می‌رود. تورفتگیِ درخت هم با --depth روی همین سطر اعمال می‌شود، پس فعالیت کمی
+// تورفته‌تر از مدیریت دیده می‌شود. کلِ سطر یک <button> است (aria-expanded + صفحه‌کلید).
+function FolderRow({
+  branch,
+  depth,
+  open,
+  onToggle,
+}: {
+  branch: Branch
+  depth: number
+  open: boolean
+  onToggle: () => void
+}) {
+  const FolderIcon = depth === 0 ? BuildingIcon : LayersIcon
+  return (
+    <button
+      type="button"
+      className="doc-tree__row doc-tree__row--folder"
+      data-depth={depth}
+      aria-expanded={open}
+      onClick={onToggle}
+      style={INDENT_STYLE(depth)}
+    >
+      <span className="doc-tree__chevron" aria-hidden="true">
+        <ChevronDownIcon size={14} />
+      </span>
+      <span className="doc-tree__folder" aria-hidden="true">
+        <FolderIcon size={15} />
+      </span>
+      {branch.code && <span className="doc-tree__code mono">{toPersianDigits(branch.code)}</span>}
+      <span className="doc-tree__label">{branch.title}</span>
+      <span className="doc-tree__count">{toPersianDigits(branch.count)}</span>
+    </button>
+  )
+}
+
+// ---- ردیفِ سند (برگ): همان هشت ستونِ نمای جدولی ----
+function LeafRow({ document, rowIndex, depth, actions }: { document: DocumentDto; rowIndex: number; depth: number; actions: TreeActions }) {
   const { onOpen, onDownload, onHistory, onManage, onArchive, onRelations, canManage, pendingFileId, pendingDeleteId } =
     actions
 
   return (
-    <details className={`doc-tree__branch doc-tree__branch--l${level}`}>
-      <summary className="doc-tree__summary">
-        {/* شِوران در RTL: جمع = رو به چپ، باز = رو به پایین (چرخش با CSS). */}
-        <span className="doc-tree__chevron" aria-hidden="true">
-          <ChevronDownIcon size={14} />
+    <div className="doc-tree__row doc-tree__row--leaf">
+      <span className="doc-tree__c-index mono">{toPersianDigits(rowIndex)}</span>
+
+      <span className="doc-tree__c-number">
+        {/* mono فقط روی خودِ شماره است، نه کلِ سلول: اگر روی سلول باشد، ‎direction:ltr‎ی
+            که mono می‌گذارد محورِ چینشِ سلول را برعکس می‌کند و مقدار به‌جای راست، چپ
+            می‌چسبد و زیرِ سرستونِ راست‌چینِ «شماره» نمی‌نشیند. */}
+        <span className="doc-tree__number-value mono">{toPersianDigits(document.number)}</span>
+        {canManage && document.isOutsideCodingStructure && (
+          <span
+            className="badge badge-warning coding-flag"
+            title="شماره‌ی این مدرک با ساختار کد فعلی نمی‌خواند؛ از سامانه‌ی قدیم با شماره‌ی خودش وارد شده است."
+          >
+            خارج از کدینگ
+          </span>
+        )}
+        {document.relatedDocumentNumber && (
+          <span className="row-subtext">بازنگری از {toPersianDigits(document.relatedDocumentNumber)}</span>
+        )}
+      </span>
+
+      <span className="doc-tree__c-name doc-tree__c-name--leaf" style={INDENT_STYLE(depth)}>
+        <span className="doc-tree__name-text" title={document.name}>
+          {document.name}
         </span>
-        <span className="doc-tree__folder" aria-hidden="true">
-          <FolderIcon size={15} />
-        </span>
-        {branch.code && <span className="doc-tree__code mono">{toPersianDigits(branch.code)}</span>}
-        <span className="doc-tree__label">{branch.title}</span>
-        <span className="doc-tree__count">{toPersianDigits(branch.count)}</span>
-      </summary>
+        {document.contentSnippet && (
+          <span className="row-snippet" title={document.contentSnippet}>
+            <SearchIcon size={12} />
+            {document.contentSnippet}
+          </span>
+        )}
+      </span>
 
-      {branch.children.map((child) => (
-        <TreeBranch key={child.id} branch={child} level={level + 1} actions={actions} />
-      ))}
+      <span className="doc-tree__c-revision">
+        {documentVersionLabel(document.lastVersion)}
+        {document.contentRevision ? toPersianDigits(String(document.contentRevision).padStart(2, '0')) : ''}
+      </span>
 
-      {branch.leaves.length > 0 && (
-        <div className="doc-tree__leaves-scroll">
-          {/* همان ستون‌های نمای جدولی، همین‌جا هم - فقط چیده‌شده زیرِ فعالیتِ خودشان
-              به‌جای یک جدولِ تخت. */}
-          <div className="doc-tree__leaves-head">
-            <span>ردیف</span>
-            <span>شماره</span>
-            <span>نام</span>
-            <span>بازنگری</span>
-            <span>مدارک مرتبط</span>
-            <span>تاریخ بازبینی</span>
-            <span>وضعیت</span>
-            <span>عملیات</span>
-          </div>
-          <ul className="doc-tree__leaves">
-            {branch.leaves.map(({ document, rowIndex }) => (
-              <li key={document.key} className="doc-tree__leaf-row">
-                <span className="doc-tree__leaf-index mono">{toPersianDigits(rowIndex)}</span>
-
-                <span className="doc-tree__leaf-number mono">
-                  {toPersianDigits(document.number)}
-                  {canManage && document.isOutsideCodingStructure && (
-                    <span
-                      className="badge badge-warning coding-flag"
-                      title="شماره‌ی این مدرک با ساختار کد فعلی نمی‌خواند؛ از سامانه‌ی قدیم با شماره‌ی خودش وارد شده است."
-                    >
-                      خارج از کدینگ
-                    </span>
-                  )}
-                  {document.relatedDocumentNumber && (
-                    <span className="row-subtext">بازنگری از {toPersianDigits(document.relatedDocumentNumber)}</span>
-                  )}
-                </span>
-
-                <span className="doc-tree__leaf-name" title={document.name}>
-                  {document.name}
-                  {document.contentSnippet && (
-                    <span className="row-snippet" title={document.contentSnippet}>
-                      <SearchIcon size={12} />
-                      {document.contentSnippet}
-                    </span>
-                  )}
-                </span>
-
-                <span className="doc-tree__leaf-revision">
-                  {documentVersionLabel(document.lastVersion)}
-                  {document.contentRevision ? toPersianDigits(String(document.contentRevision).padStart(2, '0')) : ''}
-                </span>
-
-                <span className="doc-tree__leaf-related">
-                  {document.relatedDocumentNumbers.length === 0 ? (
-                    '—'
-                  ) : (
-                    <button
-                      type="button"
-                      className="related-numbers"
-                      onClick={() => onRelations(document)}
-                      title="مشاهده و مدیریت مدارک مرتبط"
-                    >
-                      {document.relatedDocumentNumbers.map((number) => (
-                        <span key={number} className="badge badge-muted mono">
-                          {toPersianDigits(number)}
-                        </span>
-                      ))}
-                    </button>
-                  )}
-                </span>
-
-                <span className="doc-tree__leaf-review">{isoToJalaliText(document.currentReviewDate ?? '') || '—'}</span>
-
-                <span className="doc-tree__leaf-status">
-                  {/* یک نسخه‌ی منسوخ هم غیرفعال است، پس این شرط باید اول چک شود -
-                      وگرنه به نظر «حذف‌شده» می‌رسید. */}
-                  {document.isSuperseded ? (
-                    <span className="badge badge-muted">منسوخ (بازنگری شده)</span>
-                  ) : (
-                    <span className={`badge ${document.isActive ? 'badge-success' : 'badge-danger'}`}>
-                      {document.isActive ? 'فعال' : 'آرشیو شده'}
-                    </span>
-                  )}
-                </span>
-
-                <span className="doc-tree__leaf-actions">
-                  <IconButton
-                    label="مشاهده"
-                    icon={<EyeIcon />}
-                    tone="view"
-                    onClick={() => onOpen(document)}
-                    pending={pendingFileId === document.key}
-                    disabled={pendingFileId !== null}
-                  />
-                  <IconButton
-                    label="دانلود"
-                    icon={<DownloadIcon />}
-                    tone="download"
-                    onClick={() => onDownload(document)}
-                    disabled={pendingFileId !== null}
-                  />
-                  {canManage && (document.relatedDocumentNumber || document.isSuperseded) && (
-                    <IconButton label="تاریخچه" icon={<HistoryIcon />} tone="history" onClick={() => onHistory(document)} />
-                  )}
-                  {canManage && (
-                    <>
-                      <IconButton label="بازنگری" icon={<ReviseIcon />} tone="revise" onClick={() => onManage(document)} />
-                      {document.isActive && (
-                        <IconButton
-                          label="آرشیو"
-                          icon={<DeactivateIcon />}
-                          tone="danger"
-                          onClick={() => onArchive(document)}
-                          pending={pendingDeleteId === document.key}
-                        />
-                      )}
-                    </>
-                  )}
-                </span>
-              </li>
+      <span className="doc-tree__c-related">
+        {document.relatedDocumentNumbers.length === 0 ? (
+          '—'
+        ) : (
+          <button
+            type="button"
+            className="related-numbers"
+            onClick={() => onRelations(document)}
+            title="مشاهده و مدیریت مدارک مرتبط"
+          >
+            {document.relatedDocumentNumbers.map((number) => (
+              <span key={number} className="badge badge-muted mono">
+                {toPersianDigits(number)}
+              </span>
             ))}
-          </ul>
-        </div>
-      )}
-    </details>
+          </button>
+        )}
+      </span>
+
+      <span className="doc-tree__c-review">{isoToJalaliText(document.currentReviewDate ?? '') || '—'}</span>
+
+      <span className="doc-tree__c-status">
+        {/* یک نسخه‌ی منسوخ هم غیرفعال است، پس این شرط باید اول چک شود -
+            وگرنه به نظر «حذف‌شده» می‌رسید. */}
+        {document.isSuperseded ? (
+          <span className="badge badge-muted">منسوخ (بازنگری شده)</span>
+        ) : (
+          <span className={`badge ${document.isActive ? 'badge-success' : 'badge-danger'}`}>
+            {document.isActive ? 'فعال' : 'آرشیو شده'}
+          </span>
+        )}
+      </span>
+
+      <span className="doc-tree__c-actions">
+        <IconButton
+          label="مشاهده"
+          icon={<EyeIcon />}
+          tone="view"
+          onClick={() => onOpen(document)}
+          pending={pendingFileId === document.key}
+          disabled={pendingFileId !== null}
+        />
+        <IconButton
+          label="دانلود"
+          icon={<DownloadIcon />}
+          tone="download"
+          onClick={() => onDownload(document)}
+          disabled={pendingFileId !== null}
+        />
+        {canManage && (document.relatedDocumentNumber || document.isSuperseded) && (
+          <IconButton label="تاریخچه" icon={<HistoryIcon />} tone="history" onClick={() => onHistory(document)} />
+        )}
+        {canManage && (
+          <>
+            <IconButton label="بازنگری" icon={<ReviseIcon />} tone="revise" onClick={() => onManage(document)} />
+            {document.isActive && (
+              <IconButton
+                label="آرشیو"
+                icon={<DeactivateIcon />}
+                tone="danger"
+                onClick={() => onArchive(document)}
+                pending={pendingDeleteId === document.key}
+              />
+            )}
+          </>
+        )}
+      </span>
+    </div>
   )
 }
 
@@ -304,6 +311,17 @@ export function DocumentTreeView({
   labels: DocumentTreeLabels
 } & TreeActions) {
   const tree = useMemo(() => buildTree(documents, labels), [documents, labels])
+  // شناسه‌ی شاخه‌های بازشده. پیش‌فرض همه بسته - مثل رفتار قبلیِ <details> - چون با
+  // ۷۰۰+ سند، بازبودنِ پیش‌فرض یک صفحه‌ی شلوغ می‌داد.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
   const actions: TreeActions = {
     onOpen,
     onDownload,
@@ -316,11 +334,50 @@ export function DocumentTreeView({
     pendingDeleteId,
   }
 
+  // رندرِ بازگشتی به‌صورت تخت: هر شاخه یک ردیفِ پوشه، و در صورت باز بودن، زیرشاخه‌ها و
+  // اسنادش. هیچ لایه‌ای تورفتگیِ افقی به ردیف‌ها اضافه نمی‌کند؛ تورفتگیِ درخت فقط از
+  // ‎--depth‎ داخلِ سلولِ نام می‌آید، پس همه‌ی ردیف‌ها هم‌عرضِ سرستون می‌مانند.
+  function renderBranch(branch: Branch, depth: number) {
+    const open = expanded.has(branch.id)
+    return (
+      <div className="doc-tree__group" key={branch.id}>
+        <FolderRow branch={branch} depth={depth} open={open} onToggle={() => toggle(branch.id)} />
+        {open && (
+          <>
+            {branch.children.map((child) => renderBranch(child, depth + 1))}
+            {branch.leaves.map((leaf) => (
+              <LeafRow
+                key={leaf.document.key}
+                document={leaf.document}
+                rowIndex={leaf.rowIndex}
+                depth={depth + 1}
+                actions={actions}
+              />
+            ))}
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="doc-tree">
-      {tree.map((branch) => (
-        <TreeBranch key={branch.id} branch={branch} level={0} actions={actions} />
-      ))}
+      <div className="doc-tree__inner">
+        {/* سرستونِ واحد. از همان ‎--doc-tree-cols‎ی استفاده می‌کند که ردیف‌ها؛ پس
+            مرزهای ستونی از سرستون تا آخرین ردیف یکی است و با ردیف‌ها اسکرول افقی می‌خورد. */}
+        <div className="doc-tree__row doc-tree__row--head">
+          <span className="doc-tree__c-index">ردیف</span>
+          <span className="doc-tree__c-number">شماره</span>
+          <span className="doc-tree__c-name">نام</span>
+          <span className="doc-tree__c-revision">بازنگری</span>
+          <span className="doc-tree__c-related">مدارک مرتبط</span>
+          <span className="doc-tree__c-review">تاریخ بازبینی</span>
+          <span className="doc-tree__c-status">وضعیت</span>
+          <span className="doc-tree__c-actions">عملیات</span>
+        </div>
+
+        {tree.map((branch) => renderBranch(branch, 0))}
+      </div>
     </div>
   )
 }

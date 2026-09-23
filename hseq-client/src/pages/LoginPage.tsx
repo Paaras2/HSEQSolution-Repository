@@ -176,7 +176,7 @@ export function LoginPage() {
           <div className="login-panel__head">
             <img src="/brand/logo-icon.png" alt="" className="login-panel__mark" />
             <h1>مدیریت یکپارچه مدارک و مستندات</h1>
-            <p>با کد پرسنلی و رمز عبورِ سامانه‌ی مدیریت کاربران وارد شوید</p>
+            <p>با کد پرسنلی و رمز عبورِ سامانه یکپارچه پرسنلی وارد شوید</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
@@ -304,12 +304,12 @@ export function LoginPage() {
 
             {isSlow && (
               <p className="login-slow" role="status">
-                پاسخ سامانه‌ی مدیریت کاربران کمی طول کشیده؛ لطفاً صبر کنید.
+                پاسخ سامانه یکپارچه پرسنلی کمی طول کشیده؛ لطفاً صبر کنید.
               </p>
             )}
 
             <p className="login-help">
-              همان رمزی که در سامانه‌ی یکپارچه پرسنلی دارید. برای بازیابی رمز عبور با واحد فناوری اطلاعات تماس بگیرید.
+              همان رمزی که در سامانه یکپارچه پرسنلی دارید. برای بازیابی رمز عبور با واحد فناوری اطلاعات تماس بگیرید.
             </p>
           </form>
 
@@ -416,7 +416,7 @@ export function LoginPage() {
               <span className="login-hero__feature-icon" aria-hidden="true">
                 <UsersIcon size={16} />
               </span>
-              ورود یکپارچه با حساب سامانه‌ی مدیریت کاربران
+              ورود با حساب سامانه یکپارچه پرسنلی
             </li>
           </ul>
         </aside>

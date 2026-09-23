@@ -1316,10 +1316,13 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   color: var(--color-text-muted);
 }
 
-/* سرستون «عملیات» وسط‌چین می‌ماند تا روی ستون آیکونی بنشیند،
-   نه چسبیده به لبهٔ سلول. */
+/* ستونِ «عملیات» راست‌چین است: هم سرستون و هم دکمه‌ها به لبه‌ی راستِ سلول (شروعِ RTL)
+   می‌چسبند، مثلِ نمای درختی؛ وگرنه سرستون یک‌طرف و دکمه‌ها طرفِ دیگر می‌افتادند. */
 .data-table th.actions-head {
-  text-align: center;
+  text-align: right;
+  /* هم‌ترازِ دقیق با دکمه‌ها: سلولِ عملیات padding-inline-start=10px دارد، پس سرستون
+     هم همان را می‌گیرد تا لبه‌ی راستِ «عملیات» دقیقاً روی راست‌ترین دکمه بنشیند. */
+  padding-inline-start: 10px;
 }
 
 .data-table td.actions-cell {
@@ -1327,7 +1330,7 @@ html[dir="ltr"] .data-table tbody tr:hover td:first-child {
   /* دکمه‌ها آیکونی شدند و جای کمتری می‌گیرند، پس یک ردیفِ فشرده کافی است و دیگر
      نیازی به شکستن خط نیست. */
   gap: 4px;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: nowrap;
   white-space: nowrap;
   padding-inline: 10px 12px;
@@ -4949,65 +4952,150 @@ html[dir="ltr"] .bulk-dock__progress {
   opacity: 1;
 }
 
+/* درختِ مدارک به‌صورتِ یک Tree-Data-Grid: یک کانتینرِ اسکرول، یک سرستون، و هر گره
+   (پوشه‌ی مدیریت/فعالیت و سندِ برگ) یک ردیفِ گرید با «یک» تعریفِ ستونیِ مشترک.
+   منبعِ واحدِ ستون‌ها: --doc-tree-cols. سرستون و همه‌ی ردیف‌ها از همین متغیر می‌خوانند،
+   پس مرزهای ستونی از سرستون تا آخرین ردیف کاملاً یکی است و هنگام اسکرول افقی هم با هم
+   جابه‌جا می‌شوند. تورفتگیِ درخت فقط داخلِ سلولِ «نام» (--depth) اعمال می‌شود و هیچ
+   ستونِ دیگری را تکان نمی‌دهد. */
 .doc-tree {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  --doc-tree-cols: 46px 148px minmax(220px, 1fr) 74px 152px 104px 108px 172px;
+  --doc-tree-indent: 20px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 6px;
   background: var(--color-surface);
+  overflow-x: auto; /* تنها مالکِ اسکرولِ افقی: سرستون و ردیف‌ها با هم اسکرول می‌شوند */
 }
-.doc-tree__branch { border-radius: var(--radius-sm); }
-/* سطح ۲ (فعالیت) زیرِ سطح ۱ (مدیریت) تورفتگی می‌گیرد؛ در RTL از سمت راست. */
-.doc-tree__branch .doc-tree__branch { margin-inline-start: 16px; border-inline-start: 1px dashed var(--color-border); }
+.doc-tree__inner {
+  /* کمتر از این عرض، اسکرولِ افقی می‌آید؛ چون سرستون و همه‌ی ردیف‌ها فرزندِ همین
+     عنصرند، هم‌عرض می‌مانند و ستون «نام» (۱fr) برای همه یکسان کش می‌آید. */
+  min-width: 1080px;
+}
 
-.doc-tree__summary {
+/* سرستون و هر ردیف: یک قالبِ ستونیِ واحد. تنها منبعِ عرضِ ستون‌ها همین است. */
+.doc-tree__row {
+  display: grid;
+  grid-template-columns: var(--doc-tree-cols);
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  min-height: 42px;
+}
+
+/* سرستون */
+.doc-tree__row--head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  min-height: 40px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ردیفِ پوشه (مدیریت/فعالیت): برخلافِ ردیف‌های سند، گرید نیست بلکه سطرِ تمام‌عرضِ
+   فلکسی است - عنوان کاملاً سمتِ راست، شمارنده تا آخرِ سطر سمتِ چپ. تورفتگیِ درخت
+   با --depth به لبه‌ی راست (شروعِ RTL) اضافه می‌شود، پس هیچ ستونی جابه‌جا نمی‌شود. */
+.doc-tree__row--folder {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 8px;
+  width: 100%;
+  padding-inline-start: calc(10px + var(--depth, 0) * var(--doc-tree-indent));
+  padding-inline-end: 10px;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-soft);
   cursor: pointer;
-  list-style: none;
-  border-radius: var(--radius-sm);
 }
-.doc-tree__summary::-webkit-details-marker { display: none; }
-.doc-tree__summary:hover { background: var(--color-row-hover); }
+.doc-tree__row--folder:hover { background: var(--color-row-hover); }
+.doc-tree__row--folder:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
-/* شِوران: جمع → رو به چپ (RTL)، باز → رو به پایین. */
+/* ردیفِ سند */
+.doc-tree__row--leaf {
+  font-size: 13px;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.doc-tree__row--leaf:hover { background: var(--color-primary-soft); }
+
+/* ---- سلول‌ها. ترازِ هر ستون عمدی است: کوتاه‌ها وسط، نام و شماره از سمتِ شروع ---- */
+.doc-tree__c-index { text-align: center; color: var(--color-text-muted); font-size: 12px; }
+
+.doc-tree__c-number {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.doc-tree__row--leaf .doc-tree__c-number { color: var(--color-primary); }
+.doc-tree__number-value { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* تنها جایی که تورفتگیِ درخت اعمال می‌شود؛ هیچ ستونِ دیگری با عمق جابه‌جا نمی‌شود. */
+.doc-tree__c-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-inline-start: calc(var(--depth, 0) * var(--doc-tree-indent));
+}
+.doc-tree__c-name--leaf { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
+.doc-tree__name-text { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.doc-tree__c-revision { text-align: center; font-size: 12.5px; color: var(--color-text-muted); }
+.doc-tree__c-related { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; min-width: 0; }
+.doc-tree__c-review { text-align: center; font-size: 12.5px; color: var(--color-text-muted); }
+.doc-tree__c-status { display: flex; align-items: center; justify-content: center; }
+/* عملیات تا جای ممکن به سمتِ راستِ ستونِ خودش (شروعِ RTL) می‌چسبد؛ سرستون و دکمه‌ها
+   با هم، چون هر دو از همین کلاس‌اند و راست‌ترین حالتِ ممکن را می‌گیرند. */
+.doc-tree__c-actions { display: flex; align-items: center; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; }
+
+/* شِوران: بسته → رو به چپ (RTL)، باز → رو به پایین. */
 .doc-tree__chevron {
   display: inline-flex;
+  flex-shrink: 0;
   color: var(--color-text-muted);
   transform: rotate(-90deg);
   transition: transform 0.15s ease;
 }
-details[open] > .doc-tree__summary .doc-tree__chevron { transform: rotate(0); }
+.doc-tree__row--folder[aria-expanded='true'] .doc-tree__chevron { transform: rotate(0); }
 
-.doc-tree__folder { display: inline-flex; }
-.doc-tree__branch--l0 > .doc-tree__summary .doc-tree__folder { color: var(--color-teal); }
-.doc-tree__branch--l1 > .doc-tree__summary .doc-tree__folder { color: var(--color-secondary); }
+.doc-tree__folder { display: inline-flex; flex-shrink: 0; }
+.doc-tree__row--folder[data-depth='0'] .doc-tree__folder { color: var(--color-teal); }
+.doc-tree__row--folder[data-depth='1'] .doc-tree__folder { color: var(--color-secondary); }
 
-.doc-tree__branch--l0 > .doc-tree__summary .doc-tree__label { font-weight: 700; font-size: 13.5px; }
-.doc-tree__label { font-weight: 600; font-size: 13px; color: var(--color-text); }
+.doc-tree__label {
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-tree__row--folder[data-depth='0'] .doc-tree__label { font-weight: 700; font-size: 13.5px; }
+
 /* کدِ مدیریت/فعالیت - همان حرفی که در شماره‌ی مدرک دیده می‌شود، پس چشم از روی کد
    شاخه را پیدا می‌کند نه از روی عنوان. */
 .doc-tree__code {
+  flex-shrink: 0;
   font-size: 11px;
   font-weight: 700;
   color: var(--color-primary);
   background: var(--color-primary-soft);
   border-radius: var(--radius-sm);
   padding: 1px 6px;
-  flex-shrink: 0;
-}
-/* یادآوریِ سقف: درخت صفحه‌بندی ندارد، پس اگر همه‌ی نتیجه را نشان نمی‌دهد باید بگوید. */
-.doc-tree__note {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--color-text-muted);
 }
 .doc-tree__count {
-  margin-inline-start: auto;
+  flex-shrink: 0;
+  margin-inline-start: auto; /* تا آخرِ سطرِ پوشه به سمتِ چپ (پایانِ RTL) رانده می‌شود */
   font-size: 11px;
   color: var(--color-text-muted);
   background: var(--color-surface-2);
@@ -5015,45 +5103,9 @@ details[open] > .doc-tree__summary .doc-tree__chevron { transform: rotate(0); }
   border-radius: 999px;
   padding: 1px 9px;
 }
-
-/* ردیف‌های سند زیرِ فعالیت - همان ستون‌های نمای جدولی (ردیف، شماره، نام، بازنگری،
-   مدارک مرتبط، تاریخ بازبینی، وضعیت، عملیات)، فقط این‌بار زیرِ شاخه‌ی خودشان به‌جای
-   یک جدولِ تخت. سرستون و هر ردیف هرکدام یک grid جدا هستند (نه یک grid مشترک)، پس
-   هیچ ستونی نباید عرضش را از محتوا بگیرد (fr یا auto) - وگرنه عرضِ آن ستون بسته به
-   محتوای همان ردیف (مثلاً تعداد آیکونِ عملیات) فرق می‌کند و ستون‌ها زیر سرستون
-   هم‌تراز نمی‌مانند. همه‌ی ستون‌ها عمداً px ثابت‌اند تا سرستون و همه‌ی ردیف‌ها،
-   صرف‌نظر از محتوایشان، دقیقاً همان عرض‌ها را بگیرند. */
-.doc-tree__leaves-scroll { overflow-x: auto; padding-inline-start: 34px; }
-.doc-tree__leaves-head,
-.doc-tree__leaf-row {
-  display: grid;
-  grid-template-columns: 34px 120px 300px 64px 150px 92px 96px 156px;
-  align-items: center;
-  gap: 10px;
-  min-width: 1082px;
-}
-.doc-tree__leaves-head {
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 700;
+/* یادآوریِ سقف: درخت صفحه‌بندی ندارد، پس اگر همه‌ی نتیجه را نشان نمی‌دهد باید بگوید. */
+.doc-tree__note {
+  margin: 0 0 8px;
+  font-size: 12px;
   color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border-soft);
 }
-.doc-tree__leaves { list-style: none; margin: 0; padding: 2px 0 4px; }
-.doc-tree__leaf-row {
-  padding: 7px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--color-text);
-}
-.doc-tree__leaf-row:hover { background: var(--color-primary-soft); }
-.doc-tree__leaf-index { color: var(--color-text-muted); font-size: 12px; }
-.doc-tree__leaf-number { color: var(--color-primary); }
-.doc-tree__leaf-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.doc-tree__leaf-revision,
-.doc-tree__leaf-review { font-size: 12.5px; color: var(--color-text-muted); }
-.doc-tree__leaf-actions { display: flex; align-items: center; gap: 2px; }
