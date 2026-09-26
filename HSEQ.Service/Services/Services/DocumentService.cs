@@ -44,6 +44,13 @@ namespace HSEQ.Service.Services.Services
         //Add
         public async Task<Guid> AddAsync(CreateDocumentRequestModel request, string pcode)
         {
+            // اعتبارسنجی پیش از گرفتنِ شماره. شمارنده‌ی سریال اتمیک و یک‌طرفه است و هرگز به
+            // عقب برنمی‌گردد، پس هر خطای *بعد از* تولیدِ شماره یک سریالِ سوخته و یک جای‌خالی
+            // در شماره‌ها می‌گذارد. بررسیِ ترتیبِ تاریخ‌ها اینجاست (نه بعد از تولید) تا یک
+            // خطای فرم شماره‌ای را نسوزاند. اعتبارسنجیِ داده‌ی پایه (مدیریت/فعالیت/نوع/پروژه)
+            // خودش داخلِ مولدِ شماره و *پیش از* گرفتنِ سریال انجام می‌شود.
+            EnsureReviewDateOrder(request.FormerReviewDate, request.CurrentReviewDate);
+
             GeneratedDocumentNumber generated;
 
             if (request.Category == DocumentCategory.Project)
@@ -66,8 +73,6 @@ namespace HSEQ.Service.Services.Services
                     request.DocumentTypeId,
                     request.IsEnglishVersion);
             }
-
-            EnsureReviewDateOrder(request.FormerReviewDate, request.CurrentReviewDate);
 
             var fileName = await _fileService.SaveFileAsync(generated.Number, request.File);
             var document = new Domain.Entities.Document
@@ -171,13 +176,14 @@ namespace HSEQ.Service.Services.Services
             if (alreadySuperseded)
                 throw new DocumentAlreadyRevisedException();
 
-            var generated = await _documentNumberGenerator.GenerateNextRevisionAsync(current);
-
-            // The superseded revision's review date is what the new revision revises
-            // *from*, so it becomes the new FormerReviewDate unless overridden. Resolved
-            // up front so the order check below sees the value that actually gets saved.
+            // اعتبارسنجی پیش از تولیدِ شماره‌ی بازنگری و ذخیره‌ی فایل (fail-fast). The
+            // superseded revision's review date is what the new revision revises *from*,
+            // so it becomes the new FormerReviewDate unless overridden. Resolved up front
+            // so the order check sees the value that actually gets saved.
             var formerReviewDate = request.FormerReviewDate ?? current.CurrentReviewDate;
             EnsureReviewDateOrder(formerReviewDate, request.CurrentReviewDate);
+
+            var generated = await _documentNumberGenerator.GenerateNextRevisionAsync(current);
 
             // Files are keyed by Document Number, and the revision has a brand-new one,
             // so this writes alongside the superseded revision's file rather than over it.
