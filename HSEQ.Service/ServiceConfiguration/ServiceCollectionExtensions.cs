@@ -21,6 +21,7 @@ namespace HSEQ.Service
             services.AddScoped<ILegacyDocumentImportService, LegacyDocumentImportService>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IDocumentService, DocumentService>();
+            services.AddScoped<IDocumentReservationService, DocumentReservationService>();
             services.AddScoped<IFileService, FileService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAdminRepository, AdminRepository>();

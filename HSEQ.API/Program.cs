@@ -46,6 +46,9 @@ builder.Services.AddControllers();
 builder.Services.AddApplicationLayerServices()
                 .AddServiceLayerServices()
                 .AddDomainLayerServices(configuration);
+
+// جاروبِ دوره‌ای که رزروهای کد را پس از انقضای مهلت (۷۲ ساعت بدون فایل) منقضی می‌کند.
+builder.Services.AddHostedService<HSEQ.API.ReservationExpiryWorker>();
 // ---------------------------------------------------------------------------
 // از کجا اعتبار کاربر سنجیده شود
 // ---------------------------------------------------------------------------

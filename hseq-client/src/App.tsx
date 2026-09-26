@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentsPage } from './pages/DocumentsPage'
 import { DocumentCreatePage } from './pages/DocumentCreatePage'
+import { DocumentReservePage } from './pages/DocumentReservePage'
 import { AdminPanelPage } from './pages/AdminPanelPage'
 
 // Route tree is intentionally flat now but grouped so an admin branch can be
@@ -27,6 +28,8 @@ function App() {
               {/* Creating a document is its own destination, so it is linkable and
                   survives a refresh. Editing/revising stay as dialogs on the list. */}
               <Route path="documents/new" element={<DocumentCreatePage />} />
+              {/* رزرو کد بدون فایل - جریانِ «اول کد، بعد فایل». */}
+              <Route path="documents/reserve" element={<DocumentReservePage />} />
 
               {/* داشبورد و پنل ادمین هر دو پشت همین ProtectedRoute دوم با
                   requireCapability="admin:access" هستند - مدیر اسناد و مدیر سیستم هر

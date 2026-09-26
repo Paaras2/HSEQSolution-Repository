@@ -59,5 +59,14 @@ namespace HSEQ.Domain.Entities
         // داخل برنامه ساخته می‌شود همیشه false است، چون مولدِ شماره اجازه‌ی کدِ نامعتبر
         // نمی‌دهد. تصمیمِ نهایی درباره‌ی کدینگِ این مدارک بعداً گرفته می‌شود.
         public bool IsOutsideCodingStructure { get; set; }
+
+        // چرخه‌ی حیاتِ سند: Reserved (کد گرفته، بدون فایل) → Published (فایل ضمیمه شده).
+        // اسنادی که با فایل ساخته می‌شوند مستقیم Published‌اند؛ فقط جریانِ «رزرو کد» از
+        // Reserved شروع می‌شود.
+        public DocumentStatus Status { get; set; }
+
+        // فقط برای اسنادِ Reserved مقدار دارد: لحظه‌ای که اگر تا آن موقع فایلی ضمیمه نشود،
+        // رزرو منقضی می‌شود (پیش‌فرض ۷۲ ساعت). با ضمیمه‌شدنِ فایل null می‌شود.
+        public DateTime? ReservationExpiresAtUtc { get; set; }
     }
 }

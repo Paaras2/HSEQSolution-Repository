@@ -16,6 +16,7 @@ namespace HSEQ.API.Controllers
     public class DocumentController : ControllerBase
     {
         private readonly IDocumentService _documentService;
+        private readonly IDocumentReservationService _reservationService;
         private readonly IDocumentRelationService _documentRelationService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserService _userService;
@@ -38,11 +39,13 @@ namespace HSEQ.API.Controllers
 
         public DocumentController(
             IDocumentService documentService,
+            IDocumentReservationService reservationService,
             IDocumentRelationService documentRelationService,
             IUnitOfWork unitOfWork,
             IUserService userService)
         {
             _documentService = documentService;
+            _reservationService = reservationService;
             _documentRelationService = documentRelationService;
             _unitOfWork = unitOfWork;
             _userService = userService;
@@ -61,6 +64,37 @@ namespace HSEQ.API.Controllers
             // انتخاب‌شده را ثبت کند. افزودن بدنه به پاسخ سازگار با عقب است: فراخوان‌های
             // قبلی فقط وضعیت 200 را می‌خواندند.
             return Ok(new { Key = key });
+        }
+
+        // «رزرو کد»: یک شماره می‌سازد و مدرک را در وضعیت Reserved (بدون فایل) ثبت می‌کند.
+        // فایل بعداً با AttachFile ضمیمه می‌شود. کد، وضعیت و مهلتِ رزرو برگردانده می‌شود.
+        [Authorize(Roles = ManageDocumentRoles)]
+        [HttpPost]
+        [Route("Reserve")]
+        public async Task<IActionResult> Reserve([FromForm] ReserveDocumentRequestModel req)
+        {
+            var pcode = _userService.GetPCodeFromToken(Request);
+            var document = await _reservationService.ReserveAsync(req, pcode);
+            await _unitOfWork.SaveChangesAsync();
+
+            return Ok(new DocumentReservationDto
+            {
+                Key = document.Key,
+                Number = document.Number,
+                Status = document.Status,
+                ReservationExpiresAtUtc = document.ReservationExpiresAtUtc,
+            });
+        }
+
+        // نهایی‌سازیِ یک رزرو: فایل را به مدرکِ Reserved ضمیمه و آن را Published می‌کند.
+        [Authorize(Roles = ManageDocumentRoles)]
+        [HttpPost]
+        [Route("AttachFile")]
+        public async Task<IActionResult> AttachFile([FromForm] AttachDocumentFileRequestModel request)
+        {
+            await _reservationService.AttachFileAsync(request);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
         }
 
         [Authorize(Roles = ManageDocumentRoles)]

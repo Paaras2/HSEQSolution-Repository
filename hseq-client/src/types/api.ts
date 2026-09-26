@@ -43,6 +43,21 @@ export function documentCategoryLabel(value: number): string {
   return DOCUMENT_CATEGORY_BY_VALUE[value] === 'Project' ? 'پروژه' : 'ستاد'
 }
 
+// HSEQ.Common.DocumentStatus: 1=Reserved (کد گرفته، بدون فایل)، 2=Uploaded،
+// 3=Published (زنده)، 4=Expired. مثل بقیه‌ی enumها به‌صورت عدد سریالایز می‌شود.
+export type DocumentStatus = 'Reserved' | 'Uploaded' | 'Published' | 'Expired'
+
+const DOCUMENT_STATUS_BY_VALUE: Record<number, DocumentStatus> = {
+  1: 'Reserved',
+  2: 'Uploaded',
+  3: 'Published',
+  4: 'Expired',
+}
+
+export function documentStatusFromValue(value: number): DocumentStatus {
+  return DOCUMENT_STATUS_BY_VALUE[value] ?? 'Published'
+}
+
 export interface DocumentDto {
   key: string
   isActive: boolean
@@ -72,6 +87,11 @@ export interface DocumentDto {
   // document have isActive === false; this is what tells them apart.
   isSuperseded: boolean
   fileName: string | null
+  // HSEQ.Common.DocumentStatus خام (1|2|3|4) - documentStatusFromValue(). اختیاری تا
+  // پاسخ‌های قدیمی که این فیلد را ندارند نشکنند.
+  status?: number
+  // فقط برای مدرکِ Reserved مقدار دارد: مهلتِ ضمیمه‌کردنِ فایل (ISO/UTC).
+  reservationExpiresAtUtc?: string | null
   // Raw HSEQ.Common.DocumentCategory value (0|1) - see documentCategoryLabel().
   category: number
   // Only set when category is Project - Headquarters documents have no Project.
@@ -154,6 +174,27 @@ export interface CreateDocumentInput {
   organizationalManagementId: string
   organizationalActivityId: string
   documentTypeId: string
+}
+
+// «رزرو کد»: فقط متادیتای لازم برای ساختِ شماره. فایل و تاریخ‌ها بعداً می‌آیند.
+// شماره هرگز از کلاینت نمی‌رود؛ سرور آن را می‌سازد.
+export interface ReserveDocumentInput {
+  name: string
+  category: DocumentCategory
+  isEnglishVersion: boolean
+  // فقط برای 'Project' لازم است؛ برای 'Headquarters' null.
+  projectId: string | null
+  organizationalManagementId: string
+  organizationalActivityId: string
+  documentTypeId: string
+}
+
+// پاسخِ رزرو: کدِ ساخته‌شده و مهلتِ ضمیمه‌کردنِ فایل. status خام است (1=Reserved).
+export interface DocumentReservation {
+  key: string
+  number: string
+  status: number
+  reservationExpiresAtUtc: string | null
 }
 
 // Metadata only. relatedDocumentId and file are both absent on purpose and the

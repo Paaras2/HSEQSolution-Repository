@@ -143,6 +143,8 @@ namespace HSEQ.Service.Services.Services
                         ? numbers
                         : new List<string>(),
                 FileName = document.FileName,
+                Status = document.Status,
+                ReservationExpiresAtUtc = document.ReservationExpiresAtUtc,
                 Category = document.Category,
                 ProjectId = document.ProjectId,
                 OrganizationalManagementId = document.OrganizationalManagementId,

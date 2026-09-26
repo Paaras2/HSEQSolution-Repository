@@ -134,7 +134,13 @@ namespace HSEQ.API.Migrations
                     b.Property<Guid?>("RelatedDocumentId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ReservationExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("SerialNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
                         .HasColumnType("int");
 
                     b.HasKey("Key");
@@ -149,6 +155,9 @@ namespace HSEQ.API.Migrations
                     b.HasIndex("OrganizationalManagementId");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("ReservationExpiresAtUtc")
+                        .HasFilter("[Status] = 1");
 
                     b.ToTable("Documents", (string)null);
                 });

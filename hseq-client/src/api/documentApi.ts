@@ -2,7 +2,9 @@ import { apiGet, apiGetBlob, apiPostForm } from '../lib/httpClient'
 import type {
   CreateDocumentInput,
   DocumentDto,
+  DocumentReservation,
   PagedResult,
+  ReserveDocumentInput,
   ReviseDocumentInput,
   UpdateDocumentInput,
 } from '../types/api'
@@ -56,6 +58,29 @@ export const documentApi = {
     form.append('DocumentTypeId', input.documentTypeId)
     const created = await apiPostForm<{ key: string }>('/Document/Add', form)
     return created.key
+  },
+
+  // «رزرو کد»: شماره را می‌سازد و یک مدرکِ Reserved (بدون فایل) ثبت می‌کند. کد و مهلتِ
+  // رزرو برمی‌گردد؛ فایل بعداً با attachFile ضمیمه می‌شود. مثل add، شماره از کلاینت نمی‌رود.
+  async reserve(input: ReserveDocumentInput): Promise<DocumentReservation> {
+    const form = new FormData()
+    form.append('Name', input.name)
+    form.append('Category', input.category)
+    form.append('IsEnglishVersion', String(input.isEnglishVersion))
+    // فقط برای 'Project' فرستاده می‌شود؛ برای 'Headquarters' اصلاً نمی‌رود تا سرور null ببیند.
+    appendIfPresent(form, 'ProjectId', input.projectId)
+    form.append('OrganizationalManagementId', input.organizationalManagementId)
+    form.append('OrganizationalActivityId', input.organizationalActivityId)
+    form.append('DocumentTypeId', input.documentTypeId)
+    return apiPostForm<DocumentReservation>('/Document/Reserve', form)
+  },
+
+  // نهایی‌سازیِ یک رزرو: فایل را به مدرکِ Reserved ضمیمه و آن را Published می‌کند.
+  async attachFile(key: string, file: File): Promise<void> {
+    const form = new FormData()
+    form.append('Key', key)
+    form.append('File', file)
+    await apiPostForm<void>('/Document/AttachFile', form)
   },
 
   // Metadata only. Number/Project/organizational classification are immutable and

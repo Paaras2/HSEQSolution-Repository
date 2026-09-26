@@ -442,6 +442,11 @@ export function DocumentsPage() {
               </button>
             )}
             {canManage && (
+              <Link to="/documents/reserve" className="btn btn-ghost">
+                رزرو کد
+              </Link>
+            )}
+            {canManage && (
               <Link to="/documents/new" className="btn btn-primary">
                 افزودن سند
               </Link>

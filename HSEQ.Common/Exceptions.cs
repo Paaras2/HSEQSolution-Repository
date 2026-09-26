@@ -25,6 +25,24 @@ namespace HSEQ.Common
         }
     }
 
+    // وضعیتِ فعلیِ مدرک اجازه‌ی این عملیات را نمی‌دهد - مثلاً نهایی‌سازیِ مدرکی که رزرو
+    // نیست، یا ضمیمه‌ی فایل به کدی که مهلتِ رزروش گذشته. کد ۴۰۹ (Conflict)، نه ۴۰۰:
+    // خودِ درخواست معتبر است، فقط با وضعیتِ فعلیِ منبع نمی‌خواند.
+    public class InvalidDocumentStateException : CustomException
+    {
+        public InvalidDocumentStateException(string message) : base(message, 409)
+        {
+        }
+    }
+
+    // نهایی‌سازیِ یک رزرو بدون فایل. کد ۴۰۰: خودِ درخواست ناقص است.
+    public class DocumentFileRequiredException : CustomException
+    {
+        public DocumentFileRequiredException() : base("برای نهایی‌سازی، فایل الزامی است", 400)
+        {
+        }
+    }
+
 
 
     public class ProjectNotFoundException : CustomException

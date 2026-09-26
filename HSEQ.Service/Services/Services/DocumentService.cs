@@ -77,6 +77,8 @@ namespace HSEQ.Service.Services.Services
                 FileName = fileName,
                 FormerReviewDate = request.FormerReviewDate,
                 IsActive = true,
+                // ساخته‌شده با فایل = مدرکِ زنده. فقط جریانِ «رزرو کد» از Reserved شروع می‌شود.
+                Status = DocumentStatus.Published,
                 Number = generated.Number,
                 SerialNumber = generated.SerialNumber,
                 LastVersion = generated.LastVersion,
@@ -186,6 +188,8 @@ namespace HSEQ.Service.Services.Services
                 CreatedByPCode = Convert.ToInt32(pcode),
                 CreatedTime = DateTime.Now,
                 IsActive = true,
+                // بازنگری هم با فایلِ خودش ساخته می‌شود، پس مثل هر مدرکِ زنده Published است.
+                Status = DocumentStatus.Published,
 
                 Number = generated.Number,
                 SerialNumber = generated.SerialNumber,
@@ -375,6 +379,12 @@ namespace HSEQ.Service.Services.Services
                 pageSize = 10;
 
             var query = _documentRepository.GetAllAsQueryable();
+
+            // اسنادِ رزروشده (بدون فایل) و منقضی‌شده سندِ واقعی نیستند، پس در فهرست نمی‌آیند -
+            // وگرنه ردیفی بدون فایل نشان داده می‌شد که دانلودش ۴۰۴ می‌گیرد. فقط اسنادی که
+            // فایل دارند (Published/Uploaded) در فهرست‌اند؛ نسخه‌های منسوخ (IsActive=false)
+            // همچنان با includeDeactiveItems می‌آیند چون Status‌شان Published است.
+            query = query.Where(x => x.Status == DocumentStatus.Published || x.Status == DocumentStatus.Uploaded);
 
             if (!includeDeactiveItems)
             {

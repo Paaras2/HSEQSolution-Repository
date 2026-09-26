@@ -39,6 +39,13 @@ namespace HSEQ.API.Model.Dtos
         public bool IsSuperseded { get; set; }
 
         public string FileName { get; set; }
+
+        // چرخه‌ی حیاتِ سند (Reserved/Uploaded/Published/Expired). کلاینت با این نشانِ
+        // «رزرو (بدون فایل)» را می‌گذارد و مثلاً دکمه‌ی دانلود را برای Reserved نشان نمی‌دهد.
+        public DocumentStatus Status { get; set; }
+        // فقط برای Reserved مقدار دارد: مهلتِ ضمیمه‌کردنِ فایل پیش از انقضای رزرو.
+        public DateTime? ReservationExpiresAtUtc { get; set; }
+
         public DocumentCategory Category { get; set; }
         public Guid? ProjectId { get; set; }
         public Guid OrganizationalManagementId { get; set; }

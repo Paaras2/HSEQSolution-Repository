@@ -50,6 +50,13 @@ namespace HSEQ.Domain.Configurations
                 .HasForeignKey(d => d.DocumentTypeId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ایندکسِ فیلترشده برای جاروبِ انقضای رزرو: فقط ردیف‌های Reserved (Status = 1)
+            // را پوشش می‌دهد، پس جاروبِ دوره‌ای بدون اسکنِ کلِ جدولِ اسناد اجرا می‌شود.
+            // عمداً HasDefaultValue روی Status نمی‌گذاریم (مثل AppRole): با پیش‌فرضِ EF،
+            // هر جا مقدار برابرِ CLR default بود EF آن را در INSERT نمی‌فرستاد.
+            builder.HasIndex(d => d.ReservationExpiresAtUtc)
+                .HasFilter("[Status] = 1");
         }
     }
 }
