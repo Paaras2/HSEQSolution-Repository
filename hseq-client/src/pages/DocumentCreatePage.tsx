@@ -453,7 +453,9 @@ export function DocumentCreatePage() {
 
                 <div className="form-grid form-grid--3">
                   <div className="field">
-                    <label htmlFor="doc-former-date">تاریخ بازبینی قبلی</label>
+                    <label htmlFor="doc-former-date">
+                      تاریخ بازبینی قبلی <span className="field-hint">(اختیاری)</span>
+                    </label>
                     {/* نمایش شمسی، مقدار میلادی - همان «yyyy-MM-dd» که به سرور می‌رود. */}
                     <PersianDatePicker
                       id="doc-former-date"

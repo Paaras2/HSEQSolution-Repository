@@ -244,7 +244,9 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
             <h3 className="form-section__title">تاریخ‌های بازبینی</h3>
             <div className="form-grid">
               <div className="field">
-                <label htmlFor="doc-former-date">تاریخ بازبینی قبلی</label>
+                <label htmlFor="doc-former-date">
+                  تاریخ بازبینی قبلی <span className="field-hint">(اختیاری)</span>
+                </label>
                 {/* نمایش شمسی، مقدار میلادی - همان «yyyy-MM-dd» که به سرور می‌رود. */}
                 <PersianDatePicker
                   id="doc-former-date"
