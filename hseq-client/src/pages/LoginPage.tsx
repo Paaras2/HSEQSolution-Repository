@@ -309,7 +309,10 @@ export function LoginPage() {
             )}
 
             <p className="login-help">
-              همان رمزی که در سامانه یکپارچه پرسنلی دارید. برای بازیابی رمز عبور با واحد فناوری اطلاعات تماس بگیرید.
+              همان رمزی که در سامانه یکپارچه پرسنلی دارید.{' '}
+              <a href="https://payroll.odcc.ir/auth/password/forget" target="_blank" rel="noopener noreferrer">
+                بازیابی رمز عبور
+              </a>
             </p>
           </form>
 
