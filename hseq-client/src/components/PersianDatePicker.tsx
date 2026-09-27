@@ -14,6 +14,16 @@ import {
 } from '../lib/jalali'
 import { toPersianDigits } from '../lib/digits'
 
+// تعداد سال‌های هر صفحه‌ی جدولِ سال - ۱۲تا تا با شبکه‌ی ۳ستونی جدولِ روز هم‌خانواده بماند.
+const YEARS_PER_PAGE = 12
+
+// بازه‌ی سالِ قابل‌انتخاب - محاسبه‌ی تقویم جلالیِ خودِ پروژه از حدود سال ۶۲۲ تا ۳۱۷۸
+// پشتیبانی می‌کند، اما هیچ تاریخِ بازبینیِ واقعی به آن بازه‌ها نزدیک نیست؛ این بازه‌ی
+// تنگ‌تر (یک قرن قبل و بعدِ امروز) هم برای اسنادِ قدیمی کافی است هم مانعِ رسیدنِ
+// تصادفی به مرزِ محاسبه (که یک استثنا پرتاب می‌کند) با کلیک‌های پیاپیِ «سال بعد» می‌شود.
+const MIN_JALALI_YEAR = 1300
+const MAX_JALALI_YEAR = 1500
+
 interface PersianDatePickerProps {
   id: string
   // همیشه میلادی «yyyy-MM-dd» (یا رشته‌ی خالی) - همان قراردادی که input[type=date] داشت،
@@ -54,6 +64,35 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
     const t = todayJalali()
     return { jy: t.jy, jm: t.jm }
   })
+
+  // جدولِ روز پیش‌فرض است؛ کلیک روی برچسبِ سال در تیتر به جدولِ سال سوییچ می‌کند تا
+  // پرش به سالی دور (مثلاً بیست سال قبل) به‌جای چند ده‌بار «ماه قبل»، دو کلیک باشد.
+  const [pickerView, setPickerView] = useState<'days' | 'years'>('days')
+  const [yearPageStart, setYearPageStart] = useState(() => Math.floor(viewMonth.jy / YEARS_PER_PAGE) * YEARS_PER_PAGE)
+
+  function openYearPicker() {
+    setYearPageStart(Math.floor(viewMonth.jy / YEARS_PER_PAGE) * YEARS_PER_PAGE)
+    setPickerView('years')
+  }
+
+  function pickYear(year: number) {
+    setViewMonth((current) => ({ ...current, jy: year }))
+    setPickerView('days')
+  }
+
+  // یک‌جا تعریف شده تا هم شیفت‌دادن هم غیرفعال‌کردنِ دکمه‌ها دقیقاً از یک قاعده
+  // پیروی کنند - جدا نوشتنشان قبلاً یک نامنطبقی داشت: دکمه در صفحه‌ی ماقبلِ آخر هنوز
+  // فعال نشان داده می‌شد چون آستانه‌اش روی «صفحه‌ی فعلی» بود نه روی «صفحه‌ی بعدی».
+  function isYearPageValid(start: number): boolean {
+    return start >= MIN_JALALI_YEAR && start + YEARS_PER_PAGE - 1 <= MAX_JALALI_YEAR
+  }
+
+  function shiftYearPage(delta: number) {
+    setYearPageStart((start) => {
+      const next = start + delta * YEARS_PER_PAGE
+      return isYearPageValid(next) ? next : start
+    })
+  }
 
   // مقدار از بیرون عوض شود (مثلاً ریست فرم)، متن نمایش هم باید عوض شود - مگر وقتی
   // کاربر همان لحظه در حال تایپ کردن است.
@@ -137,7 +176,9 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
   function shiftMonth(delta: number) {
     setViewMonth((current) => {
       const total = current.jy * 12 + (current.jm - 1) + delta
-      return { jy: Math.floor(total / 12), jm: (total % 12) + 1 }
+      const jy = Math.floor(total / 12)
+      if (jy < MIN_JALALI_YEAR || jy > MAX_JALALI_YEAR) return current
+      return { jy, jm: (total % 12) + 1 }
     })
   }
 
@@ -176,7 +217,12 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
         <button
           type="button"
           className="date-picker__toggle"
-          onClick={() => setIsOpen((open) => !open)}
+          onClick={() => {
+            setIsOpen((open) => !open)
+            // هر بار که تازه باز می‌شود از جدولِ روز شروع کند، نه جایی که دفعه‌ی
+            // قبل در جدولِ سال رها شده بود.
+            setPickerView('days')
+          }}
           disabled={disabled}
           aria-label="باز کردن تقویم"
           aria-expanded={isOpen}
@@ -187,48 +233,111 @@ export function PersianDatePicker({ id, value, onChange, disabled = false }: Per
 
       {isOpen && !disabled && (
         <div className="date-picker__popup" role="dialog" aria-label="انتخاب تاریخ">
-          <div className="date-picker__header">
-            {/* در چیدمان راست‌به‌چپ، «ماه قبل» سمت راست می‌نشیند. */}
-            <button type="button" className="date-picker__nav" onClick={() => shiftMonth(-1)} aria-label="ماه قبل">
-              ›
-            </button>
-            <span className="date-picker__month">
-              {JALALI_MONTH_NAMES[viewMonth.jm - 1]} {toPersianDigits(viewMonth.jy)}
-            </span>
-            <button type="button" className="date-picker__nav" onClick={() => shiftMonth(1)} aria-label="ماه بعد">
-              ‹
-            </button>
-          </div>
+          {pickerView === 'days' ? (
+            <div className="date-picker__header">
+              {/* در چیدمان راست‌به‌چپ، «ماه قبل» سمت راست می‌نشیند. */}
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={() => shiftMonth(-1)}
+                disabled={viewMonth.jy <= MIN_JALALI_YEAR && viewMonth.jm === 1}
+                aria-label="ماه قبل"
+              >
+                ›
+              </button>
+              {/* برچسبِ سال هم دکمه است: کلیکش به جدولِ سال می‌رود، چون پیمایشِ
+                  ماه‌به‌ماه برای پرش به سالی دور (مثلاً بیست سال قبل) عملاً غیرقابل‌استفاده بود. */}
+              <button type="button" className="date-picker__month" onClick={openYearPicker}>
+                {JALALI_MONTH_NAMES[viewMonth.jm - 1]} {toPersianDigits(viewMonth.jy)}
+              </button>
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={() => shiftMonth(1)}
+                disabled={viewMonth.jy >= MAX_JALALI_YEAR && viewMonth.jm === 12}
+                aria-label="ماه بعد"
+              >
+                ‹
+              </button>
+            </div>
+          ) : (
+            <div className="date-picker__header">
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={() => shiftYearPage(-1)}
+                disabled={!isYearPageValid(yearPageStart - YEARS_PER_PAGE)}
+                aria-label="۱۲ سال قبل"
+              >
+                ›
+              </button>
+              {/* برخلافِ برچسبِ ماه، این یکی دکمه نیست - صرفاً برچسبِ بازه‌ی جاری است،
+                  خودِ پیمایش با دو دکمه‌ی کنارش انجام می‌شود. */}
+              <span className="date-picker__month-label">
+                {toPersianDigits(yearPageStart)} - {toPersianDigits(yearPageStart + YEARS_PER_PAGE - 1)}
+              </span>
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={() => shiftYearPage(1)}
+                disabled={!isYearPageValid(yearPageStart + YEARS_PER_PAGE)}
+                aria-label="۱۲ سال بعد"
+              >
+                ‹
+              </button>
+            </div>
+          )}
 
-          <div className="date-picker__weekdays">
-            {JALALI_WEEKDAY_SHORT.map((day) => (
-              <span key={day}>{day}</span>
-            ))}
-          </div>
+          {pickerView === 'days' ? (
+            <>
+              <div className="date-picker__weekdays">
+                {JALALI_WEEKDAY_SHORT.map((day) => (
+                  <span key={day}>{day}</span>
+                ))}
+              </div>
 
-          <div className="date-picker__grid">
-            {cells.map((day, index) => {
-              if (day === null) return <span key={`empty-${index}`} className="date-picker__cell is-empty" />
+              <div className="date-picker__grid">
+                {cells.map((day, index) => {
+                  if (day === null) return <span key={`empty-${index}`} className="date-picker__cell is-empty" />
 
-              const isSelected =
-                selected != null &&
-                selected.jy === viewMonth.jy &&
-                selected.jm === viewMonth.jm &&
-                selected.jd === day
-              const isToday = today.jy === viewMonth.jy && today.jm === viewMonth.jm && today.jd === day
+                  const isSelected =
+                    selected != null &&
+                    selected.jy === viewMonth.jy &&
+                    selected.jm === viewMonth.jm &&
+                    selected.jd === day
+                  const isToday = today.jy === viewMonth.jy && today.jm === viewMonth.jm && today.jd === day
 
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  className={`date-picker__cell${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
-                  onClick={() => pickDay(day)}
-                >
-                  {toPersianDigits(day)}
-                </button>
-              )
-            })}
-          </div>
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      className={`date-picker__cell${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                      onClick={() => pickDay(day)}
+                    >
+                      {toPersianDigits(day)}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="date-picker__year-grid">
+              {Array.from({ length: YEARS_PER_PAGE }, (_, i) => yearPageStart + i).map((year) => {
+                const isSelected = year === viewMonth.jy
+                const isToday = year === today.jy
+                return (
+                  <button
+                    key={year}
+                    type="button"
+                    className={`date-picker__year-cell${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                    onClick={() => pickYear(year)}
+                  >
+                    {toPersianDigits(year)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
           <div className="date-picker__footer">
             <button
