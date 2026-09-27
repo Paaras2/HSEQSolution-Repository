@@ -3,7 +3,9 @@ import type {
   CreateDocumentInput,
   DocumentDto,
   DocumentReservation,
+  EditDocumentCodingInput,
   PagedResult,
+  ReplaceDocumentFileInput,
   ReserveDocumentInput,
   ReviseDocumentInput,
   UpdateDocumentInput,
@@ -109,6 +111,39 @@ export const documentApi = {
     appendIfPresent(form, 'CurrentReviewDate', input.currentReviewDate)
     form.append('File', input.file)
     await apiPostForm<void>('/Document/Revise', form)
+  },
+
+  // جایگزینیِ فایلِ همین سند، بدون بازنگری - سطرِ تازه‌ای ساخته نمی‌شود و شماره/حرفِ
+  // بازنگری (مثلاً همان A) دست‌نخورده می‌ماند. برای اصلاحاتی که به بازنگریِ رسمی نیاز
+  // ندارند (مثل رفعِ یک خطای تایپی)؛ برای تغییرِ محتوایی سند از revise() استفاده شود.
+  async replaceFile(input: ReplaceDocumentFileInput): Promise<void> {
+    const form = new FormData()
+    form.append('Key', input.key)
+    form.append('Name', input.name)
+    appendIfPresent(form, 'FormerReviewDate', input.formerReviewDate)
+    appendIfPresent(form, 'CurrentReviewDate', input.currentReviewDate)
+    form.append('File', input.file)
+    await apiPostForm<void>('/Document/ReplaceFile', form)
+  },
+
+  // ویرایشِ کدگذاری: عملیاتِ استثنایی برای اصلاحِ یک کدگذاریِ اشتباه - Number را روی
+  // یک سندِ موجود (و اگر classification پر باشد، احتمالاً کلِ زنجیره‌اش) عوض می‌کند.
+  async editCoding(input: EditDocumentCodingInput): Promise<void> {
+    const form = new FormData()
+    form.append('Key', input.key)
+    form.append('ChangeClassification', String(input.classification !== null))
+    if (input.classification) {
+      form.append('OrganizationalManagementId', input.classification.organizationalManagementId)
+      form.append('OrganizationalActivityId', input.classification.organizationalActivityId)
+      form.append('DocumentTypeId', input.classification.documentTypeId)
+      appendIfPresent(form, 'SerialNumber', input.classification.serialNumber?.toString())
+    }
+    form.append('ChangeRevision', String(input.revision !== null))
+    if (input.revision) {
+      form.append('NewMajorVersion', String(input.revision.lastVersion))
+      appendIfPresent(form, 'NewContentRevision', input.revision.contentRevision?.toString())
+    }
+    await apiPostForm<void>('/Document/EditCoding', form)
   },
 
   async remove(documentId: string): Promise<void> {

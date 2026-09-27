@@ -20,6 +20,18 @@ namespace HSEQ.Service.Interfaces.Services
         // Number, revision components or file - that history has to stay readable.
         Task ReviseAsync(ReviseDocumentRequestModel request, string pcode);
 
+        // جایگزینیِ فایلِ همین سند، بدون بازنگری: برخلاف ReviseAsync هیچ سطرِ تازه‌ای
+        // نمی‌سازد و شماره/حرفِ بازنگری همان می‌ماند - فقط محتوای پیوست عوض می‌شود.
+        Task ReplaceFileAsync(ReplaceDocumentFileRequestModel request);
+
+        // ویرایشِ کدگذاریِ یک سندِ موجود با صلاحدیدِ مدیر: مدیریت/فعالیت/نوع‌سند/سریال
+        // (اگر ChangeClassification) روی کلِ زنجیره‌ی بازنگریِ این سند اعمال می‌شود -
+        // چون GetRevisionHistoryAsync زنجیره را دقیقاً از رویِ همین فیلدها پیدا می‌کند -
+        // و حرفِ بازنگری/شماره‌ی فرعی (اگر ChangeRevision) فقط روی همین یک ردیف. شماره‌ی
+        // هر ردیفِ اثرگرفته از نو ساخته و یکتاییِ همه با هم، پیش از نوشتنِ حتی یکی،
+        // بررسی می‌شود - عملیات همه‌یا-هیچ است.
+        Task EditCodingAsync(EditDocumentCodingRequestModel request);
+
         Task DeleteAsync(Guid documenttId);
         Task<List<DocumentDto>> GetAllAsync(bool includeDeactiveItems = true);
         Task<DocumentDto> GetByIdAsync(Guid id);

@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   DeactivateIcon,
   DownloadIcon,
+  EditIcon,
   EyeIcon,
   HistoryIcon,
   LayersIcon,
@@ -127,6 +128,7 @@ interface TreeActions {
   onManage: (d: DocumentDto) => void
   onArchive: (d: DocumentDto) => void
   onRelations: (d: DocumentDto) => void
+  onEditCoding: (d: DocumentDto) => void
   // فقط مشاهده و دانلود همیشه در دسترس‌اند؛ تاریخچه، بازنگری و آرشیو کارِ مدیریتِ
   // سند است، پس پشتِ همان قابلیتی می‌مانند که در نمای جدولی هم این عملیات را
   // نشان می‌دهد - کاربرِ فقط‌مشاهده در هیچ‌کدام از دو نما نباید بیشتر از این ببیند.
@@ -181,8 +183,18 @@ function FolderRow({
 
 // ---- ردیفِ سند (برگ): همان هشت ستونِ نمای جدولی ----
 function LeafRow({ document, rowIndex, depth, actions }: { document: DocumentDto; rowIndex: number; depth: number; actions: TreeActions }) {
-  const { onOpen, onDownload, onHistory, onManage, onArchive, onRelations, canManage, pendingFileId, pendingDeleteId } =
-    actions
+  const {
+    onOpen,
+    onDownload,
+    onHistory,
+    onManage,
+    onArchive,
+    onRelations,
+    onEditCoding,
+    canManage,
+    pendingFileId,
+    pendingDeleteId,
+  } = actions
 
   return (
     <div className="doc-tree__row doc-tree__row--leaf">
@@ -278,6 +290,12 @@ function LeafRow({ document, rowIndex, depth, actions }: { document: DocumentDto
         {canManage && (
           <>
             <IconButton label="بازنگری" icon={<ReviseIcon />} tone="revise" onClick={() => onManage(document)} />
+            <IconButton
+              label="ویرایش کدگذاری"
+              icon={<EditIcon />}
+              tone="edit"
+              onClick={() => onEditCoding(document)}
+            />
             {document.isActive && (
               <IconButton
                 label="آرشیو"
@@ -303,6 +321,7 @@ export function DocumentTreeView({
   onManage,
   onArchive,
   onRelations,
+  onEditCoding,
   canManage,
   pendingFileId,
   pendingDeleteId,
@@ -329,6 +348,7 @@ export function DocumentTreeView({
     onManage,
     onArchive,
     onRelations,
+    onEditCoding,
     canManage,
     pendingFileId,
     pendingDeleteId,

@@ -240,6 +240,127 @@ namespace HSEQ.Service.Services.Services
             current.IsActive = false;
             await _documentRepository.UpdateAsync(current);
         }
+
+        // ReplaceFile: جایگزینیِ محتوای همینِ سند - هیچ سطرِ Document تازه‌ای ساخته
+        // نمی‌شود، شماره و حرفِ بازنگری (مثلاً همان A) دست‌نخورده می‌مانند و زنجیره‌ی
+        // بازنگری هم دخیل نیست. برای اصلاحاتی که به بازنگریِ رسمی نیاز ندارند (مثل رفعِ
+        // یک خطای تایپی)؛ برای تغییرِ محتوایی سند از ReviseAsync استفاده شود.
+        public async Task ReplaceFileAsync(ReplaceDocumentFileRequestModel request)
+        {
+            var document = await _documentRepository.GetByIdAsync(request.Key);
+            if (document == null)
+                throw new DocumentNotFoundException();
+
+            if (request.File == null)
+                throw new RevisionFileRequiredException();
+
+            // همان قاعده‌ی ReviseAsync: روی نسخه‌ای که بازنگریِ بعدی‌اش قبلاً ثبت شده
+            // (زنجیره از او جلوتر رفته) دیگر نمی‌شود فایل را عوض کرد.
+            var alreadySuperseded = await _documentRepository.GetAllAsQueryable()
+                .AnyAsync(d => d.RelatedDocumentId == document.Key);
+            if (alreadySuperseded)
+                throw new DocumentAlreadyRevisedException();
+
+            var formerReviewDate = request.FormerReviewDate ?? document.FormerReviewDate;
+            EnsureReviewDateOrder(formerReviewDate, request.CurrentReviewDate);
+
+            // همان Number قبلی - SaveFileAsync با FileMode.Create فایلِ روی دیسک را
+            // جای‌گزین می‌کند، پس چیزی به‌جا نمی‌ماند و رفت‌وبرگشتی به مولدِ شماره لازم نیست.
+            var fileName = await _fileService.SaveFileAsync(document.Number, request.File);
+
+            document.FileName = fileName;
+            document.ExtractedText = ExtractTextBestEffort(request.File);
+            document.Name = string.IsNullOrWhiteSpace(request.Name) ? document.Name : request.Name;
+            document.FormerReviewDate = formerReviewDate;
+            document.CurrentReviewDate = request.CurrentReviewDate;
+
+            await _documentRepository.UpdateAsync(document);
+        }
+
+        // EditCoding: ویرایشِ دستیِ کدگذاریِ یک سندِ موجود - مسیرِ استثنایی برای اصلاحِ
+        // یک کدگذاریِ اشتباه، نه بخشی از گردشِ کارِ عادی. طبقه‌بندی/سریال (اگر
+        // ChangeClassification) روی کلِ زنجیره اعمال می‌شود؛ بازنگری (اگر ChangeRevision)
+        // فقط روی همینِ یک ردیف. دسته‌بندی و پروژه از این مسیر عمداً قابل تغییر نیستند.
+        public async Task EditCodingAsync(EditDocumentCodingRequestModel request)
+        {
+            if (!request.ChangeClassification && !request.ChangeRevision)
+                throw new NoCodingChangesRequestedException();
+
+            var document = await _documentRepository.GetByIdAsync(request.Key);
+            if (document == null)
+                throw new DocumentNotFoundException();
+
+            // زنجیره‌ی کاملِ همین سند - همان کوئری‌ی GetRevisionHistoryAsync، چون
+            // طبقه‌بندی/سریال باید روی کلِ زنجیره یکسان بماند وگرنه بازنگری‌های دیگرِ
+            // همین زنجیره از این پس با این ردیف پیدا نمی‌شوند.
+            var candidates = await _documentRepository.GetAllAsQueryable()
+                .Where(d => d.SerialNumber == document.SerialNumber
+                    && d.Category == document.Category
+                    && d.ProjectId == document.ProjectId
+                    && d.OrganizationalManagementId == document.OrganizationalManagementId
+                    && d.OrganizationalActivityId == document.OrganizationalActivityId
+                    && d.DocumentTypeId == document.DocumentTypeId
+                    && d.IsEnglishVersion == document.IsEnglishVersion)
+                .ToListAsync();
+            var chain = BuildRevisionChain(document, candidates);
+            var chainKeys = chain.Select(d => d.Key).ToHashSet();
+
+            // پایه‌ی کد: طبقه‌بندی/سریالِ تازه اگر ChangeClassification باشد، وگرنه
+            // همانِ فعلی - در هر دو حالت یک‌بار برای کلِ زنجیره حل می‌شود.
+            var codingBase = request.ChangeClassification
+                ? await _documentNumberGenerator.ResolveEditedCodingBaseAsync(
+                    document.Category, document.ProjectId,
+                    request.OrganizationalManagementId, request.OrganizationalActivityId, request.DocumentTypeId,
+                    request.SerialNumber)
+                : await _documentNumberGenerator.ResolveEditedCodingBaseAsync(
+                    document.Category, document.ProjectId,
+                    document.OrganizationalManagementId, document.OrganizationalActivityId, document.DocumentTypeId,
+                    document.SerialNumber);
+
+            // شماره‌ی تازه‌ی هر ردیفِ زنجیره را از پیش می‌سازیم تا یکتاییِ همه با هم -
+            // پیش از نوشتنِ حتی یکی - بررسی شود؛ عملیات همه‌یا-هیچ است.
+            var newNumbers = new Dictionary<Guid, string>();
+            foreach (var row in chain)
+            {
+                var lastVersion = row.Key == document.Key && request.ChangeRevision ? request.NewMajorVersion : row.LastVersion;
+                var contentRevision = row.Key == document.Key && request.ChangeRevision ? request.NewContentRevision : row.ContentRevision;
+
+                newNumbers[row.Key] = _documentNumberGenerator.BuildEditedCodingNumber(
+                    codingBase, lastVersion, contentRevision, row.IsEnglishVersion);
+            }
+
+            foreach (var newNumber in newNumbers.Values)
+            {
+                var takenByAnotherDocument = await _documentRepository.GetAllAsQueryable()
+                    .AnyAsync(d => d.Number == newNumber && !chainKeys.Contains(d.Key));
+                if (takenByAnotherDocument)
+                    throw new DuplicateDocumentNumberException();
+            }
+
+            foreach (var row in chain)
+            {
+                if (request.ChangeClassification)
+                {
+                    row.OrganizationalManagementId = request.OrganizationalManagementId;
+                    row.OrganizationalActivityId = request.OrganizationalActivityId;
+                    row.DocumentTypeId = request.DocumentTypeId;
+                    row.SerialNumber = codingBase.SerialNumber;
+                }
+
+                if (row.Key == document.Key && request.ChangeRevision)
+                {
+                    row.LastVersion = request.NewMajorVersion;
+                    row.ContentRevision = request.NewContentRevision;
+                }
+
+                row.Number = newNumbers[row.Key];
+                // شماره‌ی تازه از همان طرحِ استانداردِ کدگذاری ساخته شده، پس دیگر «خارج
+                // از کدینگ» نیست - این یعنی این مسیر راهِ رسمیِ درستِ اسنادِ قدیمی هم است.
+                row.IsOutsideCodingStructure = false;
+
+                await _documentRepository.UpdateAsync(row);
+            }
+        }
         //Delete
         public async Task DeleteAsync(Guid documentId)
         {

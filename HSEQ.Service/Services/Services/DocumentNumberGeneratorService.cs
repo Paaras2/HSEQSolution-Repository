@@ -219,5 +219,70 @@ namespace HSEQ.Service.Services.Services
                 nextRevision.Major,
                 nextRevision.ContentRevision);
         }
+
+        // همان چهار اعتبارسنجیِ GenerateAsync/GenerateHeadquartersAsync، به‌جای سریالِ
+        // همیشه‌خودکار: serialNumber داده‌شده عیناً پذیرفته می‌شود (بدون تماس با
+        // شمارنده)، وگرنه سریالِ بعدیِ همان کد تخصیص می‌یابد.
+        public async Task<EditedCodingBase> ResolveEditedCodingBaseAsync(
+            DocumentCategory category,
+            Guid? projectId,
+            Guid organizationalManagementId,
+            Guid organizationalActivityId,
+            Guid documentTypeId,
+            int? serialNumber)
+        {
+            if (serialNumber is int manual && (manual < 1 || manual > 999))
+                throw new InvalidDocumentCodeException($"Serial number must be between 001 and 999, got '{manual}'.");
+
+            var management = await _numberingRepository.GetActiveManagementAsync(organizationalManagementId)
+                ?? throw new OrganizationalManagementNotFoundException();
+
+            var activity = await _numberingRepository.GetActiveActivityAsync(organizationalActivityId, organizationalManagementId)
+                ?? throw new OrganizationalActivityNotFoundException();
+
+            var documentType = await _numberingRepository.GetActiveDocumentTypeAsync(documentTypeId)
+                ?? throw new DocumentTypeNotFoundException();
+
+            if (category == DocumentCategory.Headquarters)
+            {
+                var code5 = $"{management.Code}{activity.Code}{documentType.Code}".ToUpperInvariant();
+                var serial = serialNumber ?? await _numberingRepository.AllocateNextHeadquartersSerialAsync(code5);
+
+                return new EditedCodingBase(
+                    category, null, projectCode: "", isProjectRelated: false,
+                    management.Code, activity.Code, documentType.Code, serial);
+            }
+
+            if (projectId is null)
+                throw new ProjectRequiredForProjectCategoryException();
+
+            var project = await _numberingRepository.GetActiveProjectAsync(projectId.Value)
+                ?? throw new ProjectNotFoundException();
+
+            var projectSerial = serialNumber ?? await _numberingRepository.AllocateNextSerialNumberAsync();
+
+            return new EditedCodingBase(
+                category, projectId, project.Code, project.IsProjectRelated,
+                management.Code, activity.Code, documentType.Code, projectSerial);
+        }
+
+        public string BuildEditedCodingNumber(
+            EditedCodingBase codingBase,
+            DocumentVersion lastVersion,
+            int? contentRevision,
+            bool isEnglishVersion)
+        {
+            var revision = RevisionCode.Create(lastVersion, contentRevision, codingBase.IsProjectRelated);
+
+            var code = codingBase.Category == DocumentCategory.Headquarters
+                ? HeadquartersDocumentCode.Create(
+                    codingBase.ManagementCode, codingBase.ActivityCode, codingBase.DocumentTypeCode,
+                    codingBase.SerialNumber, revision).Value
+                : DocumentCode.Create(
+                    codingBase.ProjectCode, codingBase.ManagementCode, codingBase.ActivityCode, codingBase.DocumentTypeCode,
+                    codingBase.SerialNumber, revision).Value;
+
+            return ApplyEnglishSuffix(code, isEnglishVersion);
+        }
     }
 }

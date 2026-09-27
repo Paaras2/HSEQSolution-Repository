@@ -18,14 +18,17 @@ import { reviewDateOrderError } from '../lib/reviewDates'
 //
 // یک فرم، یک عملیات: پیش‌تر «ویرایش» و «بازنگری» دو دکمه و دو دیالوگ جدا بودند، در
 // حالی که از دید کاربر هر دو یک کارند - اصلاح یک سند. حالا هر دو از همین دیالوگ
-// انجام می‌شوند: اگر فایل تازه بارگذاری شود، بازنگری واقعی رخ می‌دهد (سند جدید با
-// شماره‌ی بعدی)، وگرنه فقط اطلاعات همین سند به‌روزرسانی می‌شود. تصمیم از خودِ فرم
-// می‌آید (وجود فایل)، نه از یک پرچمِ بیرونی - چون همان چیزی است که واقعاً فرق را
-// می‌سازد: شماره‌ی نسخه فقط باید وقتی جلو برود که محتوا واقعاً عوض شده.
+// انجام می‌شوند: اگر فایل تازه بارگذاری شود، محتوا عوض می‌شود، وگرنه فقط اطلاعات
+// همین سند به‌روزرسانی می‌شود. تصمیم از خودِ فرم می‌آید (وجود فایل)، نه از یک
+// پرچمِ بیرونی.
 //
-// شماره‌ی بازنگریِ سند دقیقاً همین را کنترل می‌کند، پس اجازه‌ی جایگزینیِ فایل بدون
-// جلو رفتنِ آن شماره کلِ این سازوکار را بی‌اثر می‌کرد - برای همین فایل هنوز هم مسیر
-// جداگانه‌ی خودش (ReviseAsync) را دارد، فقط دیگر پشتِ دکمه‌ی جدا نیست.
+// وقتی فایل تازه‌ای پیوست می‌شود، خودِ مدیر اسناد انتخاب می‌کند که چطور ثبت شود
+// (keepSameRevision):
+//   - بازنگریِ رسمی (پیش‌فرض): سند جدید با حرفِ بعدی ساخته می‌شود (ReviseAsync) و
+//     نسخه‌ی فعلی در تاریخچه منسوخ می‌ماند. برای تغییرِ محتواییِ واقعی.
+//   - فقط جایگزینیِ فایل: هیچ سند/شماره‌ی تازه‌ای ساخته نمی‌شود، فقط فایلِ همین سند
+//     عوض می‌شود (ReplaceFileAsync) و حرفِ بازنگری (مثلاً A) دست‌نخورده می‌ماند. برای
+//     اصلاحاتی که به بازنگریِ رسمی نیاز ندارند، مثل رفعِ یک خطای تایپی.
 interface DocumentFormDrawerProps {
   document: DocumentDto
   onClose: () => void
@@ -54,12 +57,18 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
   const [isActive, setIsActive] = useState(document.isActive ?? true)
   const [file, setFile] = useState<File | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
+  // پیش‌فرض بازنگریِ رسمی (حرف جلو می‌رود) است، چون رفتار پیشین همین بود و نگه‌داشتنِ
+  // حرف باید انتخابِ آگاهانه‌ی مدیر اسناد باشد، نه پیش‌فرض.
+  const [keepSameRevision, setKeepSameRevision] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // فایل یعنی این ثبت واقعاً یک بازنگری است، نه فقط اصلاح اطلاعات. کپی، بنر و دکمه‌ی
-  // ثبت همه از همین یک مقدار مشتق می‌شوند تا حرفشان با هم یکی بماند.
-  const willRevise = canRevise && file !== null
+  // فایل یعنی محتوای سند عوض می‌شود - یا با بازنگریِ رسمی (حرفِ بعدی) یا با جایگزینیِ
+  // همان فایل بدون تغییرِ حرف؛ کدام‌یک از روی keepSameRevision مشخص می‌شود. کپی، بنر و
+  // دکمه‌ی ثبت همه از همین دو مقدار مشتق می‌شوند تا حرفشان با هم یکی بماند.
+  const hasFile = canRevise && file !== null
+  const willReplaceFile = hasFile && keepSameRevision
+  const willRevise = hasFile && !keepSameRevision
 
   // لحظه‌ای که کاربر برای اولین‌بار فایل پیوست می‌کند، تاریخ‌ها به قاعده‌ی بازنگری
   // می‌روند: «بازبینی جاری» قبلی می‌شود «بازبینی قبلی»ِ نسخه‌ی تازه، و «جاری» خالی
@@ -158,7 +167,15 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
     setIsSubmitting(true)
     setError(null)
     try {
-      if (willRevise) {
+      if (willReplaceFile) {
+        await documentApi.replaceFile({
+          key: document.key,
+          name: name.trim(),
+          formerReviewDate: formerReviewDate || null,
+          currentReviewDate: currentReviewDate || null,
+          file: file as File,
+        })
+      } else if (willRevise) {
         await documentApi.revise({
           key: document.key,
           name: name.trim(),
@@ -183,13 +200,15 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
     }
   }
 
-  const subtitle = willRevise
-    ? 'یک سند جدید با شماره بازنگری بعدی ساخته می‌شود؛ نسخه فعلی در تاریخچه می‌ماند.'
-    : canRevise
-      ? 'شماره، پروژه و طبقه‌بندی سازمانی پس از ایجاد سند قابل تغییر نیستند. برای ثبت محتوای تازه، در بخش «فایل» پایین یک فایل بارگذاری کنید.'
-      : document.isSuperseded
-        ? 'این نسخه پیش‌تر بازنگری شده و محتوایش دیگر قابل تغییر نیست؛ فقط اطلاعاتش را می‌توانید اصلاح کنید.'
-        : 'این سند آرشیو شده است. محتوایش تا فعال‌سازی دوباره (پایین فرم) قابل بازنگری نیست.'
+  const subtitle = willReplaceFile
+    ? 'فقط فایل جایگزین می‌شود؛ شماره سند و حرف بازنگری همان می‌ماند و نسخه‌ی تازه‌ای در تاریخچه ثبت نمی‌شود.'
+    : willRevise
+      ? 'یک سند جدید با شماره بازنگری بعدی ساخته می‌شود؛ نسخه فعلی در تاریخچه می‌ماند.'
+      : canRevise
+        ? 'شماره، پروژه و طبقه‌بندی سازمانی پس از ایجاد سند قابل تغییر نیستند. برای ثبت محتوای تازه، در بخش «فایل» پایین یک فایل بارگذاری کنید.'
+        : document.isSuperseded
+          ? 'این نسخه پیش‌تر بازنگری شده و محتوایش دیگر قابل تغییر نیست؛ فقط اطلاعاتش را می‌توانید اصلاح کنید.'
+          : 'این سند آرشیو شده است. محتوایش تا فعال‌سازی دوباره (پایین فرم) قابل بازنگری نیست.'
 
   return (
     <Modal
@@ -210,14 +229,24 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
             </div>
           )}
 
-          {willRevise && (
+          {hasFile && (
             <div className="form-note">
               بازنگری فعلی <strong>
                 {documentVersionLabel(document.lastVersion)}
                 {document.contentRevision ? toPersianDigits(String(document.contentRevision).padStart(2, '0')) : ''}
-              </strong> است. با ثبت این فرم یک سند جدید با شماره بازنگری بعدی ساخته می‌شود و
-              سند <strong>{toPersianDigits(document.number)}</strong> به‌عنوان نسخه‌ی منسوخ در تاریخچه باقی می‌ماند.
-              شماره‌ی جدید سمت سرور تولید می‌شود.
+              </strong> است.{' '}
+              {willReplaceFile ? (
+                <>
+                  با ثبت این فرم فقط فایلِ همین سند جایگزین می‌شود؛ شماره <strong>{toPersianDigits(document.number)}</strong>{' '}
+                  و حرفِ بازنگری تغییر نمی‌کنند و نسخه‌ی تازه‌ای در تاریخچه ثبت نمی‌شود.
+                </>
+              ) : (
+                <>
+                  با ثبت این فرم یک سند جدید با شماره بازنگری بعدی ساخته می‌شود و
+                  سند <strong>{toPersianDigits(document.number)}</strong> به‌عنوان نسخه‌ی منسوخ در تاریخچه باقی می‌ماند.
+                  شماره‌ی جدید سمت سرور تولید می‌شود.
+                </>
+              )}
             </div>
           )}
 
@@ -327,14 +356,45 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm file-drop__clear"
-                      onClick={() => setFile(null)}
+                      onClick={() => {
+                        setFile(null)
+                        setKeepSameRevision(false)
+                      }}
                       disabled={isSubmitting}
                     >
                       حذف فایل انتخاب‌شده
                     </button>
+
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={keepSameRevision}
+                        onChange={(e) => setKeepSameRevision(e.target.checked)}
+                        disabled={isSubmitting}
+                      />
+                      <span className="check-row__text">
+                        <strong>
+                          فقط فایل جایگزین شود؛ حرفِ بازنگری همان{' '}
+                          {documentVersionLabel(document.lastVersion)}
+                          {document.contentRevision
+                            ? toPersianDigits(String(document.contentRevision).padStart(2, '0'))
+                            : ''}{' '}
+                          بماند
+                        </strong>
+                        <span>
+                          برای اصلاحاتی که به بازنگریِ رسمی نیاز ندارند (مثل رفعِ خطای تایپی یا فرمت). شماره‌ی سند
+                          تغییر نمی‌کند و نسخه‌ی تازه‌ای در تاریخچه ثبت نمی‌شود.
+                        </span>
+                      </span>
+                    </label>
+
                     <p className="field-hint">
-                      فایل نسخه‌ی قبلی (<span className="mono">{document.fileName ?? 'ندارد'}</span>) دست‌نخورده باقی
-                      می‌ماند.
+                      {willReplaceFile
+                        ? 'فایل نسخه‌ی قبلی جایگزین می‌شود و دیگر در دسترس نخواهد بود.'
+                        : <>
+                            فایل نسخه‌ی قبلی (<span className="mono">{document.fileName ?? 'ندارد'}</span>) دست‌نخورده
+                            باقی می‌ماند.
+                          </>}
                     </p>
                   </>
                 )}
@@ -399,9 +459,10 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
             </section>
           )}
 
-          {/* وقتی فایل پیوست شده، این سند بعد از ثبت خودکار منسوخ می‌شود - تغییر
-              دستیِ وضعیتش همان لحظه دیگر معنا ندارد. */}
-          {!willRevise && (
+          {/* وقتی فایل پیوست شده - چه بازنگریِ رسمی چه جایگزینیِ فایل - این بخش معنا
+              ندارد: در بازنگری سند خودش خودکار منسوخ می‌شود، در جایگزینی هم وضعیت از این
+              فرم تغییر نمی‌کند. */}
+          {!hasFile && (
             <section className="form-section">
               <h3 className="form-section__title">وضعیت</h3>
               <label className={`check-row ${document.isSuperseded ? 'is-disabled' : ''}`}>
@@ -431,7 +492,17 @@ export function DocumentFormDrawer({ document, onClose, onSaved }: DocumentFormD
             انصراف
           </button>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? (willRevise ? 'در حال ثبت بازنگری…' : 'در حال ذخیره…') : willRevise ? 'ثبت بازنگری' : 'ذخیره تغییرات'}
+            {willReplaceFile
+              ? isSubmitting
+                ? 'در حال ثبت جایگزینی…'
+                : 'ثبت جایگزینیِ فایل'
+              : willRevise
+                ? isSubmitting
+                  ? 'در حال ثبت بازنگری…'
+                  : 'ثبت بازنگری'
+                : isSubmitting
+                  ? 'در حال ذخیره…'
+                  : 'ذخیره تغییرات'}
           </button>
         </div>
       </form>

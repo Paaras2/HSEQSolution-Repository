@@ -82,6 +82,16 @@ namespace HSEQ.Common
         }
     }
 
+    // ویرایشِ کدگذاری نه طبقه‌بندی/سریال و نه بازنگری را عوض کرده - درخواستی که هیچ
+    // اثری نداشت، پس بی‌سروصدا نادیده گرفته نمی‌شود.
+    public class NoCodingChangesRequestedException : CustomException
+    {
+        public NoCodingChangesRequestedException()
+            : base("چیزی برای تغییر انتخاب نشده است")
+        {
+        }
+    }
+
     // Thrown when a component (or combination of components) of a Document Number
     // fails structural validation - invalid length, invalid characters, invalid
     // serial/revision range, etc. See HSEQ.Domain.DocumentNumbering.

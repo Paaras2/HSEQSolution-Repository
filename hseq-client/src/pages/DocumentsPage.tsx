@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { documentApi } from '../api/documentApi'
 import { searchApi } from '../api/searchApi'
@@ -26,6 +26,7 @@ import {
   CloseIcon,
   DeactivateIcon,
   DownloadIcon,
+  EditIcon,
   EyeIcon,
   HistoryIcon,
   ReviseIcon,
@@ -90,6 +91,7 @@ export function DocumentsPage() {
 
   // نوار جستجوی بالای صفحه فیلترها را در آدرس می‌نویسد و این صفحه فقط آن‌ها را
   // می‌خواند - یعنی بازگشت مرورگر، تازه‌سازی و اشتراک لینکِ جستجو رایگان به دست می‌آید.
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = useMemo(() => readFilters(searchParams), [searchParams])
   const isSearching = hasAnyFilter(filters)
@@ -554,6 +556,7 @@ export function DocumentsPage() {
               onManage={openFormDrawer}
               onArchive={handleDelete}
               onRelations={(doc) => setRelationsDocument(doc)}
+              onEditCoding={(doc) => navigate(`/documents/${doc.key}/coding`)}
               canManage={canManage}
               pendingFileId={pendingFileId}
               pendingDeleteId={pendingDeleteId}
@@ -724,6 +727,15 @@ export function DocumentsPage() {
                               icon={<ReviseIcon />}
                               tone="revise"
                               onClick={() => openFormDrawer(doc)}
+                            />
+                            {/* عملیاتی استثنایی و جدا از «بازنگری»: شماره‌ی سند را مستقیم
+                                عوض می‌کند، نه محتوایش را. صفحه‌ی جداگانه دارد چون طبقه‌بندیِ
+                                سازنده‌ی شماره را جمع می‌کند - مثل ساختنِ سند. */}
+                            <IconButton
+                              label="ویرایش کدگذاری"
+                              icon={<EditIcon />}
+                              tone="edit"
+                              onClick={() => navigate(`/documents/${doc.key}/coding`)}
                             />
                             {doc.isActive && (
                               <IconButton

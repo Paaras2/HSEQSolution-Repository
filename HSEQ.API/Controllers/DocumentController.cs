@@ -120,6 +120,32 @@ namespace HSEQ.API.Controllers
             return Ok();
         }
 
+        // جایگزینیِ فایلِ همین سند، بدون بازنگری: مثل Revise سندِ زنده و آخرین نسخه‌ی
+        // زنجیره لازم دارد، اما به‌جای ساختن سطرِ تازه فقط فایلِ همین سند را عوض می‌کند -
+        // شماره و حرفِ بازنگری (مثلاً همان A) دست‌نخورده می‌مانند.
+        [Authorize(Roles = ManageDocumentRoles)]
+        [HttpPost]
+        [Route("ReplaceFile")]
+        public async Task<IActionResult> ReplaceFile([FromForm] ReplaceDocumentFileRequestModel request)
+        {
+            await _documentService.ReplaceFileAsync(request);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
+        }
+
+        // ویرایشِ کدگذاری/شماره‌گذاری: عملیاتِ استثنایی برای اصلاحِ یک کدگذاریِ اشتباه
+        // (مدیریت/فعالیت/نوع‌سند/سریال و/یا حرفِ بازنگری)، نه بخشی از گردشِ کارِ عادیِ
+        // سند - Number را روی یک سندِ موجود (و احتمالاً کلِ زنجیره‌اش) عوض می‌کند.
+        [Authorize(Roles = ManageDocumentRoles)]
+        [HttpPost]
+        [Route("EditCoding")]
+        public async Task<IActionResult> EditCoding([FromForm] EditDocumentCodingRequestModel request)
+        {
+            await _documentService.EditCodingAsync(request);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
+        }
+
         [Authorize(Roles = ManageDocumentRoles)]
         [HttpPost]
         [Route("Delete")]

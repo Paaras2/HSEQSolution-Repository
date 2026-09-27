@@ -221,6 +221,34 @@ export interface ReviseDocumentInput {
   file: File
 }
 
+// جایگزینیِ فایلِ همین سند بدون بازنگری - هیچ سند تازه‌ای ساخته نمی‌شود و شماره/حرفِ
+// بازنگری همان می‌ماند. برای اصلاحاتی که به بازنگریِ رسمی نیاز ندارند.
+export interface ReplaceDocumentFileInput {
+  key: string
+  name: string
+  formerReviewDate: string | null
+  currentReviewDate: string | null
+  file: File
+}
+
+// ویرایشِ کدگذاریِ یک سندِ موجود - عملیاتِ استثنایی برای اصلاحِ یک کدگذاریِ اشتباه.
+// classification پر است یعنی مدیریت/فعالیت/نوع‌سند/سریال روی کلِ زنجیره‌ی این سند
+// اعمال می‌شود؛ revision پر است یعنی حرفِ بازنگری/شماره‌ی فرعی فقط روی همینِ سند.
+export interface EditDocumentCodingInput {
+  key: string
+  classification: {
+    organizationalManagementId: string
+    organizationalActivityId: string
+    documentTypeId: string
+    // خالی/نال یعنی سریالِ بعدیِ کدِ تازه به‌صورت خودکار تخصیص یابد.
+    serialNumber: number | null
+  } | null
+  revision: {
+    lastVersion: number
+    contentRevision: number | null
+  } | null
+}
+
 // جستجوی پیشرفته - همه‌ی فیلترها اختیاری‌اند (نال یعنی نادیده گرفته شود).
 // آینه‌ی HSEQ.API.Model.RequestModels.SearchDocumentsRequestModel.
 export interface SearchDocumentsInput {

@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DocumentsPage } from './pages/DocumentsPage'
 import { DocumentCreatePage } from './pages/DocumentCreatePage'
 import { DocumentReservePage } from './pages/DocumentReservePage'
+import { DocumentCodingPage } from './pages/DocumentCodingPage'
 import { AdminPanelPage } from './pages/AdminPanelPage'
 
 // Route tree is intentionally flat now but grouped so an admin branch can be
@@ -38,6 +39,9 @@ function App() {
               <Route element={<ProtectedRoute requireCapability="admin:access" />}>
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="admin" element={<AdminPanelPage />} />
+                {/* اصلاحِ کدگذاریِ اشتباه - عملیاتی استثنایی، پس همان دروازه‌ی
+                    admin:access پنل ادمین را دارد، نه فقط documents:manage. */}
+                <Route path="documents/:documentId/coding" element={<DocumentCodingPage />} />
               </Route>
             </Route>
           </Route>
