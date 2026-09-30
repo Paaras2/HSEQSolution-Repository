@@ -329,6 +329,16 @@ namespace HSEQ.Service.Services.Services
                     codingBase, lastVersion, contentRevision, row.IsEnglishVersion);
             }
 
+            // خودِ زنجیره هم می‌تواند با خودش تداخل کند: اگر حرفِ بازنگری به عقب برگردد
+            // (مثلاً H به F)، شماره‌ی تازه‌ی این ردیف می‌تواند دقیقاً همان شماره‌ی یک عضوِ
+            // دیگرِ زنجیره باشد که هنوز هم آن حرف را دارد - این را بررسیِ «بیرونِ زنجیره»ی
+            // پایین تشخیص نمی‌دهد، چون هر دو داخلِ chainKeys‌اند.
+            var duplicateWithinChain = newNumbers
+                .GroupBy(kv => kv.Value)
+                .FirstOrDefault(g => g.Count() > 1);
+            if (duplicateWithinChain != null)
+                throw new DuplicateDocumentNumberException();
+
             foreach (var newNumber in newNumbers.Values)
             {
                 var takenByAnotherDocument = await _documentRepository.GetAllAsQueryable()
