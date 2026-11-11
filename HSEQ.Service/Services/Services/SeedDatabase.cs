@@ -223,8 +223,9 @@ namespace HSEQ.Service.Services.Services
             await SeedLegacyDocumentNumbersAndCountersAsync();
         }
 
-        // Upsert by Code (title-only correction is safe to re-run; nothing here ever
-        // deletes a row, since Documents may already reference one by Id).
+        // Insert-only: rows that already exist (matched by Code) are never modified, so
+        // edits made by users through the UI survive every restart / app-pool recycle.
+        // Nothing here ever deletes a row, since Documents may reference one by Id.
         private async Task SeedOrganizationalManagementsAndActivities()
         {
             var existingManagements = await _context.Set<OrganizationalManagement>()
@@ -246,11 +247,6 @@ namespace HSEQ.Service.Services.Services
                     };
                     _context.Set<OrganizationalManagement>().Add(management);
                 }
-                else if (management.Title != managementSeed.Title)
-                {
-                    management.Title = managementSeed.Title;
-                    management.ModifiedDate = DateTime.UtcNow;
-                }
 
                 foreach (var activitySeed in managementSeed.Activities)
                 {
@@ -265,11 +261,6 @@ namespace HSEQ.Service.Services.Services
                             IsActive = true,
                             CreatedTime = DateTime.UtcNow,
                         });
-                    }
-                    else if (activity.Title != activitySeed.Title)
-                    {
-                        activity.Title = activitySeed.Title;
-                        activity.ModifiedDate = DateTime.UtcNow;
                     }
                 }
             }
@@ -294,11 +285,6 @@ namespace HSEQ.Service.Services.Services
                         IsActive = true,
                         CreatedTime = DateTime.UtcNow,
                     });
-                }
-                else if (documentType.Title != typeSeed.Title)
-                {
-                    documentType.Title = typeSeed.Title;
-                    documentType.ModifiedDate = DateTime.UtcNow;
                 }
             }
 
